@@ -1,0 +1,103 @@
+/* Isolated native-dialog viewer. No global button, card or graph overrides. */
+.orion-redesign-animation {
+  --ora-teal: #087e83;
+  --ora-violet: #7152b9;
+  --ora-amber: #996414;
+  box-sizing: border-box;
+  width: min(1480px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: clamp(16px, 3vw, 36px);
+  border: 0;
+  border-radius: 26px;
+  outline: none;
+  color: var(--ink, #223344);
+  background: radial-gradient(ellipse at 12% 20%, #14b8a615, transparent 52%), radial-gradient(ellipse at 90% 65%, #8b5cf619, transparent 58%), var(--surface, #fbfcfe);
+  box-shadow: 0 32px 100px #10183040;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color-scheme: light dark;
+}
+.orion-redesign-animation::backdrop { background: #10152b96; -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); }
+.orion-redesign-animation .ora-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.orion-redesign-animation .ora-header h2 { margin: 0; font-size: clamp(20px, 2vw, 28px); overflow-wrap: anywhere; }
+.orion-redesign-animation .ora-caution { color: var(--ora-amber); font-size: 13px; line-height: 1.65; }
+.orion-redesign-animation .ora-note { margin: 9px 0; color: var(--muted, #526278); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.orion-redesign-animation .ora-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.orion-redesign-animation .ora-control {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 9px 17px;
+  border: 0;
+  border-radius: 30px;
+  outline: none;
+  background: color-mix(in srgb, var(--ora-teal) 10%, var(--surface, #fff));
+  color: var(--ink, #223344);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: none;
+}
+.orion-redesign-animation .ora-control:hover:not(:disabled) { background: color-mix(in srgb, var(--ora-violet) 17%, var(--surface, #fff)); }
+.orion-redesign-animation .ora-control:disabled { opacity: .7; cursor: default; }
+.orion-redesign-animation :is(button, summary, .ora-viewport):focus-visible { outline: 3px solid var(--ora-teal); outline-offset: 4px; }
+.orion-redesign-animation .ora-stage { color: var(--ora-violet); font-size: 13px; min-height: 1.6em; }
+.orion-redesign-animation .ora-viewport {
+  max-height: 58dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #14b8a608, #8b5cf60b 70%, #f59e0b08);
+  perspective: 1600px;
+}
+.orion-redesign-animation .ora-svg { display: block; width: 100%; min-width: 0; height: auto; overflow: visible; }
+.orion-redesign-animation .ora-svg text { fill: var(--ink, #223344); font: 13px/1.5 ui-monospace, Consolas, monospace; }
+.orion-redesign-animation .ora-svg .ora-column-title { fill: var(--muted, #526278); font-size: 12px; letter-spacing: 1px; }
+.orion-redesign-animation .ora-block-depth { fill: color-mix(in srgb, var(--ora-violet) 14%, var(--surface, #fff)); stroke: none; }
+.orion-redesign-animation .ora-block-fill { fill: color-mix(in srgb, var(--ora-teal) 11%, var(--surface, #fff)); stroke: none; }
+.orion-redesign-animation .ora-bridge .ora-block-fill { fill: color-mix(in srgb, var(--ora-amber) 11%, var(--surface, #fff)); }
+.orion-redesign-animation .ora-target .ora-block-fill { fill: color-mix(in srgb, var(--ora-violet) 12%, var(--surface, #fff)); }
+.orion-redesign-animation :is(.ora-source, .ora-bridge, .ora-target) { transition: opacity .8s ease; }
+.orion-redesign-animation .ora-dim { opacity: .5; }
+.orion-redesign-animation :is(.ora-coverage-links, .ora-proposed-edges) { fill: none; stroke-width: 1.8; transition: opacity .8s ease; }
+.orion-redesign-animation .ora-coverage-links { stroke: var(--ora-teal); stroke-dasharray: 6 6; }
+.orion-redesign-animation .ora-proposed-edges { stroke: var(--ora-violet); }
+.orion-redesign-animation .ora-traveler {
+  transform: translate(var(--ora-from-x), var(--ora-from-y));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .8s cubic-bezier(.4, 0, .2, 1), opacity .8s ease;
+  filter: drop-shadow(0 10px 6px #10183018);
+}
+.orion-redesign-animation .ora-moving-block .ora-block-fill { fill: color-mix(in srgb, var(--ora-teal) 20%, var(--surface, #fff)); }
+.orion-redesign-animation .ora-moving-block text { display: none; }
+.orion-redesign-animation .ora-moving-block rect { width: 80px; height: 12px; }
+.orion-redesign-animation[data-phase="0"] :is(.ora-bridge, .ora-target, .ora-coverage-links, .ora-proposed-edges) { opacity: .18; }
+.orion-redesign-animation[data-phase="1"] :is(.ora-target, .ora-proposed-edges) { opacity: .3; }
+.orion-redesign-animation[data-phase="1"] .ora-traveler { transform: translate(var(--ora-bridge-x), var(--ora-bridge-y)); opacity: .18; }
+.orion-redesign-animation[data-phase="2"] .ora-traveler { transform: translate(var(--ora-to-x), var(--ora-to-y)); opacity: .72; }
+.orion-redesign-animation[data-phase="2"] :is(.ora-source, .ora-bridge) { opacity: .35; }
+.orion-redesign-animation[data-phase="3"] :is(.ora-source, .ora-bridge, .ora-coverage-links) { opacity: .5; }
+.orion-redesign-animation[data-phase="3"] .ora-traveler { transform: translate(var(--ora-to-x), var(--ora-to-y)); opacity: 0; }
+.orion-redesign-animation .ora-source.ora-dim { opacity: .38; }
+.orion-redesign-animation .ora-inventory { margin-top: 20px; border: 0; color: var(--ink, #223344); font-size: 13px; }
+.orion-redesign-animation .ora-inventory summary { cursor: pointer; padding: 10px 0; }
+.orion-redesign-animation .ora-inventory li { margin-block: 10px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.orion-redesign-animation[data-suspended="true"] .ora-svg * { transition: none; }
+.orion-redesign-animation[data-reduced-motion="true"] .ora-svg * { transition: none; }
+.orion-redesign-animation[data-reduced-motion="true"] .ora-traveler { display: none; }
+.orion-redesign-animation[data-reduced-motion="true"] :is(.ora-source, .ora-bridge, .ora-target, .ora-coverage-links, .ora-proposed-edges) { opacity: 1; }
+.orion-redesign-animation[data-reduced-motion="true"] .ora-source.ora-dim { opacity: .5; }
+:root[data-theme="dark"] .orion-redesign-animation { --ora-teal: #61d9ce; --ora-violet: #bda5ff; --ora-amber: #f2c573; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .orion-redesign-animation { --ora-teal: #61d9ce; --ora-violet: #bda5ff; --ora-amber: #f2c573; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orion-redesign-animation .ora-svg * { transition: none !important; }
+  .orion-redesign-animation .ora-traveler { display: none; }
+}
+@media (max-width: 600px) {
+  .orion-redesign-animation { width: calc(100vw - 16px); max-width: calc(100vw - 16px); padding: 16px; border-radius: 18px; }
+  .orion-redesign-animation .ora-header { gap: 12px; }
+}

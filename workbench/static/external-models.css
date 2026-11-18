@@ -1,0 +1,28 @@
+/* Step 1 only. Native controls retain the workbench theme and focus styles. */
+#workspace-model-panel.workspace-model-selection { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#workspace-model-panel .workspace-model-copy { grid-column: 1 / -1; max-width: none; }
+#workspace-model-panel .model-provider-heading { margin: 0 0 10px; font-size: 15px; line-height: 1.4; }
+#workspace-provider-left, #external-models-mount { box-sizing: border-box; padding: 16px; border: 0; border-radius: 12px; background: var(--soft); min-width: 0; }
+#workspace-model-panel > :is(#workspace-provider-left, #external-models-mount) { align-self: stretch; }
+#model-provider-mode-mount { display: grid; gap: 8px; margin-bottom: 20px; }
+#model-provider-mode-mount label { font-size: 12px; font-weight: 600; }
+#workspace-model-panel select { background: #fff !important; color: #15203a; border: 0 !important; }
+:root[data-theme="dark"] #workspace-model-panel select { background: #344665 !important; color: #f4f6ff; }
+#external-models-mount { margin-top: 0; }
+#workspace-model-panel #workspace-model-status { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+	/* Keep only the two stacked card rows equal, not the intro or status. */
+	#workspace-model-panel.workspace-model-selection { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto repeat(2, 1fr) auto; }
+}
+#external-models-mount form { display: grid; gap: 9px; min-width: 0; }
+#external-models-mount label { font-size: 12px; font-weight: 600; }
+#external-models-mount input, #external-models-mount select { width: 100%; min-width: 0; box-sizing: border-box; }
+#external-models-mount input { background: #fff !important; color: #172033; border: 0 !important; }
+#external-models-mount .external-fields { display: grid; gap: 9px; border: 0; padding: 0; margin: 0; min-width: 0; max-height: none; overflow: visible; }
+#external-models-mount [hidden] { display: none; }
+#external-models-mount .external-fields:disabled input { color: #667085; cursor: not-allowed; }
+#external-models-mount button { justify-self: start; white-space: normal; }
+#external-models-mount .external-status { display: grid; padding: 10px 12px; border-radius: 9px; background: var(--surface); overflow-wrap: anywhere; }
+#external-models-mount .external-status > span { grid-area: 1 / 1; }
+#external-models-mount .external-status > [aria-hidden="true"] { visibility: hidden; }
+#workspace-model-panel[data-provider-blocked="true"] #workspace-model-controls { opacity: .6; }

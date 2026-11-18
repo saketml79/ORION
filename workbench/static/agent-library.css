@@ -1,0 +1,47 @@
+#agent-tools svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#agent-library-dialog { width: min(1120px, calc(100% - 24px)); max-height: min(92dvh, 980px); padding: clamp(16px, 3vw, 28px); }
+#agent-library-dialog .panel-heading { align-items: flex-start; gap: 16px; }
+#agent-library-dialog .panel-heading h2 { margin: 4px 0; }
+.agent-library-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-block: 20px 10px; }
+.agent-library-tabs [role="tab"][aria-selected="true"] { color: var(--indigo); font-weight: 750; background: var(--indigo-soft); }
+#agent-library-refresh { margin-inline-start: auto; }
+.agent-library-status { min-height: 1.5em; margin-block: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.agent-library-panel[hidden] { display: none; }
+.agent-library-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-block: 16px 8px; }
+.agent-library-controls label { margin: 0; font-weight: 650; }
+.agent-library-controls select { min-width: min(100%, 260px); max-width: 100%; }
+.agent-library-note { margin-block: 8px 16px; color: var(--muted); line-height: 1.65; }
+.agent-library-map { max-height: min(52dvh, 560px); min-height: 240px; overflow: auto; overscroll-behavior: contain; background: var(--bg); border-radius: 12px; }
+.agent-library-map:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.agent-library-map svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.agent-library-edge { fill: none; stroke: var(--line); stroke-width: 1.15; opacity: .8; }
+.agent-library-edge.is-knowledge { stroke: var(--teal); stroke-width: 1.7; opacity: .75; }
+.agent-library-role rect { fill: var(--indigo-soft); stroke: var(--indigo); stroke-width: 1.5; }
+.agent-library-role text { fill: var(--ink); font: 600 12px var(--body); text-anchor: middle; }
+.agent-library-node { cursor: pointer; }
+.agent-library-node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.25; }
+.agent-library-node:hover rect, .agent-library-node:focus rect, .agent-library-node[aria-pressed="true"] rect { stroke: var(--indigo); stroke-width: 2.5; }
+.agent-library-node text { fill: var(--ink); font: 500 11px var(--body); pointer-events: none; }
+.agent-library-node .agent-library-node-kind { fill: var(--muted); font-size: 9px; }
+.agent-library-detail { min-width: 0; margin-block: 16px; padding: 14px 0; background: transparent; }
+.agent-library-detail h3 { margin: 0 0 8px; overflow-wrap: anywhere; }
+.agent-library-detail p { max-width: 90ch; margin-block: 8px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.agent-library-facts { display: grid; grid-template-columns: minmax(130px, .35fr) minmax(0, 1fr); gap: 7px 18px; margin: 12px 0 0; }
+.agent-library-facts dt { color: var(--muted); }
+.agent-library-facts dd { min-width: 0; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.agent-library-facts code { font: 11px/1.6 var(--mono); overflow-wrap: anywhere; }
+.agent-library-state { display: inline-block; margin: 2px 6px 2px 0; padding: 3px 8px; border-radius: 999px; background: var(--soft); color: var(--ink); font-size: 11px; font-weight: 650; }
+.agent-library-state.is-expired { background: var(--rose-soft); color: var(--rose); }
+.agent-library-state.is-fresh { background: var(--teal-soft); color: var(--teal); }
+.agent-library-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+.agent-library-pagination span { flex: 1 1 260px; }
+#agent-library-dialog :is(button, select, a):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 640px) {
+  #agent-library-dialog { width: calc(100% - 12px); max-height: 96dvh; padding: 16px 12px; }
+  #agent-library-dialog .panel-heading { align-items: center; }
+  #agent-library-refresh { margin-inline-start: 0; }
+  .agent-library-map { max-height: 46dvh; }
+  .agent-library-facts { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .agent-library-facts dd { margin-bottom: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .agent-library-map *, .agent-library-tabs * { scroll-behavior: auto !important; } }

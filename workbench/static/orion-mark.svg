@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>ORION constellation mark</title>
+  <desc>An open orbital ring surrounds three aligned stars connected to branching paths, representing evidence-led modernization.</desc>
+  <defs>
+    <style>
+      .orion-star { transform-box: fill-box; transform-origin: center; }
+      @media (prefers-reduced-motion: no-preference) {
+        .orion-star { animation: orion-twinkle 16s ease-in-out 10s infinite; }
+        .orion-star-secondary { animation-delay: 11.2s; }
+        .orion-star-belt { animation-delay: 12.4s; }
+      }
+      @keyframes orion-twinkle {
+        0%, 30%, 100% { opacity: 1; transform: scale(1); }
+        10% { opacity: .48; transform: scale(.88); }
+        20% { opacity: 1; transform: scale(1.16); }
+      }
+      @media (prefers-reduced-motion: reduce) { .orion-star { animation: none; } }
+    </style>
+    <linearGradient id="orbit" x1="10" y1="8" x2="54" y2="57" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A5A9FF"/>
+      <stop offset=".52" stop-color="#6F73F1"/>
+      <stop offset="1" stop-color="#3DD9C4"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="17" fill="#151D33"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="16.5" stroke="#9AA1FF" stroke-opacity=".28"/>
+  <path d="M46.5 12.8A24 24 0 1 0 54 37" stroke="url(#orbit)" stroke-width="2.3" stroke-linecap="round"/>
+  <path d="m18 18 7 19 14-10 8 19M25 37l-7 12M39 27l9-10" stroke="#A5A9FF" stroke-opacity=".7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m25 37 7-5 7-5" stroke="#63DFCE" stroke-width="2" stroke-linecap="round"/>
+  <circle class="orion-star orion-star-secondary" cx="25" cy="37" r="3" fill="#F4F6FB"/>
+  <circle class="orion-star orion-star-belt" cx="32" cy="32" r="3" fill="#63DFCE"/>
+  <circle cx="39" cy="27" r="3" fill="#F4F6FB"/>
+  <circle cx="18" cy="18" r="2" fill="#A5A9FF"/>
+  <circle cx="18" cy="49" r="2" fill="#A5A9FF"/>
+  <circle cx="47" cy="46" r="2" fill="#63DFCE"/>
+  <path class="orion-star" d="m48 11 1.4 4.6L54 17l-4.6 1.4L48 23l-1.4-4.6L42 17l4.6-1.4L48 11Z" fill="#F4F6FB"/>
+</svg>

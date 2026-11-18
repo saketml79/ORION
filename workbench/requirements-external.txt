@@ -1,0 +1,10 @@
+# Explicit provider bundle for environments enabling API-key mode.
+# Main hosted requirements also include these pins for deployment parity.
+# Installed 1.7.6 metadata: core>=1.6.10,<2; anthropic>=0.120,<2;
+# pydantic>=2.7.4,<3. Compatible with requirements.txt's existing pins.
+-r requirements.txt
+langchain-anthropic==1.7.6
+# Match the inspected SDK transport contract; neither SDK is changed in default mode.
+anthropic==1.17.0
+openai==3.40.0
+httpx2==2.16.0

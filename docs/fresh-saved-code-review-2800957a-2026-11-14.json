@@ -1,0 +1,485 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-11-15T01:30:57.979813+00:00",
+  "job_id": "2800957a4c804cfaa0831b81d05d905a",
+  "agent_run_id": "f408aca54d80484696553193432fe76f",
+  "writer_run_id": "0bd3462a6fa344ecb1929d7e9058e419",
+  "review_origin": "independent_fresh_review_of_exact_saved_writer_scope",
+  "original_manifest_sha256": "21722f39f0e6d83540fa47b40a365f05a8040684978476acda2ff01eb2b6454c",
+  "design_id": "3a654380c729d744a475e0ced3a49db3031161bfdac1d24f4498d34f7b4c6fc3",
+  "design_version": 13,
+  "design_sha256": "f91339505ec37cd495676cc52c842075054abcfb479d83c741afeb5cd7a41166",
+  "package_hash": "08987e6e377ff2c055d2e480a18e19ea280ec0ea4c83f0ee848e68669318c6ba",
+  "input_version": "d2c7304c9f68b91a752f9cfb4626c4316b27f856566d2d5e9f632dcdff50731f",
+  "original_read_set_sha256": "61faf2c570acb9ed2f71bf2051db02ab57b8f4af7f78a7ec5a7973e7b0a49ccd",
+  "source_counts": {
+    "wait_5min": {
+      "rows": 33,
+      "fetched_rows": 33,
+      "sql_phases": 0,
+      "fetched_sql_phases": 0,
+      "source_complete": true
+    },
+    "counter_load": {
+      "rows": 206,
+      "fetched_rows": 206,
+      "sql_phases": 6,
+      "fetched_sql_phases": 6,
+      "source_complete": true
+    },
+    "branch_lt35": {
+      "rows": 206,
+      "fetched_rows": 12,
+      "sql_phases": 6,
+      "fetched_sql_phases": 0,
+      "source_complete": false
+    },
+    "launch_child_async": {
+      "rows": 30,
+      "fetched_rows": 30,
+      "sql_phases": 0,
+      "fetched_sql_phases": 0,
+      "source_complete": true
+    },
+    "notify_dependency": {
+      "rows": 30,
+      "fetched_rows": 30,
+      "sql_phases": 0,
+      "fetched_sql_phases": 0,
+      "source_complete": true
+    }
+  },
+  "uc_scope_sha256": "5afe842487513154d11743557287f5e016042182f08cdae443ca36f4f050cca2",
+  "artifact_hashes": {
+    "modules/counter_gate.py": "43f4b4503ddf37f588e7cc30554c55698023084340b7f80c8dc444ed4e1df928",
+    "notebooks/counter_load.ipynb": "eb3f64d06b6b2e66c4679737d63f4e762d40c684a73f87212a37b8db46009281",
+    "notebooks/launch_child_async.ipynb": "4b04609ed5cd70eb51fe8d41666e3b9654d3c9c06bcb1dcae6cfdcd5c41b5343",
+    "notebooks/notify_dependency.ipynb": "3bfab51a1d00e1c9e03ce7e5744606d4c7865a7b3a30068422052053b3538c5f",
+    "notebooks/wait_5min.ipynb": "f71e61625a1baef6e5f0695a642c56999efa4fdad47cd892d5f081f2f94efe39",
+    "tests/test_counter_gate.py": "5b653d166aae25766a4bec367376acc316af395bcf65a6dabdcf310b4f1f8e9f"
+  },
+  "model_endpoint": "databricks-claude-opus-5-5",
+  "provider_request_timeout_seconds": 180,
+  "max_retries": 0,
+  "max_characters": 160000,
+  "live_calls": [
+    {
+      "ordinal": 1,
+      "task_id": "branch_lt35",
+      "characters": 41094,
+      "scope_sha256": "323f407762c0c94d6114519dd9e27a62faee9e745f930ce628cc7b383fef8196",
+      "started_at": "2026-11-15T01:30:57.987707+00:00",
+      "provider_status": "returned",
+      "usage": {
+        "input_tokens": 22076,
+        "output_tokens": 959,
+        "total_tokens": 23035,
+        "input_token_details": {},
+        "output_token_details": {}
+      },
+      "finished_at": "2026-11-15T01:31:09.053159+00:00",
+      "seconds": 11.064
+    },
+    {
+      "ordinal": 2,
+      "task_id": "counter_load",
+      "characters": 156155,
+      "scope_sha256": "e3fdb2bd10c5ccd3720f757fd1e15341b3f3e0faaa080f703081c209e0ba52dc",
+      "started_at": "2026-11-15T01:31:09.079771+00:00",
+      "provider_status": "returned",
+      "usage": {
+        "input_tokens": 91685,
+        "output_tokens": 1295,
+        "total_tokens": 92980,
+        "input_token_details": {},
+        "output_token_details": {}
+      },
+      "finished_at": "2026-11-15T01:31:24.409662+00:00",
+      "seconds": 15.329
+    },
+    {
+      "ordinal": 3,
+      "task_id": "launch_child_async",
+      "characters": 32774,
+      "scope_sha256": "63bb3336f3990b18afd8a651d8a9b7214262fa7140709f62d9d280197b2980f0",
+      "started_at": "2026-11-15T01:31:24.417199+00:00",
+      "provider_status": "returned",
+      "usage": {
+        "input_tokens": 17779,
+        "output_tokens": 855,
+        "total_tokens": 18634,
+        "input_token_details": {},
+        "output_token_details": {}
+      },
+      "finished_at": "2026-11-15T01:31:33.785748+00:00",
+      "seconds": 9.368
+    },
+    {
+      "ordinal": 4,
+      "task_id": "notify_dependency",
+      "characters": 32056,
+      "scope_sha256": "95bfef525746707e3e49449fb4b040f56fb8a3a7724b096d547d5bf52cd2f6d5",
+      "started_at": "2026-11-15T01:31:33.795079+00:00",
+      "provider_status": "returned",
+      "usage": {
+        "input_tokens": 17015,
+        "output_tokens": 352,
+        "total_tokens": 17367,
+        "input_token_details": {},
+        "output_token_details": {}
+      },
+      "finished_at": "2026-11-15T01:31:38.676138+00:00",
+      "seconds": 4.88
+    },
+    {
+      "ordinal": 5,
+      "task_id": "wait_5min",
+      "characters": 31879,
+      "scope_sha256": "c3536f82ecf1ac42ffae5db3fb1ed43bb5fc89dde856569ef86944c7545b8073",
+      "started_at": "2026-11-15T01:31:38.682009+00:00",
+      "provider_status": "returned",
+      "usage": {
+        "input_tokens": 17399,
+        "output_tokens": 573,
+        "total_tokens": 17972,
+        "input_token_details": {},
+        "output_token_details": {}
+      },
+      "finished_at": "2026-11-15T01:31:46.446541+00:00",
+      "seconds": 7.764
+    },
+    {
+      "ordinal": 6,
+      "task_id": "launch_child_async",
+      "characters": 33118,
+      "scope_sha256": "63bb3336f3990b18afd8a651d8a9b7214262fa7140709f62d9d280197b2980f0",
+      "started_at": "2026-11-15T01:33:30.323227+00:00",
+      "prompt_sha256": "c9d0f7ba4c3ea21234a751a2914c1c664b0e1ce405deaa74bd6963168408f6f0",
+      "single_schema_format_retry": true,
+      "provider_status": "returned",
+      "usage": {
+        "input_tokens": 17887,
+        "output_tokens": 977,
+        "total_tokens": 18864,
+        "input_token_details": {},
+        "output_token_details": {}
+      },
+      "finished_at": "2026-11-15T01:33:42.202428+00:00",
+      "seconds": 11.878
+    }
+  ],
+  "regression": {
+    "passed": 121,
+    "failed": 0,
+    "seconds": 41.93,
+    "includes_live_overlong_detail_regression": true,
+    "receipt_json_and_original_manifest_artifact_hashes_verified": true,
+    "warning": "Existing AnyIO PytestRemovedIn10Warning",
+    "command": ".venv/Scripts/python.exe -B -m pytest -o addopts='' tests/test_spark_codegen.py workbench/tests/test_candidate_writer_simplification.py workbench/tests/test_generated_code_review.py -q --tb=short"
+  },
+  "source_analysis_regenerated": false,
+  "writer_repeated": false,
+  "historical_artifacts_modified": false,
+  "jobs_executed": false,
+  "deployed": false,
+  "application_restarted": false,
+  "runtime_verified": false,
+  "execution_allowed": false,
+  "deployment_allowed": false,
+  "verified_actionable_findings": [
+    {
+      "task_id": "launch_child_async",
+      "relative_path": "notebooks/launch_child_async.ipynb",
+      "kind": "semantic_bug",
+      "verification": "Read-only inspection of saved Cell 2 confirms that nonempty child_job_id enters the run_now branch regardless of demo_mode.",
+      "required_fix": "Branch on demo_mode first. If true, always emit SIMULATED CHILD SUBMISSION with child_job_id and external_call false. Otherwise require child_job_id, then invoke run_now without waiting. Update Cell 1 to describe this unconditional demo-mode guard and add the explicit unconverted-child/binding blocker comment beside the real call.",
+      "applied": false,
+      "reason_not_applied": "Historical notebook mutation and writer repetition are outside this authorized review-only scope. A separately consented new artifact revision is required."
+    }
+  ],
+  "final_limitations": [
+    "branch_lt35 has only 12 of 206 original task-owned source rows and none of its six SQL phases retrieved. Its provider response was rejected by exact scope validation, so it is not AI-reviewed.",
+    "Three tasks are review_ready. Child launch is AI-reviewed but needs_correction and retains an unknown child-job binding.",
+    "Six live calls exhausted the authorized ceiling. No further model call, generation, runtime execution, deployment or application restart was performed."
+  ],
+  "review": {
+    "schema_version": 1,
+    "status": "needs_correction",
+    "ai_reviewed": false,
+    "assurance": "Not fully AI-reviewed; not runtime verified",
+    "candidate_sha256": "6adb519719f8917080af33aad41ab16dcffb67782c57968fa56ec6d78297cf95",
+    "scope_sha256": "91b665765881884decd738e1098b6105039f21354c4195612424fccd2a41a67d",
+    "tasks": [
+      {
+        "task_id": "branch_lt35",
+        "scope_sha256": "323f407762c0c94d6114519dd9e27a62faee9e745f930ce628cc7b383fef8196",
+        "artifact_hashes": {},
+        "status": "needs_information",
+        "ai_reviewed": false,
+        "issues": [
+          {
+            "kind": "review_unavailable",
+            "task_id": "branch_lt35",
+            "relative_path": null,
+            "detail": "Validation provider failed or returned an invalid scoped review; saved code remains unverified"
+          }
+        ],
+        "assurance": "Not AI-reviewed; not runtime verified",
+        "diagnostic": {
+          "exception_class": "ValueError",
+          "stage": "scope_validation",
+          "schema_locations": []
+        }
+      },
+      {
+        "task_id": "counter_load",
+        "scope_sha256": "e3fdb2bd10c5ccd3720f757fd1e15341b3f3e0faaa080f703081c209e0ba52dc",
+        "artifact_hashes": {
+          "modules/counter_gate.py": "43f4b4503ddf37f588e7cc30554c55698023084340b7f80c8dc444ed4e1df928",
+          "notebooks/counter_load.ipynb": "eb3f64d06b6b2e66c4679737d63f4e762d40c684a73f87212a37b8db46009281",
+          "tests/test_counter_gate.py": "5b653d166aae25766a4bec367376acc316af395bcf65a6dabdcf310b4f1f8e9f"
+        },
+        "status": "review_ready",
+        "issues": [],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      },
+      {
+        "task_id": "launch_child_async",
+        "scope_sha256": "63bb3336f3990b18afd8a651d8a9b7214262fa7140709f62d9d280197b2980f0",
+        "artifact_hashes": {
+          "notebooks/launch_child_async.ipynb": "4b04609ed5cd70eb51fe8d41666e3b9654d3c9c06bcb1dcae6cfdcd5c41b5343"
+        },
+        "status": "needs_correction",
+        "issues": [
+          {
+            "kind": "semantic_bug",
+            "task_id": "launch_child_async",
+            "relative_path": "notebooks/launch_child_async.ipynb",
+            "detail": "demo_mode semantics contradict the selected design. The design says demo_mode=true means launch records receipts only. The notebook calls w.jobs.run_now whenever child_job_id is set, even when demo_mode is true, which is the default. A real child run can therefore start in demo mode. Gate the run_now branch on `not demo_mode`. When demo_mode is true, always record the SIMULATED CHILD SUBMISSION receipt, including the supplied child_job_id, with external_call False."
+          },
+          {
+            "kind": "missing_information",
+            "task_id": "launch_child_async",
+            "relative_path": "notebooks/launch_child_async.ipynb",
+            "detail": "The runtime job binding for the unconverted child B_AE2E/wkf_Load_AE2E_WILTEL_NETWORK_DISCO is unknown. Keep child_job_id unset rather than guessing. Add an explicit comment at the run_now call stating that the child is unconverted and that a non-demo launch is blocked until a consented child job ID is supplied."
+          }
+        ],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      },
+      {
+        "task_id": "notify_dependency",
+        "scope_sha256": "95bfef525746707e3e49449fb4b040f56fb8a3a7724b096d547d5bf52cd2f6d5",
+        "artifact_hashes": {
+          "notebooks/notify_dependency.ipynb": "3bfab51a1d00e1c9e03ce7e5744606d4c7865a7b3a30068422052053b3538c5f"
+        },
+        "status": "review_ready",
+        "issues": [],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      },
+      {
+        "task_id": "wait_5min",
+        "scope_sha256": "c3536f82ecf1ac42ffae5db3fb1ed43bb5fc89dde856569ef86944c7545b8073",
+        "artifact_hashes": {
+          "notebooks/wait_5min.ipynb": "f71e61625a1baef6e5f0695a642c56999efa4fdad47cd892d5f081f2f94efe39"
+        },
+        "status": "review_ready",
+        "issues": [],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      }
+    ],
+    "issues": [
+      {
+        "kind": "review_unavailable",
+        "task_id": "branch_lt35",
+        "relative_path": null,
+        "detail": "Validation provider failed or returned an invalid scoped review; saved code remains unverified"
+      },
+      {
+        "kind": "semantic_bug",
+        "task_id": "launch_child_async",
+        "relative_path": "notebooks/launch_child_async.ipynb",
+        "detail": "demo_mode semantics contradict the selected design. The design says demo_mode=true means launch records receipts only. The notebook calls w.jobs.run_now whenever child_job_id is set, even when demo_mode is true, which is the default. A real child run can therefore start in demo mode. Gate the run_now branch on `not demo_mode`. When demo_mode is true, always record the SIMULATED CHILD SUBMISSION receipt, including the supplied child_job_id, with external_call False."
+      },
+      {
+        "kind": "missing_information",
+        "task_id": "launch_child_async",
+        "relative_path": "notebooks/launch_child_async.ipynb",
+        "detail": "The runtime job binding for the unconverted child B_AE2E/wkf_Load_AE2E_WILTEL_NETWORK_DISCO is unknown. Keep child_job_id unset rather than guessing. Add an explicit comment at the run_now call stating that the child is unconverted and that a non-demo launch is blocked until a consented child job ID is supplied."
+      }
+    ],
+    "runtime_verified": false,
+    "execution_allowed": false,
+    "deployment_allowed": false
+  },
+  "protected_state_hashes_unchanged": true,
+  "finished_at": "2026-11-15T01:33:42.209528+00:00",
+  "live_call_count": 6,
+  "initial_review": {
+    "schema_version": 1,
+    "status": "needs_information",
+    "ai_reviewed": false,
+    "assurance": "Not fully AI-reviewed; not runtime verified",
+    "candidate_sha256": "6adb519719f8917080af33aad41ab16dcffb67782c57968fa56ec6d78297cf95",
+    "scope_sha256": "91b665765881884decd738e1098b6105039f21354c4195612424fccd2a41a67d",
+    "tasks": [
+      {
+        "task_id": "branch_lt35",
+        "scope_sha256": "323f407762c0c94d6114519dd9e27a62faee9e745f930ce628cc7b383fef8196",
+        "artifact_hashes": {},
+        "status": "needs_information",
+        "ai_reviewed": false,
+        "issues": [
+          {
+            "kind": "review_unavailable",
+            "task_id": "branch_lt35",
+            "relative_path": null,
+            "detail": "Validation provider failed or returned an invalid scoped review; saved code remains unverified"
+          }
+        ],
+        "assurance": "Not AI-reviewed; not runtime verified",
+        "diagnostic": {
+          "exception_class": "ValueError",
+          "stage": "scope_validation",
+          "schema_locations": []
+        }
+      },
+      {
+        "task_id": "counter_load",
+        "scope_sha256": "e3fdb2bd10c5ccd3720f757fd1e15341b3f3e0faaa080f703081c209e0ba52dc",
+        "artifact_hashes": {
+          "modules/counter_gate.py": "43f4b4503ddf37f588e7cc30554c55698023084340b7f80c8dc444ed4e1df928",
+          "notebooks/counter_load.ipynb": "eb3f64d06b6b2e66c4679737d63f4e762d40c684a73f87212a37b8db46009281",
+          "tests/test_counter_gate.py": "5b653d166aae25766a4bec367376acc316af395bcf65a6dabdcf310b4f1f8e9f"
+        },
+        "status": "review_ready",
+        "issues": [],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      },
+      {
+        "task_id": "launch_child_async",
+        "scope_sha256": "63bb3336f3990b18afd8a651d8a9b7214262fa7140709f62d9d280197b2980f0",
+        "artifact_hashes": {
+          "notebooks/launch_child_async.ipynb": "4b04609ed5cd70eb51fe8d41666e3b9654d3c9c06bcb1dcae6cfdcd5c41b5343"
+        },
+        "status": "needs_information",
+        "ai_reviewed": false,
+        "issues": [
+          {
+            "kind": "review_unavailable",
+            "task_id": "launch_child_async",
+            "relative_path": null,
+            "detail": "Validation provider failed or returned an invalid scoped review; saved code remains unverified"
+          }
+        ],
+        "assurance": "Not AI-reviewed; not runtime verified",
+        "diagnostic": {
+          "exception_class": "ValidationError",
+          "stage": "schema_validation",
+          "schema_locations": [
+            [
+              "issues",
+              0,
+              "detail"
+            ]
+          ]
+        }
+      },
+      {
+        "task_id": "notify_dependency",
+        "scope_sha256": "95bfef525746707e3e49449fb4b040f56fb8a3a7724b096d547d5bf52cd2f6d5",
+        "artifact_hashes": {
+          "notebooks/notify_dependency.ipynb": "3bfab51a1d00e1c9e03ce7e5744606d4c7865a7b3a30068422052053b3538c5f"
+        },
+        "status": "review_ready",
+        "issues": [],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      },
+      {
+        "task_id": "wait_5min",
+        "scope_sha256": "c3536f82ecf1ac42ffae5db3fb1ed43bb5fc89dde856569ef86944c7545b8073",
+        "artifact_hashes": {
+          "notebooks/wait_5min.ipynb": "f71e61625a1baef6e5f0695a642c56999efa4fdad47cd892d5f081f2f94efe39"
+        },
+        "status": "review_ready",
+        "issues": [],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      }
+    ],
+    "issues": [
+      {
+        "kind": "review_unavailable",
+        "task_id": "branch_lt35",
+        "relative_path": null,
+        "detail": "Validation provider failed or returned an invalid scoped review; saved code remains unverified"
+      },
+      {
+        "kind": "review_unavailable",
+        "task_id": "launch_child_async",
+        "relative_path": null,
+        "detail": "Validation provider failed or returned an invalid scoped review; saved code remains unverified"
+      }
+    ],
+    "runtime_verified": false,
+    "execution_allowed": false,
+    "deployment_allowed": false
+  },
+  "retry_started_at": "2026-11-15T01:33:30.316702+00:00",
+  "retry_review": {
+    "schema_version": 1,
+    "status": "needs_correction",
+    "ai_reviewed": true,
+    "assurance": "AI-reviewed not runtime verified",
+    "candidate_sha256": "6adb519719f8917080af33aad41ab16dcffb67782c57968fa56ec6d78297cf95",
+    "scope_sha256": "959034d6fd0388e29998c4bb23573c8bf48ab2a6d2a1d62a24e630855ffe19f5",
+    "tasks": [
+      {
+        "task_id": "launch_child_async",
+        "scope_sha256": "63bb3336f3990b18afd8a651d8a9b7214262fa7140709f62d9d280197b2980f0",
+        "artifact_hashes": {
+          "notebooks/launch_child_async.ipynb": "4b04609ed5cd70eb51fe8d41666e3b9654d3c9c06bcb1dcae6cfdcd5c41b5343"
+        },
+        "status": "needs_correction",
+        "issues": [
+          {
+            "kind": "semantic_bug",
+            "task_id": "launch_child_async",
+            "relative_path": "notebooks/launch_child_async.ipynb",
+            "detail": "demo_mode semantics contradict the selected design. The design says demo_mode=true means launch records receipts only. The notebook calls w.jobs.run_now whenever child_job_id is set, even when demo_mode is true, which is the default. A real child run can therefore start in demo mode. Gate the run_now branch on `not demo_mode`. When demo_mode is true, always record the SIMULATED CHILD SUBMISSION receipt, including the supplied child_job_id, with external_call False."
+          },
+          {
+            "kind": "missing_information",
+            "task_id": "launch_child_async",
+            "relative_path": "notebooks/launch_child_async.ipynb",
+            "detail": "The runtime job binding for the unconverted child B_AE2E/wkf_Load_AE2E_WILTEL_NETWORK_DISCO is unknown. Keep child_job_id unset rather than guessing. Add an explicit comment at the run_now call stating that the child is unconverted and that a non-demo launch is blocked until a consented child job ID is supplied."
+          }
+        ],
+        "ai_reviewed": true,
+        "assurance": "AI-reviewed not runtime verified"
+      }
+    ],
+    "issues": [
+      {
+        "kind": "semantic_bug",
+        "task_id": "launch_child_async",
+        "relative_path": "notebooks/launch_child_async.ipynb",
+        "detail": "demo_mode semantics contradict the selected design. The design says demo_mode=true means launch records receipts only. The notebook calls w.jobs.run_now whenever child_job_id is set, even when demo_mode is true, which is the default. A real child run can therefore start in demo mode. Gate the run_now branch on `not demo_mode`. When demo_mode is true, always record the SIMULATED CHILD SUBMISSION receipt, including the supplied child_job_id, with external_call False."
+      },
+      {
+        "kind": "missing_information",
+        "task_id": "launch_child_async",
+        "relative_path": "notebooks/launch_child_async.ipynb",
+        "detail": "The runtime job binding for the unconverted child B_AE2E/wkf_Load_AE2E_WILTEL_NETWORK_DISCO is unknown. Keep child_job_id unset rather than guessing. Add an explicit comment at the run_now call stating that the child is unconverted and that a non-demo launch is blocked until a consented child job ID is supplied."
+      }
+    ],
+    "runtime_verified": false,
+    "execution_allowed": false,
+    "deployment_allowed": false
+  }
+}

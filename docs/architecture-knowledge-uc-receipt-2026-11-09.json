@@ -1,0 +1,254 @@
+{
+  "project_id": "84b03a652f5e4371ba1c72d401acba6b",
+  "authentication": "explicit_labs_human_profile_not_hosted_OBO",
+  "receipt": {
+    "status": "published",
+    "version": "9ee253c04ef6974a50cea1d2dacfd16c56e93843577bc21522f48e6520893200",
+    "graph_sha256": "4fb8345f21fef5467038819a67ef29db49f7f3993b5084e0133db0946e9dfbea",
+    "artifact": {
+      "volume_path": "/Volumes/orion_dev_ssuman/workbench/artifacts/delta-state/users/eb365f23fb1d7ccbcc66fdf4339cbe6cc73360458833fe30944fd196cbbadbc7/blobs/27afd2318975a842924aadb177d81552a7ef071cfb3c3728162de7fbc42204b9",
+      "sha256": "27afd2318975a842924aadb177d81552a7ef071cfb3c3728162de7fbc42204b9",
+      "byte_size": 54738
+    },
+    "manifest_sha256": "ab2ca1ac3a096a46a9995993613ae87bf283e2eae726f85982c006040e60defb",
+    "readback_verified": true,
+    "execution_allowed": false,
+    "deployment_allowed": false
+  },
+  "knowledge": {
+    "status": "available",
+    "version": "9ee253c04ef6974a50cea1d2dacfd16c56e93843577bc21522f48e6520893200",
+    "graph_sha256": "4fb8345f21fef5467038819a67ef29db49f7f3993b5084e0133db0946e9dfbea",
+    "feature_count": 6,
+    "fresh_ga_count": 4,
+    "expired_feature_count": 0,
+    "earliest_expiry": "2026-11-23T20:55:01.400039+00:00",
+    "release_states": {
+      "GA": 4,
+      "preview": 1,
+      "deprecated": 0,
+      "unknown": 1
+    },
+    "pillars": {
+      "optimization": {
+        "knowledge_count": 4,
+        "validated": false
+      },
+      "accuracy": {
+        "knowledge_count": 3,
+        "validated": false
+      },
+      "integrity": {
+        "knowledge_count": 4,
+        "validated": false
+      },
+      "security": {
+        "knowledge_count": 3,
+        "validated": false
+      },
+      "databricks_architecture": {
+        "knowledge_count": 5,
+        "validated": false
+      },
+      "data_validation": {
+        "knowledge_count": 3,
+        "validated": false
+      }
+    },
+    "data_availability": null,
+    "latest_catalogue_guaranteed": false,
+    "production_ready": false
+  },
+  "features": [
+    {
+      "id": "707be3df5ba3fd494296ef8c5048da210f796e3384017503ea2c4a2f08d93581",
+      "label": "Liquid clustering",
+      "release_state": "GA",
+      "sources": [
+        {
+          "url": "https://docs.databricks.com/aws/en/tables/clustering",
+          "retrieved_at": "2026-11-09T20:55:01.400039+00:00",
+          "expires_at": "2026-11-23T20:55:01.400039+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-02T00:00:00.000Z",
+          "sha256": "0256aeeb76e4fe0bd3c57f64b3c7b40b7cb71d6a4e90ccd50f33d237039b2574",
+          "section_sha256": "d0dbf37b2b5e68fa62a658eb5e7a06b9250cc4c17c344fe366b2086d27e579e8",
+          "title": "Use liquid clustering for tables",
+          "excerpt": "Use liquid clustering for tables Liquid clustering is a data layout optimization technique that replaces table partitioning and ZORDER . It simplifies table management and optimizes query performance by automatically organizing data based o",
+          "release_statement": "important Liquid clustering is generally available for Delta Lake tables with Databricks Runtime 15.4 LTS and above, and for managed Apache Iceberg tables in Databricks Runtime 16.4 LTS and above."
+        },
+        {
+          "url": "https://docs.databricks.com/aws/en/tables/clustering",
+          "retrieved_at": "2026-11-09T20:55:01.745058+00:00",
+          "expires_at": "2026-11-23T20:55:01.745058+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-02T00:00:00.000Z",
+          "sha256": "0256aeeb76e4fe0bd3c57f64b3c7b40b7cb71d6a4e90ccd50f33d237039b2574",
+          "section_sha256": "d0dbf37b2b5e68fa62a658eb5e7a06b9250cc4c17c344fe366b2086d27e579e8",
+          "title": "Use liquid clustering for tables",
+          "excerpt": "Use liquid clustering for tables Liquid clustering is a data layout optimization technique that replaces table partitioning and ZORDER . It simplifies table management and optimizes query performance by automatically organizing data based o",
+          "release_statement": "important Liquid clustering is generally available for Delta Lake tables with Databricks Runtime 15.4 LTS and above, and for managed Apache Iceberg tables in Databricks Runtime 16.4 LTS and above."
+        }
+      ]
+    },
+    {
+      "id": "51459bf97ceeb6e05fe93812b4052b7e7961642ad9cc0b104477d606dabcd6cc",
+      "label": "Predictive optimization",
+      "release_state": "GA",
+      "sources": [
+        {
+          "url": "https://docs.databricks.com/aws/en/release-notes/product/2024/june#predictive-optimization-is-now-ga",
+          "retrieved_at": "2026-11-09T20:55:02.076620+00:00",
+          "expires_at": "2026-11-23T20:55:02.076620+00:00",
+          "published_at": "2024-06-11",
+          "updated_at": "2026-10-29T00:00:00.000Z",
+          "sha256": "7ec9b9405445ae5fc2a29c85735a1e5a76482232293df2be1f5c839579f06285",
+          "section_sha256": "c2c9144833955f411d438dc329ccbea19a2c3d4d9ead0928b85206f766c79fdc",
+          "title": "Predictive optimization is now GA \u200b",
+          "excerpt": "Predictive optimization is now GA \u200b June 11, 2024 Predictive optimization for Unity Catalog managed tables is now generally available. Predictive optimization now runs OPTIMIZE on tables with liquid clustering enabled to apply clustering. S",
+          "release_statement": "Predictive optimization is now GA \u200b June 11, 2024 Predictive optimization for Unity Catalog managed tables is now generally available."
+        },
+        {
+          "url": "https://docs.databricks.com/aws/en/optimizations/predictive-optimization",
+          "retrieved_at": "2026-11-09T20:55:02.380565+00:00",
+          "expires_at": "2026-11-23T20:55:02.380565+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-06T00:00:00.000Z",
+          "sha256": "fe1e4c2b814a1b434c07af574e68c04c410e4ec84e6972be9cac24160d1c73a8",
+          "section_sha256": "f75955acd669e31f3462c896bcbef72fd4daebbfd2b3fb5061dea459ba88128f",
+          "title": "Predictive optimization for Unity Catalog managed tables",
+          "excerpt": "Predictive optimization for Unity Catalog managed tables Predictive optimization automatically runs OPTIMIZE , VACUUM , and ANALYZE on Unity Catalog managed tables ( Delta Lake and Iceberg) on Databricks and refreshes their full-text search",
+          "release_statement": null
+        }
+      ]
+    },
+    {
+      "id": "557a561721d798a0c40e124b5bd60f50f0b6f2ad519d6a32de06033094428e1a",
+      "label": "Serverless compute for workflows",
+      "release_state": "GA",
+      "sources": [
+        {
+          "url": "https://docs.databricks.com/aws/en/release-notes/product/2024/july#serverless-compute-for-workflows-is-ga",
+          "retrieved_at": "2026-11-09T20:55:02.688317+00:00",
+          "expires_at": "2026-11-23T20:55:02.688317+00:00",
+          "published_at": "2024-07-15",
+          "updated_at": "2026-10-29T00:00:00.000Z",
+          "sha256": "bb99511bde23d43c686eed2011f760bd636be36ff06002455480e53b8803cf2c",
+          "section_sha256": "d32543ce0bd50b2ff4cc0f4ac53749349f5c122ecaa4e921d18320ea70178b9a",
+          "title": "Serverless compute for workflows is GA \u200b",
+          "excerpt": "Serverless compute for workflows is GA \u200b July 15, 2024 Serverless compute for workflows is now generally available. Serverless compute for workflows allows you to run your Databricks job without configuring and deploying infrastructure. Wit",
+          "release_statement": "Serverless compute for workflows is GA \u200b July 15, 2024 Serverless compute for workflows is now generally available."
+        },
+        {
+          "url": "https://docs.databricks.com/aws/en/jobs/run-serverless-jobs",
+          "retrieved_at": "2026-11-09T20:55:02.988647+00:00",
+          "expires_at": "2026-11-23T20:55:02.988647+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-06T00:00:00.000Z",
+          "sha256": "7697a8b369ffe114bfa733d54f98209c86983f03416bab0b8e03a678724ffac6",
+          "section_sha256": "104ac22e0a9c37bd1f9456f5bce7930c38b6b6419179533d9b427f2af79877b0",
+          "title": "Run your Lakeflow Jobs with serverless compute for workflows",
+          "excerpt": "Run your Lakeflow Jobs with serverless compute for workflows Serverless compute for workflows lets you run your job without configuring and deploying infrastructure. With serverless compute , you focus on implementing your data processing a",
+          "release_statement": null
+        }
+      ]
+    },
+    {
+      "id": "e1102da0a9bdd4619f268fce6ad5492ead884fc06ee36d3de7b67441bdb7f78e",
+      "label": "For each",
+      "release_state": "GA",
+      "sources": [
+        {
+          "url": "https://docs.databricks.com/aws/en/release-notes/product/2024/august#the-databricks-jobs-for-each-task-is-ga",
+          "retrieved_at": "2026-11-09T20:55:03.292628+00:00",
+          "expires_at": "2026-11-23T20:55:03.292628+00:00",
+          "published_at": "2024-08-21",
+          "updated_at": "2026-10-29T00:00:00.000Z",
+          "sha256": "ecee65780b3676d5dd8b69f1063ecd1444a149c29a66d8b1737f71ecc40f4d77",
+          "section_sha256": "ed40ef47e1236e2bfa89a11b8ba9b10126e3bf16bc3abc4fe4a428b2135d46e2",
+          "title": "The Databricks Jobs For each task is GA \u200b",
+          "excerpt": "The Databricks Jobs For each task is GA \u200b August 21, 2024 The For each task is now generally available. You can use the For each task to run another task in a loop, passing a different set of parameters to each iteration of the task. The Fo",
+          "release_statement": "The Databricks Jobs For each task is GA \u200b August 21, 2024 The For each task is now generally available."
+        },
+        {
+          "url": "https://docs.databricks.com/aws/en/jobs/tasks/for-each",
+          "retrieved_at": "2026-11-09T20:55:03.583268+00:00",
+          "expires_at": "2026-11-23T20:55:03.583268+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-05T00:00:00.000Z",
+          "sha256": "6308a975576f2e564ff11d8ee516fe3fcf06d9ca60b2c415c3f016f67de4f576",
+          "section_sha256": "85bbb3b57fda2612ad2fb21bc6cd54303af770fc6bc6d509d5c3fb023888a161",
+          "title": "Use a For each task to run another task in a loop",
+          "excerpt": "Use a For each task to run another task in a loop Use the For each task to run a nested task in a loop, passing a different set of parameters to each iteration of the task. Adding the For each task to a job requires defining two tasks: The ",
+          "release_statement": null
+        }
+      ]
+    },
+    {
+      "id": "5ab2db981103fd7c6d64382a8952c8f10dcae9d8740eea930b32a2147aae96c6",
+      "label": "Job completion triggers",
+      "release_state": "preview",
+      "sources": [
+        {
+          "url": "https://docs.databricks.com/aws/en/jobs/job-completion-triggers",
+          "retrieved_at": "2026-11-09T20:55:03.906967+00:00",
+          "expires_at": "2026-11-23T20:55:03.906967+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-06T00:00:00.000Z",
+          "sha256": "aa22fef7f011ed3da46d2f9a6956f100330485193569525d6b2bfe1f381c8940",
+          "section_sha256": "a3661ce62d97a7683f26f026922cba190b8877401b8d50fa21c1f093b29a37ae",
+          "title": "Trigger jobs when upstream jobs complete",
+          "excerpt": "Trigger jobs when upstream jobs complete Use job completion triggers to run a Lakeflow Job when one or more upstream jobs finish. Upstream jobs can be in different workspaces attached to the same Unity Catalog metastore. You can configure t",
+          "release_statement": "Beta Job completion triggers are in Beta ."
+        },
+        {
+          "url": "https://docs.databricks.com/aws/en/jobs/job-completion-triggers",
+          "retrieved_at": "2026-11-09T20:55:04.243981+00:00",
+          "expires_at": "2026-11-23T20:55:04.243981+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-06T00:00:00.000Z",
+          "sha256": "aa22fef7f011ed3da46d2f9a6956f100330485193569525d6b2bfe1f381c8940",
+          "section_sha256": "a3661ce62d97a7683f26f026922cba190b8877401b8d50fa21c1f093b29a37ae",
+          "title": "Trigger jobs when upstream jobs complete",
+          "excerpt": "Trigger jobs when upstream jobs complete Use job completion triggers to run a Lakeflow Job when one or more upstream jobs finish. Upstream jobs can be in different workspaces attached to the same Unity Catalog metastore. You can configure t",
+          "release_statement": "Beta Job completion triggers are in Beta ."
+        }
+      ]
+    },
+    {
+      "id": "6c3b387d0acc88b85f14e7aaddcd0cf9dbfdbc706b9891dfa7156edf5b5dd3df",
+      "label": "Enforced Delta constraints",
+      "release_state": "unknown",
+      "sources": [
+        {
+          "url": "https://docs.databricks.com/aws/en/tables/constraints",
+          "retrieved_at": "2026-11-09T20:55:04.547800+00:00",
+          "expires_at": "2026-11-23T20:55:04.547800+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-06T00:00:00.000Z",
+          "sha256": "b816e145d0cfd0de6c3a9a9a65d424531ebff109cb13a589bb81a4a72e831b0c",
+          "section_sha256": "988fe313709e0692ddf5d420ee12af7429a59ce12f421215db1f5cbe47987eaf",
+          "title": "Constraints on Databricks",
+          "excerpt": "Constraints on Databricks Databricks supports standard SQL constraint management clauses: Enforced constraints verify data integrity before adding rows to a table. Informational constraints (primary key, foreign key, and unique constraints)",
+          "release_statement": null
+        },
+        {
+          "url": "https://docs.databricks.com/aws/en/tables/constraints",
+          "retrieved_at": "2026-11-09T20:55:04.852139+00:00",
+          "expires_at": "2026-11-23T20:55:04.852139+00:00",
+          "published_at": null,
+          "updated_at": "2026-11-06T00:00:00.000Z",
+          "sha256": "b816e145d0cfd0de6c3a9a9a65d424531ebff109cb13a589bb81a4a72e831b0c",
+          "section_sha256": "988fe313709e0692ddf5d420ee12af7429a59ce12f421215db1f5cbe47987eaf",
+          "title": "Constraints on Databricks",
+          "excerpt": "Constraints on Databricks Databricks supports standard SQL constraint management clauses: Enforced constraints verify data integrity before adding rows to a table. Informational constraints (primary key, foreign key, and unique constraints)",
+          "release_statement": null
+        }
+      ]
+    }
+  ],
+  "fresh_identity_readback_verified": true,
+  "app_deployed": false,
+  "business_data_written": false,
+  "inference_invoked": false
+}

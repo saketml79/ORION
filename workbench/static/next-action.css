@@ -1,0 +1,19 @@
+/* A soft halo, never movement, flashing, a replacement focus ring or a border. */
+.next-action-hint { margin: 10px 0 18px; max-width: 100%; }
+.next-action-hint[hidden] { display: none; }
+.page .orion-next-action {
+  box-shadow: 0 0 0 3px rgb(46 132 147 / 18%);
+  animation: orion-next-step 3.2s ease-in-out infinite;
+}
+.next-action-paused .orion-next-action { animation-play-state: paused; }
+@keyframes orion-next-step {
+  0%, 100% { box-shadow: 0 0 0 3px rgb(46 132 147 / 12%); }
+  50% { box-shadow: 0 0 0 6px rgb(46 132 147 / 26%); }
+}
+[data-theme="dark"] .page .orion-next-action { --next-action-static: rgb(111 211 214 / 45%); }
+@media (prefers-reduced-motion: reduce) {
+  .page .orion-next-action {
+    animation: none !important;
+    box-shadow: 0 0 0 3px var(--next-action-static, rgb(46 132 147 / 32%));
+  }
+}

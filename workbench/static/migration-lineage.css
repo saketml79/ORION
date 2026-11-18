@@ -1,0 +1,50 @@
+#migration-lineage { margin-block: 28px; padding: 24px; border: 1px solid var(--border, #cbd5e1); border-radius: 20px; background: var(--surface, #fff); min-width: 0; }
+#migration-lineage .lineage-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; flex-wrap: wrap; }
+#migration-lineage .lineage-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-block: 14px; }
+#migration-lineage select { max-width: 100%; min-width: 0; }
+#migration-lineage .lineage-workflow-chip { margin: 4px; font-size: 12px; background: transparent; color: inherit; border: 1px solid var(--border, #cbd5e1); }
+#migration-lineage .lineage-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; margin-block: 14px; }
+#migration-lineage .lineage-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; background: var(--stage); }
+#migration-lineage .stage-source { --stage: #64748b; }
+#migration-lineage .stage-proposed { --stage: #8b5cf6; }
+#migration-lineage .stage-generated { --stage: #3b82f6; }
+#migration-lineage .stage-verified { --stage: #16a34a; }
+#migration-lineage .stage-missing { --stage: #dc2626; }
+#lineage-graph { width: 100%; height: 540px; display: block; background: color-mix(in srgb, var(--surface, #fff) 96%, #64748b); border: 1px solid var(--border, #cbd5e1); border-radius: 16px; touch-action: pan-y; color: #64748b; }
+#lineage-graph text { fill: var(--text, #1e293b); font-size: 13px; font-family: inherit; pointer-events: none; }
+#lineage-graph .lineage-column { font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+#lineage-graph .lineage-kind { font-size: 11px; opacity: .8; }
+#lineage-graph .lineage-node { cursor: pointer; }
+#lineage-graph .lineage-node rect { fill: var(--surface, #fff); stroke: var(--stage); stroke-width: 1.5; }
+#lineage-graph .stage-proposed { cursor: default; }
+#lineage-graph .stage-proposed[role=button] { cursor: pointer; }
+#lineage-graph .stage-proposed rect { stroke-dasharray: 5 4; }
+#lineage-graph .stage-missing rect { fill: color-mix(in srgb, var(--surface, #fff) 90%, #dc2626); }
+#lineage-graph .lineage-node.current rect, #lineage-graph .lineage-node:focus rect { stroke-width: 3; }
+#lineage-graph .lineage-edge { fill: none; stroke: #64748b; stroke-width: 1.5; opacity: .45; }
+#lineage-graph .trace-selected { opacity: .9; stroke-width: 2; }
+#migration-lineage.lineage-animate .trace-selected { stroke-dasharray: 12 9; animation: lineage-trace 9s linear infinite; }
+@keyframes lineage-trace { to { stroke-dashoffset: -84; } }
+#migration-lineage pre { max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+#migration-lineage details { margin-block: 8px; }
+#migration-lineage .lineage-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-block: 20px; }
+#migration-lineage .lineage-columns > article, #migration-lineage .lineage-state-note { border: 1px solid var(--border, #cbd5e1); border-radius: 14px; padding: 16px; min-width: 0; }
+#migration-lineage .lineage-tree button { display: block; margin-block: 8px; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+#migration-lineage .lineage-trace-text details { border-left: 3px solid var(--border, #cbd5e1); padding-left: 12px; }
+#migration-lineage .lineage-trace-text summary { cursor: pointer; overflow-wrap: anywhere; }
+#migration-lineage .lineage-column h3 { letter-spacing: normal; }
+#migration-lineage .lineage-correspondence { stroke: #3b82f6; }
+#migration-lineage .lineage-unmapped { stroke: #dc2626; stroke-dasharray: 3 6; }
+#migration-lineage .lineage-toolbar label:has(input) { display: flex; align-items: center; gap: 8px; }
+#migration-lineage p { overflow-wrap: anywhere; }
+#migration-lineage button { animation: none; transition: none; }
+#lineage-calls { width: 100%; display: block; max-height: 640px; color: #64748b; margin-block: 16px; }
+#lineage-calls text { fill: var(--text, #1e293b); font: 13px sans-serif; }
+#lineage-calls .lineage-kind { font-size: 11px; }
+#lineage-calls rect { fill: var(--surface, #fff); stroke: var(--stage); stroke-width: 1.5; }
+#lineage-calls [role=button] { cursor: pointer; }
+#lineage-calls [role=button]:focus rect { stroke-width: 3; }
+#lineage-calls .lineage-invocation { fill: none; stroke: #64748b; stroke-width: 1.5; stroke-dasharray: 5 4; }
+@media (prefers-reduced-motion: reduce) { #migration-lineage.lineage-animate .trace-selected { animation: none; stroke-dasharray: none; } }
+@media (max-width: 650px) { #migration-lineage { padding: 14px; } #lineage-graph { height: 380px; } #migration-lineage .lineage-toolbar { align-items: stretch; } }
+@media (max-width: 850px) { #migration-lineage .lineage-columns { grid-template-columns: 1fr; } }

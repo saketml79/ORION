@@ -1,0 +1,18 @@
+command: ["python", "-m", "workbench.hosted"]
+env:
+  - name: WORKBENCH_TRUST_DATABRICKS_PROXY
+    value: "1"
+  - name: WORKBENCH_DATABRICKS_HOST
+    value: "__WORKSPACE_HOST__"
+  - name: WORKBENCH_APP_ORIGIN
+    value: "__APP_ORIGIN__"
+  - name: WORKBENCH_CATALOG_PREFIX
+    value: "__CATALOG_PREFIX__"
+  - name: WORKBENCH_SQL_WAREHOUSE_ID
+    value: "__SQL_WAREHOUSE_ID__"
+  - name: PYTHONDONTWRITEBYTECODE
+    value: "1"
+  - name: LANGCHAIN_TRACING_V2
+    value: "false"
+  - name: LANGSMITH_TRACING
+    value: "false"

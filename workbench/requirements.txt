@@ -1,0 +1,26 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+networkx==3.7; python_version >= "3.12"
+networkx==3.4.2; python_version < "3.12"
+defusedxml==0.7.1
+pydantic==2.12.5
+python-multipart==0.0.32
+deepagents==0.7.32
+langchain==1.4.7
+langchain-core==1.7.0
+langgraph==1.2.18
+langgraph-checkpoint-sqlite==3.1.2
+pypdf==6.21.3
+httpx==0.28.1
+anyio==4.13.0
+databricks-sdk==0.157.0
+langchain-openai==1.7.3
+# Optional external-provider feature, packaged here for local/hosted parity.
+# 1.7.6 requires core>=1.6.10,<2 and is compatible with core==1.7.0 above.
+langchain-anthropic==1.7.6
+anthropic==1.17.0
+openai==3.40.0
+httpx2==2.16.0
+sqlglot==30.0.3
+pytest==9.2.0
+playwright==1.64.1

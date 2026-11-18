@@ -1,0 +1,43 @@
+bundle:
+  name: modernization-workbench-hosted
+variables:
+  app_name:
+    description: Reviewed workspace-unique name, lowercase letters, digits and hyphens, at most 30 characters
+    default: orion-migration-workbench
+resources:
+  apps:
+    workbench:
+      name: ${var.app_name}
+      description: User-scoped proposal-first evidence workbench. No executable migration or deployment authority.
+      source_code_path: .
+      compute_min_instances: 1
+      compute_max_instances: 1
+      config:
+        command: ["python", "-m", "workbench.hosted"]
+        env:
+          - name: WORKBENCH_TRUST_DATABRICKS_PROXY
+            value: "1"
+          - name: WORKBENCH_DATABRICKS_HOST
+            value: "__WORKSPACE_HOST__"
+          - name: WORKBENCH_APP_ORIGIN
+            value: "__APP_ORIGIN__"
+          - name: WORKBENCH_CATALOG_PREFIX
+            value: "__CATALOG_PREFIX__"
+          - name: WORKBENCH_SQL_WAREHOUSE_ID
+            value: "__SQL_WAREHOUSE_ID__"
+          - name: PYTHONDONTWRITEBYTECODE
+            value: "1"
+          - name: LANGCHAIN_TRACING_V2
+            value: "false"
+          - name: LANGSMITH_TRACING
+            value: "false"
+      user_api_scopes:
+        - catalog.catalogs
+        - catalog.schemas
+        - catalog.tables
+        - files
+        - model-serving
+        - sql
+targets:
+  dev:
+    default: true

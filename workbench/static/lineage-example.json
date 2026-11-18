@@ -1,0 +1,65 @@
+{
+  "format": "orion-lineage-illustrative-reference-v1",
+  "example_only": true,
+  "current_user_correlation": false,
+  "title": "Illustrative mock example: VYVX",
+  "workflow": "wkf_Load_AE2E_VYVX_HIST_PREP_PULL",
+  "source_input_hash": "08987e6e377ff2c055d2e480a18e19ea280ec0ea4c83f0ee848e68669318c6ba",
+  "contract_sha256": "97827e5e7081584a6751a3706cf1bd6fc0552e45a508e9609c66a6e6b24e2a3d",
+  "reference_paths": ["output/workbench/vyvx-mock-demo-20261107-v2/contract.json", "output/workbench/vyvx-mock-demo-20261107-v2/manifest.json", "output/workbench/vyvx-mock-demo-20261107-v2/job.json"],
+  "status": "Generated MOCK, manually authored static reference, not agent-generated production",
+  "execution_result": "historical_mock_success",
+  "execution_note": "Historical MOCK proof: fresh and completed-log resume runs both succeeded. Last independently verified 2026-11-09T22:57:34.525706+00:00: seven destinations empty; all seven seeded sources match their original counts and checksums. This packaged snapshot is not a live status feed or selected-user conversion authority. Informatica parity is not established.",
+  "execution_evidence": {
+    "last_verified_at": "2026-11-09T22:57:34.525706+00:00",
+    "fresh_run_id": "133215706652645",
+    "resume_run_id": "936913853370412",
+    "job_url": "https://adb-1866518241053589.9.azuredatabricks.net/jobs/878190924157330",
+    "fresh_proof_sha256": "7550105526d6faff7651e7a88e67e23f7c34363e89fac36b28afd11e3b9ef4c2",
+    "resume_proof_sha256": "206d7fc6b039947c825c010b19408d3e5f30148c37727330e9975e92977b4a91",
+    "output_counts_before_cleanup": {"AE2E_BILL_TAMER_PREP": 5, "AE2E_VBUS_PREP": 3},
+    "destinations_empty": 7,
+    "sources_preserved": 7,
+    "rerun_instructions": "Open the MOCK Job and choose Run now with ack=MOCK_ONLY. The fixed fixture date is 2026-11-07. Outputs remain available after a manual rerun; another run exercises resume. No SMTP or production catalogs are used.",
+    "informatica_parity": false
+  },
+  "production_ready": false,
+  "whole_package_converted": false,
+  "task_correspondences": [],
+  "task_mapping_note": "The generated contract does not explicitly bind original workflow task IDs to Job task keys. No task correspondence is inferred from phase names, order or counts.",
+  "job": {
+    "name": "[MOCK ONLY] VYVX HIST PREP PULL",
+    "tasks": [
+      {"task_key": "dependency", "notebook": "notebooks/dependency.py"},
+      {"task_key": "btp_log_check", "notebook": "notebooks/btp_log_check.py"},
+      {"task_key": "btp_needed", "condition": {"op": "EQUAL_TO", "left": "{{tasks.btp_log_check.values.needs_load}}", "right": "true"}},
+      {"task_key": "btp_load", "notebook": "notebooks/btp_load.py"},
+      {"task_key": "btp_merge", "notebook": "notebooks/btp_merge.py"},
+      {"task_key": "vbus_log_check", "notebook": "notebooks/vbus_log_check.py"},
+      {"task_key": "vbus_needed", "condition": {"op": "EQUAL_TO", "left": "{{tasks.vbus_log_check.values.needs_load}}", "right": "true"}},
+      {"task_key": "vbus_load", "notebook": "notebooks/vbus_load.py"},
+      {"task_key": "vbus_merge", "notebook": "notebooks/vbus_merge.py"},
+      {"task_key": "email_mock", "notebook": "notebooks/email_mock.py"},
+      {"task_key": "verify", "notebook": "notebooks/verify.py"}
+    ]
+  },
+  "table_correspondences": [
+    {"source": "Oracle source AE2E_BTP_STG3 (DBD ATLDEV, owner AE2E)", "target": "orion_bronze_test_ssuman.vyvx_mock_demo.AE2E_BTP_STG3", "column_count": 53, "columns_excerpt": [["INVOICE_SEQ_ID", "DECIMAL(38,0)"], ["BILL_DATE", "TIMESTAMP"], ["MIN_BILL_DT", "TIMESTAMP"], ["ECCKT", "STRING"]], "changes": "XML-typed source definition becomes a synthetic bronze fixture. Oracle DATE retains time as TIMESTAMP. Not the original Oracle data."},
+    {"source": "Oracle source AE2E_VBUS_STG (DBD atldev, owner AE2E)", "target": "orion_bronze_test_ssuman.vyvx_mock_demo.AE2E_VBUS_STG", "column_count": 39, "columns_excerpt": [["ASR_A_LOCATION", "STRING"], ["VENDOR_TERM", "STRING"], ["ASR_Z_LOCATION", "STRING"], ["BAN", "STRING"]], "changes": "XML source identity retained in a synthetic bronze fixture, not a production binding."},
+    {"source": "Oracle target AE2E_BILL_TAMER_PREP", "target": "orion_silver_test_ssuman.vyvx_mock_demo.AE2E_BILL_TAMER_PREP", "column_count": 50, "columns_excerpt": [["AE2E_KEY_ID", "DECIMAL(38,0)"], ["TEMPLATE_ID", "DECIMAL(38,0)"], ["BAN", "STRING"], ["ECCKT", "STRING"]], "changes": "Original target definition becomes a mock silver destination. The btp projection explicitly maps A_LOC to ASR_A_LOC, BILL_DATE to INVOICE_DATE, and out_AE2E_KEY_ID to AE2E_KEY_ID."},
+    {"source": "Oracle target AE2E_VBUS_PREP", "target": "orion_gold_test_ssuman.vyvx_mock_demo.AE2E_VBUS_PREP", "column_count": 36, "columns_excerpt": [["AE2E_KEY_ID", "DECIMAL(38,0)"], ["TEMPLATE_ID", "DECIMAL(38,0)"], ["ASR_A_LOCATION", "STRING"], ["ASR_TERM", "STRING"]], "changes": "Original target definition becomes a mock gold destination. Both ecckt and l3 projections explicitly map VENDOR_TERM to ASR_TERM. L3 projection maps L3_CIRCUIT_ID1 to L3_CIRCUIT_ID."}
+  ],
+  "excerpt_note": "Four explicit XML-identity table counterparts are shown. Column lists are labeled excerpts (4 each), not full schemas. Full columns, projections and SQL remain in the referenced contract. External control and receipt tables are not asserted as XML table counterparts.",
+  "changes": {
+    "get_product_key_id": "Fixed finite ID lookup on system, circuit:ban, date, -1",
+    "truncate": "Python exact destination allowlist with owner/schema/package markers",
+    "java": "Ported 54x300-second polling algebra; ready synthetic dependency, virtual timeout only",
+    "email": "JSON receipt only, no SMTP",
+    "transactions": "Sequential Delta statements, no Oracle transaction parity",
+    "date_filter": "Reviewed 052806/mm/dd/yy literal normalized to 2006-05-28",
+    "l3": "ASCII synthetic circuit regex normalization; no universal Oracle collation guarantee",
+    "load_order": "ECCKT insert then L3 NOT EXISTS fallback, deterministic mock phase order",
+    "dummy_file_targets": "Gold receipt tables, not byte-identical file exports"
+  },
+  "code_note": "Original and translated expression, filter and join code correspondence is not specified by this reference. The contract contains source SQL phases but no paired target SQL bodies. Historical aggregate MOCK execution proof is recorded separately, not attached as source-task or procedure parity. No code bodies or correspondences are fabricated."
+}

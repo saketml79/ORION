@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modernization review: evidence and agent interactions</title>
+  <style>
+    :root { color-scheme: light; --ink:#172033; --muted:#526079; --accent:#464feb; --line:#e6e6e6; --surface:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4f6fb; color:var(--ink); font:16px/1.65 "Segoe UI",Arial,sans-serif; }
+    main { max-width:1200px; margin:0 auto; padding:40px 24px 64px; }
+    h1 { font-size:clamp(25px,4vw,36px); line-height:1.25; margin:8px 0 16px; }
+    h2 { font-size:23px; line-height:1.35; margin:0 0 12px; }
+    p { max-width:86ch; }
+    a { text-decoration:none; color:var(--accent); }
+    a:hover { text-decoration:underline; }
+    a:focus-visible, .diagram:focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
+    .eyebrow { color:var(--accent); font-size:13px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+    .intro, .hint { color:var(--muted); }
+    .notice { background:#fff8e6; border-left:4px solid #996000; padding:16px 20px; border-radius:8px; margin:24px 0; }
+    section { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:26px; margin-top:26px; box-shadow:0 4px 18px #17203306; }
+    .diagram { overflow-x:auto; background:#fafbff; border:1px solid var(--line); border-radius:12px; margin:20px 0; padding:16px; }
+    svg { display:block; width:100%; min-width:940px; height:auto; }
+    svg text { font-family:"Segoe UI",Arial,sans-serif; font-size:16px; fill:var(--ink); }
+    svg .sub { font-size:14px; fill:var(--muted); }
+    svg .node { fill:#eef0ff; stroke:var(--accent); stroke-width:1.5; }
+    svg .human { fill:#fff5da; stroke:#996000; stroke-width:1.5; }
+    svg .store { fill:#eaf7f2; stroke:#257052; stroke-width:1.5; }
+    svg .edge { fill:none; stroke:#64748b; stroke-width:1.7; }
+    svg .return { fill:none; stroke:#996000; stroke-width:1.7; stroke-dasharray:6 5; }
+    .legend { display:flex; flex-wrap:wrap; gap:12px 24px; font-size:14px; color:var(--muted); }
+    .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:7px; border:1px solid currentColor; }
+    .system { background:#eef0ff; color:var(--accent); } .person { background:#fff5da; color:#996000; } .record { background:#eaf7f2; color:#257052; }
+    li { margin-bottom:9px; }
+    .table-scroll { overflow-x:auto; }
+    table { border-collapse:collapse; width:100%; margin-top:16px; }
+    th,td { border:1px solid #e6e6e6; padding:12px 14px; text-align:left; vertical-align:top; }
+    th { background-color:#f5f5f5; }
+    footer { color:var(--muted); font-size:14px; margin-top:26px; }
+    @media(max-width:640px) { main { padding:24px 14px 40px; } section { padding:18px; } }
+    @media print { body { background:white; } main { max-width:none; padding:0; } section { box-shadow:none; } .diagram { overflow:visible; } svg { min-width:0; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Design companion with partial implementation, updated 2026-10-30</div>
+    <h1>Evidence first. Recommendations second.</h1>
+    <p class="intro">How operational knowledge and human decisions constrain Informatica modernization. The diagrams show authoritative design intent, not an end-to-end execution trace. Short fixed labels keep diagrams legible; dated implementation boundaries sit below.</p>
+    <a href="proposal-first-deepagents-lakeflow-plan.md">Read the complete implementation blueprint</a>
+  </header>
+  <aside class="notice"><strong>Unknown does not mean inactive.</strong> XML presence, missing schedules, old names, and apparent duplication never authorize retirement or consolidation.</aside>
+  <section aria-labelledby="status-heading">
+    <h2 id="status-heading">Implementation matrix, 2026-10-30</h2>
+    <p>Source paths are linked for implementation checks. Runtime counts, receipts, timestamps and timings are supplied operational evidence, not a new live verification by this companion. The <a href="proposal-first-deepagents-lakeflow-plan.md">authoritative plan</a> carries the full matrix and governing requirements.</p>
+    <div class="table-scroll"><table><caption>Implemented execution versus retained design intent</caption><thead><tr><th>Area</th><th>Current evidence</th><th>Boundary or remaining intent</th></tr></thead><tbody>
+      <tr><td>Hosted app and OBO</td><td><code>orion-migration-workbench</code> runs with real request-scoped user OBO and per-user catalogs. See <a href="../workbench/hosted.py">hosted dispatcher</a>.</td><td>No service-principal fallback. Hosted availability does not prove migration production readiness.</td></tr>
+      <tr><td>Durable authority</td><td><a href="../workbench/delta_runtime.py">Committed Delta generations</a> plus immutable Volume blobs; SQLite is an ephemeral reconstructed execution/checkpoint cache.</td><td>Commit-last visibility is not a distributed transaction. No local or old HEAD authority fallback. Independent durable worker and low-latency operational store remain target concerns.</td></tr>
+      <tr><td>Volume access</td><td><a href="../workbench/hosted_volumes.py">OBO SQL Volume metadata</a> uses existing configured warehouse <code>e3a0fc2c08db05bb</code>. Bytes remain Volume blobs.</td><td><code>unity-catalog</code> and <code>catalog.volumes</code> were invalid Apps scopes, not current prerequisites. User ownership and SQL permissions remain necessary.</td></tr>
+      <tr><td>Fresh hosted XML</td><td>Project <code>84b03a652f5e4371ba1c72d401acba6b</code> completed a fresh approximately 61 MB upload: 243 workflows, 434 mappings, 592 sessions, 583 sources, 307 targets, 165,013 nodes, 529,237 edges.</td><td>2,976 diagnostics: 2,920 connection-redaction notices and 56 others. Qualifier-aware resolution is fixed; zero ambiguities and zero unresolved fields do not prove semantic parity.</td></tr>
+      <tr><td>Agents and review</td><td>Actual Deep Agents, typed architecture/supervisor <code>submit_redesign</code>, stored versions/reviews and <a href="../workbench/static/redesign-review.js">redesign-review frontend</a>.</td><td>Logical outline review only. Complete owner-attestation, comment/rework, independent artifact debate and release gates are not all implemented.</td></tr>
+      <tr><td>Captured SQL</td><td><a href="../workbench/sql_artifacts.py">Consent-gated SQL drafts</a> are available separately from logical review.</td><td>Not complete workflow generation. Non-SQL transformations remain unsupported; syntax is not semantic/data parity.</td></tr>
+      <tr><td>Constrained WIL_NET_DIS demonstration</td><td><a href="../workbench/demo_conversion.py">Explicit test-replacement compiler</a>, three separate native Jobs including 34/35 boundary suite. Run <code>1084134626224066</code> SUCCEEDED, 2026-10-30 06:54:44.802 to 07:19:22.867 UTC.</td><td>Email mocked, wait 0 seconds versus original 300 seconds, original child completion not verified. Not general conversion or production parity.</td></tr>
+      <tr><td>Source fixtures</td><td>583 empty tables, 136 schemas, 27,908 columns in <code>infotodbxmig_src_dev_ssuman</code>.</td><td>Structure only, not populated source data or live source connectivity.</td></tr>
+      <tr><td>Historical import</td><td>Receipt <code>3fbacd46df986b9075212553c3792fe9d059ee98f4522fa5d599d954be3e66c5</code>: 5,764 records, 1,404 objects, 100 files including history.</td><td>Not the active hosted XML generation.</td></tr>
+      <tr><td>UI evidence</td><td>UI cadence reflects retrieved evidence. <a href="../workbench/connections.py">Connections</a> is read-only XML inventory. <a href="../workbench/static/agent-arena.js">Arena</a> uses actual run events and marks absent role activity unknown.</td><td>Live source authentication/test connection is not implemented. Roadmap modal approximates design diagrams rather than embedding these exact SVGs.</td></tr>
+      <tr><td>Roadmap and publication</td><td>Hosted app packaging exists; dbt and OpenRouter are planned.</td><td>No GitHub repository publication, PR integration or protected CI/CD implementation. General one-click customer release is not implemented.</td></tr>
+      <tr><td>Latency</td><td>Hosted overview reported at 76.7 seconds.</td><td>Unresolved latency; long actions can hit proxy timeout. Diagram arrows do not imply reliable asynchronous completion.</td></tr>
+    </tbody></table></div>
+  </section>
+  <section aria-labelledby="evidence-heading">
+    <h2 id="evidence-heading">1. Evidence-to-decision flow</h2>
+    <p><strong>Design intent, partially implemented:</strong> Separate technical definitions, operating history, documented intent, and owner knowledge before proposing a change. XML inventory, durable artifacts and review exist; all owner/evidence gates and general approved artifact generation shown here are not yet a complete execution path.</p>
+    <p class="hint" id="evidence-help">On small screens, scroll horizontally. Labels remain at a readable size without automatic word wrapping.</p>
+    <div class="diagram" tabindex="0" role="region" aria-label="Scrollable evidence flow" aria-describedby="evidence-help">
+      <svg viewBox="0 0 1000 540" role="img" aria-labelledby="evidence-title evidence-desc">
+        <title id="evidence-title">Target evidence, unresolved questions, rationale, and human approval</title>
+        <desc id="evidence-desc">Design intent, not a completed execution trace. XML, documents, run history, and owners feed an evidence ledger. Operational profiles lead to a rationale record. Unknowns return to owner questions. Scope and design approval are required before artifacts; retirement is a separate decision. Current execution boundaries are in the dated matrix.</desc>
+        <defs><marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#64748b"/></marker><marker id="ask1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#996000"/></marker></defs>
+        <g text-anchor="middle">
+          <rect class="node" x="25" y="25" width="205" height="70" rx="10"/><text x="127.5" y="54">Package XML</text><text class="sub" x="127.5" y="77">Definitions and configuration</text>
+          <rect class="node" x="270" y="25" width="205" height="70" rx="10"/><text x="372.5" y="54">Design documents</text><text class="sub" x="372.5" y="77">Intent, version, and scope</text>
+          <rect class="node" x="515" y="25" width="205" height="70" rx="10"/><text x="617.5" y="54">Schedulers and logs</text><text class="sub" x="617.5" y="77">Bounded operating evidence</text>
+          <rect class="human" x="760" y="25" width="215" height="70" rx="10"/><text x="867.5" y="54">Owners and SMEs</text><text class="sub" x="867.5" y="77">Reviewed attestations</text>
+          <path class="edge" d="M127.5 95 V120 H500 M372.5 95 V120 M617.5 95 V120 H500 M867.5 95 V120 H500 V155" marker-end="url(#arrow1)"/>
+          <rect class="store" x="365" y="155" width="270" height="70" rx="10"/><text x="500" y="184">Scoped evidence ledger</text><text class="sub" x="500" y="207">Citations, time, and conflicts</text>
+          <path class="edge" d="M500 225 V265" marker-end="url(#arrow1)"/>
+          <rect class="node" x="365" y="265" width="270" height="70" rx="10"/><text x="500" y="294">Operational profile</text><text class="sub" x="500" y="317">Usage, lifecycle, migration scope</text>
+          <path class="return" d="M635 300 H720" marker-end="url(#ask1)"/>
+          <rect class="human" x="720" y="265" width="255" height="70" rx="10"/><text x="847.5" y="294">Unknown or conflicting?</text><text class="sub" x="847.5" y="317">Ask an authorized owner</text>
+          <path class="return" d="M847.5 265 V225 H690 V190 H635" marker-end="url(#ask1)"/>
+          <path class="edge" d="M500 335 V375" marker-end="url(#arrow1)"/>
+          <rect class="node" x="365" y="375" width="270" height="70" rx="10"/><text x="500" y="404">Split / combine rationale</text><text class="sub" x="500" y="427">Alternatives, risks, and tests</text>
+          <path class="edge" d="M365 410 H285" marker-end="url(#arrow1)"/>
+          <rect class="human" x="25" y="375" width="260" height="70" rx="10"/><text x="155" y="404">Scope and design review</text><text class="sub" x="155" y="427">Current evidence gates required</text>
+          <path class="edge" d="M155 445 V485 H365" marker-end="url(#arrow1)"/>
+          <rect class="store" x="365" y="460" width="270" height="55" rx="10"/><text x="500" y="494">Approved artifact generation</text>
+          <rect class="human" x="720" y="395" width="255" height="80" rx="10"/><text x="847.5" y="425">Retirement is separate</text><text class="sub" x="847.5" y="450">No automatic legacy shutdown</text>
+        </g>
+      </svg>
+    </div>
+    <div class="legend" aria-label="Color legend"><span><i class="swatch system"></i>System analysis</span><span><i class="swatch person"></i>Human input or review</span><span><i class="swatch record"></i>Durable evidence or gated output</span></div>
+    <p class="hint"><strong>Figure 1 status:</strong> Arrows describe required evidence and approval relationships, not proof that all sources were collected or every gate ran. Approved artifact generation here is the target general factory, not the narrow SQL draft or demonstration path.</p>
+    <ol>
+      <li><strong>Register evidence:</strong> Preserve original files and document status, versions, dates, environment, and authority.</li>
+      <li><strong>Separate operational dimensions:</strong> Enabled state, scheduling, observed usage, declared lifecycle, and approved migration scope are distinct.</li>
+      <li><strong>Ask rather than guess:</strong> Missing or conflicting facts create assigned questions and block only dependent decisions.</li>
+      <li><strong>Explain each change:</strong> Cite facts and counterevidence, compare alternatives, state invariants and blast radius, and attach acceptance tests.</li>
+      <li><strong>Approve explicitly:</strong> Scope/design, retirement, artifacts, and deployment are separate decisions. Original inventory is preserved.</li>
+    </ol>
+  </section>
+  <section aria-labelledby="agents-heading">
+    <h2 id="agents-heading">2. Supervised agent interaction</h2>
+    <p><strong>Design intent with implemented advisory core:</strong> Specialists return typed findings. Actual architecture/supervisor redesign submissions and version review exist. The complete independent artifact/release chain remains planned; the supervisor does not acquire execution permission from this diagram.</p>
+    <p class="hint" id="agents-help">Two specialist roles per row keep the flow compact. Arrows carry requests and findings, not unrestricted shared chat.</p>
+    <div class="diagram" tabindex="0" role="region" aria-label="Scrollable agent interaction flow" aria-describedby="agents-help">
+      <svg viewBox="0 0 1000 630" role="img" aria-labelledby="agents-title agents-desc">
+        <title id="agents-title">Target Deep Agents delegation, human questions, validation, and generation</title>
+        <desc id="agents-desc">Target interaction contract with a partially implemented advisory core. The lifecycle gate controls a Deep Agents supervisor. Discovery, semantics, architecture, and validation exchange typed requests and findings through it. Owner questions and decisions pass through policy checks. A scoped evidence ledger supports all roles. Only an approved snapshot should reach the planned general artifact factory; logical review currently grants no deployment authority.</desc>
+        <defs><marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#64748b"/></marker></defs>
+        <g text-anchor="middle">
+          <rect class="human" x="330" y="20" width="340" height="65" rx="10"/><text x="500" y="48">User and authorized owners</text><text class="sub" x="500" y="70">Questions, evidence, and decisions</text>
+          <path class="edge" d="M500 85 V125" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="node" x="330" y="125" width="340" height="65" rx="10"/><text x="500" y="153">Lifecycle and authorization gate</text><text class="sub" x="500" y="175">Identity, versions, and blockers</text>
+          <path class="edge" d="M500 190 V230" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="node" x="355" y="230" width="290" height="70" rx="10"/><text x="500" y="259">Deep Agents supervisor</text><text class="sub" x="500" y="282">Typed tasks and findings</text>
+          <path class="edge" d="M355 252 H285" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="node" x="25" y="220" width="260" height="65" rx="10"/><text x="155" y="248">Discovery specialist</text><text class="sub" x="155" y="270">Inventory and evidence claims</text>
+          <path class="edge" d="M355 280 H315 V350 H285" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="node" x="25" y="320" width="260" height="65" rx="10"/><text x="155" y="348">Semantics specialist</text><text class="sub" x="155" y="370">Logic and control contracts</text>
+          <path class="edge" d="M645 252 H715" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="node" x="715" y="220" width="260" height="65" rx="10"/><text x="845" y="248">Architecture specialist</text><text class="sub" x="845" y="270">Options and rationale records</text>
+          <path class="edge" d="M645 280 H685 V350 H715" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="node" x="715" y="320" width="260" height="65" rx="10"/><text x="845" y="348">Independent validator</text><text class="sub" x="845" y="370">Challenges, tests, and blockers</text>
+          <path class="edge" d="M500 300 V340" marker-start="url(#arrow2)" marker-end="url(#arrow2)"/>
+          <rect class="store" x="355" y="340" width="290" height="65" rx="10"/><text x="500" y="368">Evidence and scoped memory</text><text class="sub" x="500" y="390">Access-controlled repositories</text>
+          <path class="edge" d="M500 405 V450" marker-end="url(#arrow2)"/>
+          <rect class="human" x="330" y="450" width="340" height="65" rx="10"/><text x="500" y="478">Human proposal review</text><text class="sub" x="500" y="500">Required owners and current hashes</text>
+          <path class="edge" d="M500 515 V555" marker-end="url(#arrow2)"/>
+          <rect class="store" x="330" y="555" width="340" height="55" rx="10"/><text x="500" y="589">Artifact specialist: approved inputs only</text>
+        </g>
+      </svg>
+    </div>
+    <p class="hint"><strong>Figure 2 status:</strong> The arena renders actual recorded events, with unknown role activity left unknown. It is not a replay of every arrow here. Review approval is version-specific and outline-only; no generic executable generation or deployment permission follows.</p>
+    <ol>
+      <li><strong>Delegate:</strong> A request names the task, object IDs, input/evidence versions, unresolved questions, output contract, tools, and budget.</li>
+      <li><strong>Return:</strong> Each role submits cited findings, assumptions, conflicts, tests, and status. Missing information is a valid result.</li>
+      <li><strong>Reconcile:</strong> The supervisor validates results and prepares the next scoped context. An agent cannot erase another role's conflicting finding.</li>
+      <li><strong>Intervene:</strong> Owners answer assigned questions. The service records authority and scope, versions the evidence, and resumes affected tasks.</li>
+      <li><strong>Gate:</strong> Human approval and deterministic checks freeze a proposal snapshot before executable artifact generation. Artifact/deploy reviews follow separately.</li>
+    </ol>
+    <div class="table-scroll"><table><caption>What agents must not infer from weak evidence</caption><thead><tr><th>Observation</th><th>Safe statement</th><th>Unsafe inference</th></tr></thead><tbody>
+      <tr><td>No schedule in XML</td><td>Invocation status needs external evidence.</td><td>This pipeline is unused.</td></tr>
+      <tr><td>Similar cleansing logic</td><td>Candidate for sharing; verify business and operational differences.</td><td>Merge schedules and retire one flow.</td></tr>
+      <tr><td>No runs in supplied logs</td><td>No executions observed during the stated window.</td><td>The pipeline is deprecated.</td></tr>
+      <tr><td>Document says deprecated; recent runs exist</td><td>Conflicting lifecycle and runtime evidence; owner resolution required.</td><td>Ignore one source and proceed.</td></tr>
+    </tbody></table></div>
+  </section>
+  <footer>Updated 2026-10-30. Reference tokens supplied by the user: links #464feb, table borders #e6e6e6, table headers #f5f5f5. This is a design diagram companion with a dated partial-implementation record, not the final app theme or an execution receipt. Full reference HTML assets remain pending. The app roadmap modal is an approximation, not exact SVG embedding.</footer>
+</main>
+</body>
+</html>
