@@ -46,9 +46,14 @@ class ArenaActivitySourceTests(unittest.TestCase):
         self.assertIn('height: 600px;', arena_css)
         self.assertIn('block-size: 88px;', arena_css)
         self.assertIn('#page-agents .arena-roles { gap: 14px 14px; }', arena_css)
-        self.assertIn('#page-agents .arena-elapsed-timer { font-size: 16px; text-align: center; }', arena_css)
+        self.assertIn('#page-agents .arena-progress-value { width: 58px; height: 58px; font: 800 20px/1 var(--heading);', arena_css)
+        self.assertIn('#page-agents .arena-run-cost { display: block; color: var(--ink); font: 800 20px/1.1 var(--heading);', arena_css)
+        self.assertIn('#page-agents .arena-elapsed-timer { font: 800 20px/1.1 var(--heading); text-align: center;', arena_css)
+        self.assertIn('#page-agents .arena-visually-hidden { position: absolute;', arena_css)
         self.assertIn('#page-agents .arena-inspector .arena-findings { max-height: 400px; }', arena_css)
         self.assertIn('#page-agents .arena-progress { box-sizing: border-box;', arena_css)
+        self.assertIn('grid-template-rows: minmax(0, 1fr) 94px;', arena_css)
+        self.assertIn('grid-template-columns: 58px repeat(2, minmax(0, 1fr)) 34px 34px;', arena_css)
         self.assertIn('#page-agents .arena-platform { inset: 0;', activity_css)
         self.assertIn("var(--surface)", activity_css)
         self.assertIn('grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr))', activity_css)
@@ -90,7 +95,7 @@ const window = new Element('window');
 window.orionRedaction = {text: value => String(value)};
 const forbidden = () => { throw Error('Unexpected side effect'); };
 vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
-  document, window, fetch: forbidden, setTimeout: forbidden, setInterval: forbidden,
+  document, window, URL, fetch: forbidden, setTimeout: forbidden, setInterval: forbidden,
   localStorage: new Proxy({}, {get: forbidden}), sessionStorage: new Proxy({}, {get: forbidden})
 });
 const walk = root => [root, ...root.children.flatMap(walk)];
@@ -111,7 +116,10 @@ assert.deepEqual(find('agent-arena')[0].children.slice(-1).map(node => node.clas
 assert.equal(find('arena-progress-value')[0].textContent, '0%');
 assert.equal(find('arena-progress-control')[0].disabled, true);
 assert.equal(find('arena-elapsed-timer')[0].textContent, '00:00:00');
-assert.match(find('arena-run-cost')[0].textContent, /cost unavailable.*not connected/i);
+assert(hasClass(find('arena-progress-basis')[0], 'arena-visually-hidden'));
+assert.match(find('arena-run-cost')[0].textContent, /select a run/i);
+assert.match(find('arena-cost-box')[0].textContent, /EST\. MODEL COST/);
+assert.match(find('arena-run-cost')[0].title, /not historical rates or the final invoice/);
 assert.equal(find('arena-progress')[0].children.filter(node => ['arena-progress-value','arena-cost-box','arena-timer-box'].some(name=>hasClass(node,name))).length, 3);
 assert(!walk(stage).includes(panel()));
 assert.equal(find('agent-arena')[0].children.at(-1), find('arena-layout')[0]);
@@ -234,6 +242,104 @@ document.dispatchEvent({type: 'change', target: {id: 'agent-workflow'}});
 assert.match(panel().textContent, /Select a run/);
 assert.equal(find('arena-role').length, 6);
 assert.equal(find('arena-inspector').length, 1);
+
+// Price events have no run data, network access, or mutable accounting side effects.
+const cost = () => find('arena-run-cost')[0].textContent;
+const prices = detail => document.dispatchEvent({type: 'orion:model-list-prices', detail});
+const price = (input, output) => ({input_usd_per_million: input, output_usd_per_million: output,
+  source_url: 'https://example.com/prices', observed_at: '2026-11-18T10:00:00Z'});
+const rates = {version: 'model-list-prices-v1', status: 'available', rates: {
+  model_a: price('2.5', '10'), model_b: price('1', '3')
+}};
+const call = (id, endpoint, input, output, state = 'completed') => ({
+  call_id: id.repeat(32), role: 'discovery', endpoint, input_tokens: input, output_tokens: output, status: state
+});
+const recorded = [call('a', 'model_a', 1000000, 100000), call('b', 'model_b', 500000, 500000)];
+const costReceipt = {...receipt, run_id: 'runtime1', turn_count: recorded.length, turns: recorded};
+const costRun = {...run, output: {run_id: 'runtime1'}, live_activity: costReceipt};
+emit(costRun);
+assert.match(cost(), /Unknown: current list prices unavailable/);
+prices(rates);
+assert.equal(cost(), '$5.50');
+assert.match(find('arena-run-cost')[0].attributes['aria-label'], /analysis model cost estimate/);
+assert.match(find('arena-run-cost')[0].title, /not historical rates or the final invoice/);
+assert.match(find('arena-run-cost')[0].title, /Writer and shared compute are excluded/);
+assert.match(find('arena-run-cost')[0].title, /https:\/\/example\.com\/prices.*2026-11-18/);
+prices({...rates, rates: {model_a: price('5.005', '0')}});
+emit({...costRun, live_activity: {...costReceipt, turn_count: 1, turns: [call('a', 'model_a', 1000000, 0)]}});
+assert.equal(cost(), '$5.01');
+prices(rates);
+const pendingTurn = call('c', 'model_a', null, null, 'started');
+emit({...costRun, live_activity: {...costReceipt, turn_count: 3, turns: [...recorded, pendingTurn]}});
+assert.equal(cost(), '$5.50');
+assert.match(find('arena-run-cost')[0].attributes['aria-label'], /partial analysis model cost estimate/);
+assert.match(find('arena-run-cost')[0].title, /Partial estimate/);
+emit({...costRun, live_activity: {...costReceipt, turn_count: 1, turns: [pendingTurn]}});
+assert.match(cost(), /^Pending:/);
+emit({...costRun, live_activity: {...costReceipt, turn_count: 0, turns: []}});
+assert.match(cost(), /^Pending:/);
+const missing = [call('c', 'model_a', null, 2), call('d', 'unsupported', 1, 1)];
+emit({...costRun, live_activity: {...costReceipt, turn_count: 4, turns: [...recorded, ...missing]}});
+assert.equal(cost(), '$5.50');
+emit({...costRun, live_activity: {...costReceipt, turn_count: 2, turns: missing}});
+assert.match(cost(), /^Unknown:/);
+emit({...costRun, live_activity: {...costReceipt, turn_count: 1, turns: [call('e', 'model_a', 0, 0)]}});
+assert.equal(cost(), '$0.00');
+prices({...rates, rates: {model_a: price('0.000000000001', '0')}});
+emit({...costRun, live_activity: {...costReceipt, turn_count: 1, turns: [call('e', 'model_a', 1, 0)]}});
+assert.equal(cost(), '$0.00');
+prices(rates);
+for (const invalid of [-1, 1.1, '1', true, null, Number.MAX_SAFE_INTEGER + 1]) {
+  emit({...costRun, live_activity: {...costReceipt, turn_count: 1, turns: [call('e', 'model_a', invalid, 1)]}});
+  assert.match(cost(), /^Unknown:/);
+}
+emit({...costRun, live_activity: {...costReceipt, turn_count: 3, turns: [...recorded, recorded[0]]}});
+assert.equal(cost(), '$5.50');
+emit({...costRun, live_activity: {...costReceipt, turn_count: 99}});
+assert.equal(cost(), '$5.50');
+for (const invalid of ['-1', 'NaN', 'Infinity', '1e999', '9'.repeat(41), '0.' + '1'.repeat(31), 2]) {
+  prices({...rates, rates: {model_a: price(invalid, '1')}});
+  emit({...costRun, live_activity: {...costReceipt, turn_count: 1, turns: [recorded[0]]}});
+  assert.match(cost(), /^Unknown:/);
+}
+for (const invalid of [
+  {...price('1', '1'), source_url: ''},
+  {...price('1', '1'), source_url: 'http://example.com'},
+  {...price('1', '1'), source_url: 'https://user:pass@example.com'},
+  {...price('1', '1'), observed_at: 'invalid'}
+]) {
+  prices({...rates, rates: {model_a: invalid}});
+  assert.match(cost(), /^Unknown:/);
+}
+prices(rates);
+const savedCost = {...saved, run_id: 'runtime1', turn_count: 2, turns: recorded};
+const terminalCost = {...costRun, status: 'completed', finished_at: saved.finished_at,
+  observation_snapshot: savedCost, live_activity: {...costReceipt, turns: [call('f', 'model_a', 9000000, 0)]}};
+emit(terminalCost);
+assert.equal(cost(), '$5.50');
+emit({...terminalCost, observation_snapshot: {...savedCost, workflow_id: 'wrong'}});
+assert.match(cost(), /^Unknown: verified/);
+emit({...terminalCost, observation_snapshot: {...savedCost, status: 'unverified'}});
+assert.match(cost(), /^Unknown: verified/);
+emit({...costRun, live_activity: {...costReceipt, public_run_id: 'different'}});
+assert.match(cost(), /^Unknown: verified/);
+emit({...costRun, live_activity: {...costReceipt, run_id: 'different'}});
+assert.match(cost(), /^Unknown: verified/);
+emit({id: 'r2', status: 'running', current_usage_receipt: costReceipt, usage: {total_tokens: 987654}});
+assert.match(cost(), /^Unknown: verified/);
+assert(!cost().includes('5.50'));
+emit(costRun);
+prices({version: 'model-list-prices-v1', status: 'unavailable', rates: {}});
+assert.match(cost(), /^Unknown: current list prices unavailable/);
+prices({...rates, version: 'wrong'});
+assert.match(cost(), /^Unknown: current list prices unavailable/);
+window.dispatchEvent({type: 'orion:model-list-prices', detail: rates});
+assert.equal(cost(), '$5.50');
+emit(null);
+assert.equal(cost(), 'Select a run.');
+emit(costRun);
+document.dispatchEvent({type: 'change', target: {id: 'agent-scenario'}});
+assert.equal(cost(), 'Select a run.');
 console.log('Full arena renderer receipt checks passed (minimal DOM, no browser).');
 """
         result = subprocess.run(

@@ -2,6 +2,7 @@
  * Parent integration: dispatch on document (or window) CustomEvent:
  * orion:agent-run detail = {id,status,output?,workflow_id,created_at?,finished_at?,usage?}
  * orion:loop-run detail = actual loop record including attempts[].
+ * orion:model-list-prices detail = the model-list-prices-v1 API response.
  * Null detail clears the display. Dispatch selected records after scope guards.
  * Full records replace snapshots; absent fields remain unknown. Loop role/evidence
  * displays use the latest recorded attempt, never infer live specialist activity.
@@ -234,6 +235,7 @@
   progressValue.setAttribute('role', 'progressbar');
   progressValue.setAttribute('aria-label', 'Recorded task completion');
   const progressBasis = node('span', 'Select a run', 'arena-progress-basis');
+  progressBasis.className += ' arena-visually-hidden';
   const pauseControl = node('button', 'Ⅱ', 'arena-progress-control');
   pauseControl.className += ' arena-pause-control';
   pauseControl.type = 'button'; pauseControl.disabled = true;
@@ -250,13 +252,14 @@
       .find(button => button.dataset.runId === current.id);
     if (existing && !existing.disabled) { existing.click(); stopControl.disabled = true; }
   });
-  const runtimeCost = node('span', 'Run cost unavailable: Databricks billing is not connected. Billing data is delayed/shared and is not attributed to this run.', 'arena-run-cost');
+  const runtimeCost = node('span', 'Select a run.', 'arena-run-cost');
   runtimeCost.setAttribute('role', 'note');
+  runtimeCost.title = 'Current Azure list rates, uncached standard reference, not the final billed amount. Writer and shared compute are excluded.';
   const elapsedTimer = node('time', '00:00:00', 'arena-elapsed-timer');
   elapsedTimer.setAttribute('aria-label', 'Run elapsed time');
   elapsedTimer.setAttribute('aria-live', 'off');
   const runtimeCostBox = node('div', '', 'arena-progress-detail arena-cost-box');
-  runtimeCostBox.append(node('span', 'RUN COST', 'arena-progress-label'), runtimeCost, progressBasis);
+  runtimeCostBox.append(node('span', 'EST. MODEL COST', 'arena-progress-label'), runtimeCost, progressBasis);
   const elapsedBox = node('div', '', 'arena-progress-detail arena-timer-box');
   elapsedBox.append(node('span', 'ELAPSED', 'arena-progress-label'), elapsedTimer);
   progressPanel.append(progressValue, runtimeCostBox, elapsedBox, pauseControl, stopControl);
@@ -274,6 +277,69 @@
   const activityLabel = value => activityCount(value) === null ? 'Unknown' : String(value);
   const activityName = value => typeof value === 'string'
     && /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(value) ? value : null;
+  // Decimal rates are scaled exactly, without floating-point overflow or rounding
+  // per call. A bounded input size also prevents untrusted events exhausting memory.
+  const priceScale = 10n ** 30n;
+  let listPrices = null;
+  function decimalRate(value) {
+    if (typeof value !== 'string' || !/^\d{1,40}(?:\.\d{1,30})?$/.test(value)) return null;
+    const [whole, fraction = ''] = value.split('.');
+    return BigInt(whole) * priceScale + BigInt(fraction.padEnd(30, '0'));
+  }
+  function readPrices(value) {
+    if (!object(value) || value.version !== 'model-list-prices-v1'
+        || value.status !== 'available' || !object(value.rates)) return null;
+    const rates = new Map();
+    for (const [endpoint, rate] of Object.entries(value.rates)) {
+      if (!activityName(endpoint) || !object(rate)) continue;
+      const input = decimalRate(rate.input_usd_per_million);
+      const output = decimalRate(rate.output_usd_per_million);
+      if (input === null || output === null || typeof rate.source_url !== 'string'
+          || rate.source_url.length > 2048 || typeof rate.observed_at !== 'string' || rate.observed_at.length > 40
+          || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(rate.observed_at)
+          || !Number.isFinite(Date.parse(rate.observed_at))) continue;
+      try {
+        const url = new URL(rate.source_url);
+        if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) continue;
+      } catch (_) { continue; }
+      rates.set(endpoint, {input, output, source: rate.source_url, observed: rate.observed_at});
+    }
+    return rates;
+  }
+  function renderCost(receipt, active) {
+    const disclaimer = 'Current Azure list rates, uncached standard reference, not historical rates or the final invoice. Writer and shared compute are excluded.';
+    runtimeCost.title = disclaimer;
+    runtimeCost.removeAttribute('aria-label');
+    if (!current) { write(runtimeCost, 'Select a run.'); return; }
+    if (!receipt || !Array.isArray(receipt.turns)) { write(runtimeCost, 'Unknown: verified model turns unavailable.'); return; }
+    if (!listPrices) { write(runtimeCost, 'Unknown: current list prices unavailable.'); return; }
+    let total = 0n, priced = 0, partial = false, pending = false;
+    const seen = new Set(), sources = new Set();
+    if (activityCount(receipt.turn_count) !== receipt.turns.length) partial = true;
+    for (const turn of receipt.turns) {
+      if (!object(turn) || typeof turn.call_id !== 'string' || !/^[a-f0-9]{32}$/.test(turn.call_id)
+          || seen.has(turn.call_id) || !roles.includes(turn.role)
+          || !['started', 'completed', 'failed'].includes(turn.status)) { partial = true; continue; }
+      seen.add(turn.call_id);
+      if (turn.status === 'started') { pending = true; partial = true; continue; }
+      const rate = listPrices.get(turn.endpoint);
+      if (!rate || activityCount(turn.input_tokens) === null || activityCount(turn.output_tokens) === null) {
+        partial = true; continue;
+      }
+      total += BigInt(turn.input_tokens) * rate.input + BigInt(turn.output_tokens) * rate.output;
+      priced++; sources.add(`${rate.source} (observed ${rate.observed})`);
+    }
+    if (!priced) {
+      write(runtimeCost, pending || (active && !receipt.turns.length) ? 'Pending: no priced model calls yet.' : 'Unknown: no priced model calls.');
+      return;
+    }
+    const centsScale = priceScale * 10000n;
+    const cents = (total + centsScale / 2n) / centsScale;
+    const amount = `$${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
+    write(runtimeCost, amount);
+    runtimeCost.setAttribute('aria-label', `${amount}, ${partial ? 'partial ' : ''}analysis model cost estimate. ${disclaimer}`);
+    runtimeCost.title = `${partial ? 'Partial estimate. ' : ''}${disclaimer} ${[...sources].join('; ')}`;
+  }
   const activityStates = ['model_started', 'model_completed', 'model_failed',
     'tool_started', 'tool_completed', 'tool_rejected', 'tool_failed'];
   function activityTime(value) {
@@ -433,6 +499,11 @@
       : current?.live_activity?.status === 'verified'
         && current.live_activity.public_run_id === current.id ? current.live_activity : null;
     renderActivity(live, active, historical);
+    // A mismatched saved terminal snapshot must not fall through to a newer
+    // receipt. Old runs without snapshots may use their own verified ledger.
+    const costReceipt = !active && saved && !historical ? null : live;
+    renderCost(costReceipt && (!current?.output?.run_id || costReceipt.run_id === current.output.run_id)
+      ? costReceipt : null, active);
     const activeCalls = array(live?.active_calls);
     arena.dataset.active = String(active);
     arena.dataset.state = current?.status === 'failed' || current?.status === 'error' ? 'failed' : 'neutral';
@@ -535,6 +606,12 @@
   }
   window.addEventListener('orion:agent-run', receive);
   document.addEventListener('orion:agent-run', receive);
+  function receivePrices(event) {
+    listPrices = readPrices(event.detail);
+    render();
+  }
+  window.addEventListener('orion:model-list-prices', receivePrices);
+  document.addEventListener('orion:model-list-prices', receivePrices);
   document.addEventListener('orion:agent-clock', event => {
     if (current?.id === event.detail?.id && ['queued', 'running', 'cancelling'].includes(current.status))
       showElapsed(event.detail.elapsed);

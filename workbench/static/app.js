@@ -3392,6 +3392,30 @@
     if (clock) clock.textContent = `${elapsed === null ? 'Elapsed time unavailable' : `Elapsed ${elapsed}s`} · Last service update ${age}s ago${observed.pending ? ' · Status request pending' : ''}`;
     updateAgentTurnClocks();
   }
+  let modelPricesInFlight = false, modelPricesNextAttempt = 0;
+  async function loadModelListPrices() {
+    if (modelPricesInFlight || Date.now() < modelPricesNextAttempt) return;
+    modelPricesInFlight = true;
+    try {
+      const data = await api('/api/model-pricing/list');
+      const rates = {};
+      if (data?.status === 'available' && Array.isArray(data.rates)
+          && typeof data.retrieved_at === 'string' && Array.isArray(data.source_urls)) {
+        for (const rate of data.rates) {
+          if (typeof rate?.endpoint !== 'string' || Object.prototype.hasOwnProperty.call(rates, rate.endpoint)) continue;
+          rates[rate.endpoint] = {input_usd_per_million: rate.input_usd_per_1m_tokens,
+            output_usd_per_million: rate.output_usd_per_1m_tokens,
+            source_url: data.source_urls[0], observed_at: data.retrieved_at};
+        }
+      }
+      document.dispatchEvent(new CustomEvent('orion:model-list-prices', {detail: {
+        version: 'model-list-prices-v1', status: Object.keys(rates).length ? 'available' : 'unavailable', rates}}));
+      modelPricesNextAttempt = Date.now() + (Object.keys(rates).length ? 900000 : 60000);
+    } catch (_) {
+      document.dispatchEvent(new CustomEvent('orion:model-list-prices', {detail: {version: 'model-list-prices-v1', status: 'unavailable', rates: {}}}));
+      modelPricesNextAttempt = Date.now() + 60000;
+    } finally { modelPricesInFlight = false; }
+  }
   function selectRun(id) {
     clearInterval(liveRunClock); liveRunClock = null; liveRunObservation = null;
     state.runId = String(id);
@@ -3416,6 +3440,7 @@
       };
       recordedRunStates.set(run.id, runState(run, epoch));
       document.dispatchEvent(new CustomEvent('orion:agent-run', { detail: run }));
+      void loadModelListPrices();
       const parentTerminal = terminal.has(String(run.status).toLowerCase());
       const writerActive = activeWriter(run);
       const completed = parentTerminal && !writerActive;

@@ -2591,6 +2591,10 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
 
     from workbench.fixture_metadata import install_fixture_metadata
     install_fixture_metadata(app)
+    from workbench.oracle_federation import install_oracle_federation
+    install_oracle_federation(app)
+    from workbench.model_price_rates import install_model_pricing
+    install_model_pricing(app)
     from workbench.validation_campaigns import install_validation
     install_validation(app)
     from workbench.readiness import install_readiness

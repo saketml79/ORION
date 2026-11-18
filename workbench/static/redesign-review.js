@@ -289,6 +289,147 @@
   };
   const hasWorkflow = id => !!id && [...agentWorkflow.options].some(o => o.value === id && !o.disabled);
   const workflowKnown = id => hasWorkflow(id) && !agentWorkflow.disabled;
+  // Independent of output-target review: this is a transient, explicit metadata browse.
+  function createOracleSourceExplorer() {
+    const root = node('section', '', 'proposal-review-card section-gap'); root.id = 'oracle-source-explorer';
+    root.append(node('h3', 'Explore Oracle sources'), node('p',
+      'Browse accessible Unity Catalog foreign metadata for possible Oracle sources. A foreign catalog does not establish its connection type. Metadata only: no row access, network verification, binding, approval, execution, or connection secrets.', 'small muted'));
+    const start = button('oracle-source-catalogs-load', 'Load foreign catalog metadata', root);
+    const catalog = field('select', 'oracle-source-catalog', 'Foreign catalog', root);
+    const schemas = button('oracle-source-schemas-load', 'Load schemas', root);
+    const schema = field('select', 'oracle-source-schema', 'Schema', root);
+    const tables = button('oracle-source-tables-load', 'Load tables', root);
+    const table = field('select', 'oracle-source-table', 'Table', root);
+    const detail = button('oracle-source-table-load', 'Inspect table columns', root);
+    const nextPage = button('oracle-source-next', 'Next metadata page', root);
+    const status = node('p', 'Select a workflow, then explicitly load catalog metadata.', 'small muted');
+    status.id = 'oracle-source-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    const output = node('div', '', 'detail-list'); output.id = 'oracle-source-output'; root.append(status, output);
+    let serial = 0, pending = false, pageInfo = null, catalogForeign = false;
+    const selects = {catalogs: catalog, schemas: schema, tables: table};
+    const blank = (select, label) => select.replaceChildren(new Option(label, ''));
+    const clearDetail = () => output.replaceChildren();
+    function clearFrom(level) {
+      if (level <= 0) { blank(catalog, 'Choose a catalog'); catalogForeign = false; }
+      if (level <= 1) blank(schema, 'Choose a schema');
+      if (level <= 2) blank(table, 'Choose a table');
+      clearDetail(); pageInfo = null;
+    }
+    function sync() {
+      const available = valid() && workflowKnown(source().workflow) && scopeActive();
+      start.disabled = !available || pending;
+      schemas.disabled = !available || pending || !catalog.value || !catalogForeign;
+      tables.disabled = !available || pending || !catalog.value || !catalogForeign || !schema.value;
+      detail.disabled = !available || pending || !catalog.value || !catalogForeign || !schema.value || !table.value;
+      nextPage.disabled = !available || pending || !pageInfo;
+      catalog.disabled = !available || catalog.options.length <= 1;
+      schema.disabled = !available || schema.options.length <= 1;
+      table.disabled = !available || table.options.length <= 1;
+    }
+    function reset() {
+      serial++; pending = false; clearFrom(0);
+      status.textContent = 'Selection changed. Previous source metadata cleared; explicitly load catalog metadata.';
+      sync();
+    }
+    for (const [select, level] of [[catalog, 1], [schema, 2], [table, 3]]) {
+      select.addEventListener('change', () => {
+        serial++; pending = false;
+        if (select === catalog) catalogForeign = select.selectedOptions[0]?.dataset.foreign === 'true';
+        clearFrom(level);
+        status.textContent = select === catalog && select.value && !catalogForeign
+          ? 'Catalog type is unknown. Its connection type is not observed; schemas cannot be explored as foreign.'
+          : 'Selection changed. Explicitly load the next metadata level.';
+        sync();
+      });
+    }
+    async function load(operation, offset = 0) {
+      if (pending || !valid() || !workflowKnown(source().workflow) || !scopeActive()) return;
+      if (operation !== 'catalogs' && (!catalog.value || !catalogForeign)) return;
+      if (['tables', 'table'].includes(operation) && !schema.value) return;
+      if (operation === 'table' && !table.value) return;
+      const ticket = capture(), selection = {catalog: catalog.value, schema: schema.value, table: table.value};
+      const id = ++serial;
+      if (operation === 'catalogs') clearFrom(0);
+      else if (operation === 'schemas') clearFrom(1);
+      else if (operation === 'tables') clearFrom(2);
+      else { clearDetail(); pageInfo = null; }
+      pending = true; sync();
+      status.textContent = 'Reading the requested metadata page. No data rows or connection verification.';
+      const query = new URLSearchParams({operation});
+      if (operation !== 'catalogs') query.set('catalog', selection.catalog);
+      if (['tables', 'table'].includes(operation)) query.set('schema', selection.schema);
+      if (operation === 'table') query.set('table', selection.table);
+      else { query.set('offset', String(offset)); query.set('limit', '20'); }
+      const active = () => current(ticket) && id === serial && scopeActive() && valid() && workflowKnown(ticket.scope.workflow)
+        && (operation === 'catalogs' || catalog.value === selection.catalog)
+        && (!['tables', 'table'].includes(operation) || schema.value === selection.schema)
+        && (operation !== 'table' || table.value === selection.table);
+      try {
+        // This endpoint is a direct hosted OBO GET, not a hosted operation envelope.
+        const result = await request(`/api/oracle-federation/metadata?${query}`, ticket);
+        if (!active()) return;
+        if (result.format !== 'oracle-federation-metadata-v1' || result.operation !== operation
+            || !Array.isArray(result.items) || result.binding_approved !== false
+            || result.execution_allowed !== false || result.deployment_allowed !== false)
+          throw new Error('Invalid metadata response');
+        if (result.status !== 'observed') {
+          status.textContent = result.status === 'table_not_found' && result.exists === false
+            ? 'The exact table was reported not found; no wider absence is established.'
+            : result.status === 'not_foreign_catalog'
+            ? 'This catalog was reported as not foreign; no schemas were inspected.'
+            : 'Metadata unknown or unavailable, including possible permission denial. Absence and connection type are not established.';
+          return;
+        }
+        if (operation === 'table') {
+          const item = result.items[0];
+          if (result.exists !== true || result.items.length !== 1 || item?.catalog_name !== selection.catalog
+              || item?.schema_name !== selection.schema || item?.name !== selection.table
+              || item?.full_name !== [selection.catalog, selection.schema, selection.table].join('.') || !Array.isArray(item.columns))
+            throw new Error('Invalid table metadata');
+          const format = item.oracle_format === true ? 'Oracle format observed' : item.oracle_format === false
+            ? 'Non-Oracle format observed' : 'Table format unknown';
+          status.textContent = `${format}. Metadata is not a source binding or approval.`;
+          output.append(node('h4', `Table: ${item.full_name}`));
+          if (!item.columns.length) output.append(node('p', 'No columns returned in this table metadata.', 'small muted'));
+          for (const column of item.columns) output.append(node('p',
+            `${column.name} · ${column.type_text} · ${column.nullable === true ? 'nullable' : column.nullable === false ? 'not nullable' : 'nullability unknown'}`, 'small muted'));
+          return;
+        }
+        if (result.offset !== offset || result.limit !== 20 || typeof result.has_more !== 'boolean'
+            || (result.has_more && !result.scan_limit_reached && (!Number.isInteger(result.next_offset) || result.next_offset <= offset || result.next_offset >= 1000)))
+          throw new Error('Invalid pagination');
+        const select = selects[operation];
+        for (const item of result.items) {
+          if (typeof item.name !== 'string' || !item.name) throw new Error('Invalid metadata item');
+          if (operation === 'schemas' && item.catalog_name !== selection.catalog) throw new Error('Schema identity mismatch');
+          if (operation === 'tables' && (item.catalog_name !== selection.catalog || item.schema_name !== selection.schema)) throw new Error('Table identity mismatch');
+          const suffix = operation === 'catalogs' ? (item.foreign === true ? 'foreign, connection type unknown' : 'catalog type unknown')
+            : operation === 'tables' ? (item.oracle_format === true ? 'Oracle format observed' : item.oracle_format === false ? 'non-Oracle format observed' : 'format unknown') : '';
+          const option = new Option(safe(`${item.name}${suffix ? ` (${suffix})` : ''}`), item.name);
+          if (operation === 'catalogs') option.dataset.foreign = item.foreign === true ? 'true' : 'unknown';
+          select.append(option);
+        }
+        if (result.has_more && !result.scan_limit_reached) pageInfo = {operation, offset: result.next_offset};
+        status.textContent = `${result.items.length ? `${result.items.length} metadata item(s) on this page.` : 'No visible items in this page.'} ${result.has_more ? 'Results are partial; more metadata may be available.' : 'No further page was reported, not an estate-wide absence.'} ${result.scan_limit_reached ? 'The scan limit was reached; results are incomplete.' : ''} Pages are raw SDK windows, not a snapshot.`;
+      } catch (error) {
+        if (active()) {
+          clearFrom(operation === 'catalogs' ? 0 : operation === 'schemas' ? 1 : operation === 'tables' ? 2 : 3);
+          status.textContent = /HTTP (401|403)\b/.test(error.message || '')
+            ? 'Metadata request denied or authentication unavailable. Access and absence are not established.'
+            : 'Metadata unavailable or response invalid. Access, absence, and connection type remain unknown.';
+        }
+      } finally { if (active()) { pending = false; sync(); } }
+    }
+    start.addEventListener('click', () => load('catalogs'));
+    schemas.addEventListener('click', () => load('schemas'));
+    tables.addEventListener('click', () => load('tables'));
+    detail.addEventListener('click', () => load('table'));
+    nextPage.addEventListener('click', () => { if (pageInfo) load(pageInfo.operation, pageInfo.offset); });
+    blank(catalog, 'Choose a catalog'); blank(schema, 'Choose a schema'); blank(table, 'Choose a table');
+    return {root, reset, sync};
+  }
+  const oracleExplorer = createOracleSourceExplorer();
+  scopeActions.after(oracleExplorer.root);
   function controls() {
     const scope = source(), name = [...agentWorkflow.options].find(option => option.value === scope.workflow)?.textContent;
     originalName.textContent = name || 'Choose a workflow';
@@ -334,6 +475,7 @@
     versions.disabled = busy || loading || detailLoading || !valid() || ![...versions.options].some(option => option.value);
     previous.disabled = busy || loading || !loaded || offset === 0;
     next.disabled = busy || loading || !loaded || offset + 50 >= total;
+    oracleExplorer.sync();
     syncScopeWorker();
     reviewControls();
   }
@@ -347,6 +489,7 @@
     const retainedGraph = retainChoices && sameContext ? detail.querySelector('#saved-design-panel-0') : null;
     if (submittedLink && submittedLink.key !== key()) submittedLink = null;
     contextKey = key(); epoch++; listTicket++; detailTicket++; sqlTicket++; workflowTicket++; understandingTicket++; targetTicket++;
+    oracleExplorer.reset();
     listFlight = null; versionFlight = null; understandingKey = ''; understandingPending = false; targetLoading = false; detailLoading = false; cohortSaving = false; cohortReading = false;
     targets.setAttribute('aria-busy', 'false');
     controllers.forEach(c => c.abort()); controllers.clear();
@@ -3136,11 +3279,12 @@
     if (contextKey !== key()) {
       restoreScope();
       invalidate('Package identity changed. Previous responses and selections were cleared.');
-    }
+    } else if (!valid()) oracleExplorer.reset();
     controls();
     if (valid() && !page.hidden) scheduleLoad();
   }).observe(page, { attributes: true, attributeFilter: ['data-package-ready', 'data-package-hash'] });
   new MutationObserver(() => {
+    if (agentPage.hidden) oracleExplorer.reset();
     controls();
     if (scopeActive() && valid()) scheduleLoad();
   }).observe(agentPage, {attributes: true, attributeFilter: ['hidden', 'data-package-ready', 'data-package-hash', 'data-agent-run-status']});

@@ -239,6 +239,8 @@ class HostedDispatcher:
         self.config, self.identity_resolver = config, identity_resolver
         from workbench.external_models import Sessions
         self.external_models = Sessions()
+        from workbench.model_price_rates import ModelPriceRates
+        self.model_price_rates = ModelPriceRates()
         self.guard, self.users = Lock(), {}
         self.user_queues = {}
         self.capacity = BoundedSemaphore(config.max_active_users)
@@ -492,6 +494,16 @@ class HostedDispatcher:
                     "connected": True, "auth_check": "verified", "authentication": "databricks_obo", "host": identity.host,
                     "user_id": identity.user_id, "local_only": False,
                     "production_remote_enabled": True})(clean_scope, receive, secure_send)
+            if path == "/api/oracle-federation/metadata" and scope["method"] == "GET":
+                # Metadata-only, fresh OBO client. No provisioning, SQL, restore,
+                # project membership claim, or service-principal fallback.
+                from workbench.oracle_federation import discover
+                result = await run_in_threadpool(discover, identity, scope.get("query_string", b""))
+                return await JSONResponse(result)(clean_scope, receive, secure_send)
+            if path == "/api/model-pricing/list" and scope["method"] == "GET":
+                # Public prices only, requested after the caller's fresh OBO check.
+                result = await run_in_threadpool(self.model_price_rates.get)
+                return await JSONResponse(result)(clean_scope, receive, secure_send)
             if path == "/api/hosted/logs" and scope["method"] == "GET":
                 try:
                     limit = int(parse_qs(scope.get("query_string", b"").decode()).get("limit", ["100"])[0])
