@@ -102,7 +102,10 @@ def test_factory_health_static_no_startup_ingestion(tmp_path, small_xml, monkeyp
         overview = client.get("/api/overview").json()
         assert health["capability_inventory"]["version"] == overview["capability_inventory"]["version"] == "capability-inventory-v1"
         assert health["capability_inventory"]["items"] == overview["capability_inventory"]["items"]
-        assert len(overview["capability_inventory"]["items"]) == 15
+        assert len(overview["capability_inventory"]["items"]) == 17
+        assert {item["key"] for item in overview["capability_inventory"]["items"]} >= {
+            "oracle_source_exploration", "model_cost_estimates"
+        }
         assert overview["ready"] is False and overview["package"] is None
         assert overview["capabilities"]["deployment"] is False
         assert client.get("/api/objects").status_code == 409

@@ -10,6 +10,7 @@ from workbench import delta_state as ds
 from workbench.delta_runtime import DeltaRuntime
 from workbench.hosted_object_reads import object_read_response
 from workbench.object_views import object_response, migration_response
+from workbench.package_context import workflow_invocation_summary
 from workbench.tests.test_hosted import backend, browser, headers, offline, TOKEN_A2, TOKEN_B, create
 from workbench.tests.test_hosted_registry import fresh, uploaded, committed, rewrite_manifest
 from workbench.tests.test_source_analysis import JAVA_XML
@@ -79,7 +80,7 @@ def test_redesign_projection_uses_verified_design_families_without_runtime_resto
     backend.calls.clear()
     def forbidden(*args, **kwargs):
         pytest.fail('Redesign read must not restore execution history, parse XML or publish')
-    for method in ('restore', 'restore_audit', 'flush', 'flush_audit', '_database', '_verify_source'):
+    for method in ('restore', 'restore_audit', 'flush', 'flush_audit', '_records', '_database', '_verify_source'):
         monkeypatch.setattr(DeltaRuntime, method, forbidden)
     monkeypatch.setattr('workbench.understanding.analyze_package', forbidden)
     monkeypatch.setattr('workbench.hosted.user_app', forbidden)
@@ -162,7 +163,7 @@ def full_index(backend, uploaded, tmp_path):
     return project, package, index
 
 
-@pytest.mark.parametrize("kind", ["object", "context", "target"])
+@pytest.mark.parametrize("kind", ["object", "context", "target", "invocation_summary"])
 def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts(
         backend, uploaded, tmp_path, monkeypatch, kind):
     project, package, index = full_index(backend, uploaded, tmp_path / "full")
@@ -170,10 +171,15 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     from workbench.target_review import target_review
     path = (f"/api/object/{identifier}" if kind == "object" else
         f"/api/workflows/{identifier}/migration-context" if kind == "context" else
-        f"/api/workflows/{identifier}/target-review")
+        f"/api/workflows/{identifier}/target-review" if kind == "target" else
+        "/api/workflow-invocation-summary")
     expected = (object_response(index, identifier, 1, 2) if kind == "object" else
         migration_response(index, identifier, 1, 2) if kind == "context" else
-        target_review(index, identifier, "workflow", 1, 2))
+        target_review(index, identifier, "workflow", 1, 2) if kind == "target" else
+        workflow_invocation_summary(index))
+    if kind == "invocation_summary":
+        with browser(backend) as setup_client:
+            create(setup_client, "Summary reader", TOKEN_B)
     rows_before, objects_before = deepcopy(backend.rows), deepcopy(backend.objects)
     backend.calls.clear()
     def forbidden(*args, **kwargs):
@@ -181,9 +187,11 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     for method in ("restore", "restore_audit", "flush", "flush_audit", "_records", "_database", "_verify_source"):
         monkeypatch.setattr(DeltaRuntime, method, forbidden)
     monkeypatch.setattr("workbench.understanding.analyze_package", forbidden)
+    monkeypatch.setattr("workbench.hosted.user_app", forbidden)
     with browser(backend) as client:
         for _ in range(2):
-            response = client.get(path, params={"offset": 1, "limit": 2}, headers=selected(project, package))
+            response = client.get(path, params={} if kind == "invocation_summary" else {"offset": 1, "limit": 2},
+                                 headers=selected(project, package))
             assert response.status_code == 200, response.text
             assert response.json() == expected
     assert backend.rows == rows_before and backend.objects == objects_before
@@ -196,6 +204,29 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     assert len(downloads) == 3
     assert all(backend.objects[path] != b"" for path in downloads)
     assert not any(path.endswith(".xml") for path in downloads)
+
+
+def test_invocation_summary_retains_fresh_scope_authority(backend, uploaded, tmp_path, monkeypatch):
+    project, package, _ = full_index(backend, uploaded, tmp_path / "full")
+    with browser(backend) as setup_client:
+        create(setup_client, "Summary reader", TOKEN_B)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("A denied summary read must not fall through to runtime restoration")
+
+    monkeypatch.setattr(DeltaRuntime, "restore", forbidden)
+    monkeypatch.setattr("workbench.hosted.user_app", forbidden)
+    rows_before, objects_before = deepcopy(backend.rows), deepcopy(backend.objects)
+    with browser(backend) as client:
+        assert client.get("/api/workflow-invocation-summary",
+                          headers=selected(project, package)).status_code == 200
+        assert client.get("/api/workflow-invocation-summary",
+                          headers=selected("0" * 32, package)).status_code == 404
+        assert client.get("/api/workflow-invocation-summary",
+                          headers=selected(project, "0" * 64)).status_code == 403
+        assert client.get("/api/workflow-invocation-summary",
+                          headers=selected(project, package, TOKEN_B)).status_code == 404
+    assert backend.rows == rows_before and backend.objects == objects_before
 
 
 @pytest.mark.parametrize("case", ["cross_user", "stale_package", "missing_project", "denied", "tampered", "missing_row", "artifact_corrupt"])

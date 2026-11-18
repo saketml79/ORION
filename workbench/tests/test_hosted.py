@@ -182,7 +182,10 @@ def test_hosted_capabilities_separate_obo_app_inference_and_jobs(backend, monkey
             live_caps = health.json()["capabilities"]
             inventory = health.json()["capability_inventory"]
             assert inventory["version"] == "capability-inventory-v1"
-            assert len(inventory["items"]) == 15
+            assert len(inventory["items"]) == 17
+            assert {item["key"] for item in inventory["items"]} >= {
+                "oracle_source_exploration", "model_cost_estimates"
+            }
             auth = next(r for r in inventory["items"] if r["key"] == "authentication")
             assert auth["runtime_validation"] == "request_verified"
             assert all(r["runtime_validation"] == "not_verified" for r in inventory["items"] if r["key"] != "authentication")

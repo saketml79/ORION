@@ -1459,7 +1459,8 @@
         clear(roadmap);
         for (const row of array(inventory.roadmap)) {
           const item = el('article', 'capability'); item.dataset.roadmapKey = row.key;
-          item.append(pill('Unfinished', 'caution'), el('strong', '', row.label));
+          const roadmapStatus = row.status || 'Unfinished';
+          item.append(pill(roadmapStatus, roadmapStatus === 'Unfinished' ? 'caution' : ''), el('strong', '', row.label));
           paragraph(item, row.limits); roadmap.append(item);
         }
         if (!array(inventory.roadmap).length) paragraph(roadmap, 'No roadmap items reported. This does not establish completion.');

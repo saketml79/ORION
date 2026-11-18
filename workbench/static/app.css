@@ -671,11 +671,11 @@ main { padding: 25px clamp(18px, 3vw, 48px) 0; min-width: 0; max-width: 1800px; 
 .notice { background: var(--indigo-soft); color: var(--indigo); border: 1px solid var(--line); padding: 14px 18px; border-radius: 9px; margin: 0 0 23px; font-size: 13px; }
 .notice.error, .blocker-box { background: var(--rose-soft); color: var(--rose); }
 .notice.success { background: var(--teal-soft); color: var(--teal); }
-.capability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 15px; }
+.capability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 15px; align-items: stretch; }
 .capability-release-date { display: inline-block; font: 500 13px/1.5 var(--body); color: var(--muted); letter-spacing: normal; }
-.capability { padding: 16px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
-.capability strong { display: block; font-size: 13px; margin: 8px 0; }
-.capability p { font-size: 12px; margin-bottom: 0; color: var(--muted); }
+.capability { box-sizing: border-box; padding: 16px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; overflow-wrap: break-word; }
+.capability strong { display: block; max-width: 100%; font-size: 13px; line-height: 1.4; margin: 8px 0; white-space: normal; word-break: normal; overflow-wrap: break-word; }
+.capability p { max-width: 100%; font-size: 12px; line-height: 1.5; margin-bottom: 0; color: var(--muted); white-space: normal; word-break: normal; overflow-wrap: break-word; }
 #capabilities { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 #capabilities .capability-scoped { padding: 12px; border: 0; background: var(--soft); font-size: 13px; }
 #capabilities .capability-scoped > strong { font: 600 13px/1.4 var(--body); white-space: normal; }
@@ -683,7 +683,7 @@ main { padding: 25px clamp(18px, 3vw, 48px) 0; min-width: 0; max-width: 1800px; 
 #capabilities .status-pill.capability-runtime-local { color: var(--muted); background: var(--soft); border-color: transparent; }
 #capabilities .status-pill.capability-runtime-verified { color: var(--teal); background: var(--teal-soft); border-color: transparent; }
 #capabilities .capability-scoped p { font: 400 13px/1.5 var(--body); }
-#capabilities .capability-purpose { min-height: 3em; max-height: 3em; overflow: hidden; }
+#capabilities .capability-purpose { min-height: 0; max-height: none; overflow: visible; }
 #capabilities .status-pill { white-space: normal; font-size: 11px; }
 #capabilities details { margin-top: 8px; }
 #capabilities summary { font-size: 12px; cursor: pointer; }
@@ -1261,7 +1261,7 @@ caption { text-align: left; padding: 10px 12px; font-weight: 600; }
 #page-evidence .document-card, #page-logs .event-card { padding: 16px; }
 #page-release .release-actions > div { gap: 10px; padding-block: 16px; }
 #page-evolution .capability { padding: 16px; }
-#page-evolution .capability > strong { font-size: 14px; }
+#page-evolution .capability > strong { font-size: 14px; line-height: 1.4; }
 #page-agents > .page-heading h1 { font-size: clamp(24px, 2.4vw, 30px); }
 #page-agents > #agent-availability { margin-top: 24px; }
 #workspace-model-panel.workspace-model-selection { border-left: 0; }

@@ -15,6 +15,27 @@ from workbench.reference_diagnostics import reference_report, source_blocking_re
 CONTEXT_VERSION = "package-migration-context-v1"
 
 
+def workflow_invocation_summary(index):
+    """Summarize only literal calls captured in this immutable package model."""
+    context = getattr(index, "migration_context_index", None)
+    if context is None:
+        context = PackageContext(index.model)
+        index.migration_context_index = context
+    counts = {node["id"]: {"outgoing": 0, "incoming": 0, "unresolved": 0}
+              for node in index.kinds.get("workflow", ())}
+    for call in context.invocations:
+        caller = counts.get(call["caller_workflow_id"])
+        if caller is not None:
+            caller["outgoing"] += 1
+            if call["resolution"] != "scoped_literal_candidate":
+                caller["unresolved"] += 1
+        for candidate in call["candidate_workflow_ids"]:
+            if candidate in counts:
+                counts[candidate]["incoming"] += 1
+    return {"package_hash": index.model["package"]["sha256"], "workflows": counts,
+            "basis": "literal_pmcmd_calls_only_other_dependencies_not_assessed"}
+
+
 class PackageContext:
     def __init__(self, model):
         self.model = model

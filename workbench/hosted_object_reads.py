@@ -19,7 +19,7 @@ from workbench import delta_state as ds
 from workbench.hosted_registry import committed_generation, _registry, _envelope
 from workbench.object_views import object_response, migration_response
 
-ROUTE = re.compile(r"/api/(?:object/([a-f0-9]{64})|workflows/([a-f0-9]{64})/migration-context|readiness(?:/lineage)?|validation/campaigns/([a-f0-9]{32})(/export)?|workflows/([a-f0-9]{64})/target-review|redesigns(?:/([a-f0-9]{64}))?|proposals(?:/[a-f0-9]{64})?|cohorts/[a-f0-9]{32}|target-selections/[a-f0-9]{64}/[a-f0-9]{64}|jobs/[a-f0-9]{32}(?:/spark-drafts|/completeness)?|package-graph/chunk|objects|inventory/[a-z]+/[a-f0-9]{64})\Z")
+ROUTE = re.compile(r"/api/(?:object/([a-f0-9]{64})|workflows/([a-f0-9]{64})/migration-context|workflow-invocation-summary|readiness(?:/lineage)?|validation/campaigns/([a-f0-9]{32})(/export)?|workflows/([a-f0-9]{64})/target-review|redesigns(?:/([a-f0-9]{64}))?|proposals(?:/[a-f0-9]{64})?|cohorts/[a-f0-9]{32}|target-selections/[a-f0-9]{64}/[a-f0-9]{64}|jobs/[a-f0-9]{32}(?:/spark-drafts|/completeness)?|package-graph/chunk|objects|inventory/[a-z]+/[a-f0-9]{64})\Z")
 
 # One immutable graph, never an identity, client, permission or freshness cache.
 # Every use follows current receipt, scope inventories and Volume authorization.
@@ -271,6 +271,9 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         progress("preparing_package")
     if index.model["package"]["sha256"] != package:
         raise ValueError("Selected canonical package mismatch")
+    if path == '/api/workflow-invocation-summary':
+        from workbench.package_context import workflow_invocation_summary
+        return workflow_invocation_summary(index)
     if path == '/api/objects':
         from workbench.inventory_browser import inventory_response
         kind, term = query.get('kind', [''])[-1], query.get('q', [''])[-1]

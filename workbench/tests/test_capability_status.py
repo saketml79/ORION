@@ -202,12 +202,15 @@ def test_versioned_inventory_count_dates_compact_cards_and_roadmap(app, width, t
     cards = page.locator('#capabilities .capability-scoped')
     expect(cards).to_have_count(len(inventory['items']))
     expect(page.locator('#capabilities .capability-overview strong')).to_have_text(str(len(inventory['items'])))
-    expect(page.locator('#capabilities .capability-overview')).to_contain_text('14 implemented, 1 configured/unverified')
+    expect(page.locator('#capabilities .capability-overview')).to_contain_text('16 implemented, 1 configured/unverified')
     expect(page.locator('#capability-assessed-at')).to_have_attribute('datetime', inventory['assessed_at'])
     expect(page.locator('#capability-assessed-at')).not_to_contain_text('28 October 2026')
     assert cards.evaluate_all('nodes => nodes.map(n => n.dataset.capabilityKey)') == [r['key'] for r in inventory['items']]
     assert cards.locator('details[open]').count() == 0
-    assert cards.first.evaluate('node => getComputedStyle(node.querySelector("p")).fontSize') == '13px'
+    assert cards.first.evaluate('node => getComputedStyle(node.querySelector("p")).fontSize') == '12px'
+    for selector in ('#capabilities .capability-purpose', '#capability-roadmap p'):
+        for paragraph_node in page.locator(selector).all():
+            assert paragraph_node.evaluate('node => node.scrollHeight <= node.clientHeight + 1')
     assert cards.first.evaluate('node => getComputedStyle(node).borderTopWidth') == '0px'
     implemented = page.locator('#capabilities article[data-capability-key=xml_understanding]')
     assert 'capability-implemented' in implemented.locator('.status-pill').first.get_attribute('class')
@@ -230,6 +233,14 @@ def test_versioned_inventory_count_dates_compact_cards_and_roadmap(app, width, t
     expect(page.locator('#capability-roadmap [data-roadmap-key]')).to_have_count(len(inventory['roadmap']))
     expect(page.locator('#capability-roadmap')).to_contain_text('General behavior-preserving conversion')
     expect(page.locator('#capability-roadmap')).to_contain_text('Controlled customer release')
+    for key in ('oracle_source_exploration', 'model_cost_estimates'):
+        card = page.locator(f'#capabilities [data-capability-key="{key}"]')
+        expect(card).to_be_visible()
+        expect(card).to_contain_text('Runtime: request verified' if width != 390 else 'Runtime: local boundary only')
+    for key in ('agent_handoffs', 'run_memory', 'model_routing', 'grounded_evaluation',
+                'bounded_review_loop', 'cohort_evaluation', 'reproducible_agent_traces',
+                'measured_efficiency', 'agent_governance'):
+        expect(page.locator(f'#capability-roadmap [data-roadmap-key="{key}"]')).to_be_visible()
     assert not any('/api/generate' in path or '/api/deploy' in path for path in requested)
 
 
@@ -240,11 +251,15 @@ def test_inventory_is_implementation_not_runtime_or_authority():
         report = capability_inventory(hosted)
         assert datetime.fromisoformat(report['assessed_at']).tzinfo is not None
         assert report['version'] == 'capability-inventory-v1'
-        assert len({r['key'] for r in report['items']}) == len(report['items']) == 15
+        assert len({r['key'] for r in report['items']}) == len(report['items']) == 17
         assert not report['generation_allowed'] and not report['deployment_allowed']
         assert all(not r['generation_allowed'] and not r['deployment_allowed'] for r in report['items'])
         assert not {r['key'] for r in report['items']} & {r['key'] for r in report['roadmap']}
-        assert all(r['runtime_validation'] == 'not_verified' for r in report['items'] if r['key'] != 'authentication')
+        assert all(r['runtime_validation'] in {'not_verified', 'local_boundary_only'}
+               for r in report['items'] if r['key'] != 'authentication')
+        by_key = {row['key']: row for row in report['items']}
+        for key in ('oracle_source_exploration', 'model_cost_estimates'):
+            assert by_key[key]['runtime_validation'] == ('request_verified' if hosted else 'local_boundary_only')
 
 
 def test_scoped_capability_display_preserves_general_and_release_boundaries(app):

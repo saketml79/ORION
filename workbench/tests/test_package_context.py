@@ -13,7 +13,7 @@ import pytest
 from workbench.agents import build_agents
 from workbench.app import PackageIndex, _create_package_app
 from workbench.fixture_metadata import observe
-from workbench.package_context import CONTEXT_VERSION, PackageContext
+from workbench.package_context import CONTEXT_VERSION, PackageContext, workflow_invocation_summary
 from workbench.tests.test_redesign import chat
 from workbench.understanding import analyze_package
 
@@ -170,6 +170,10 @@ def test_api_is_read_only_scoped_and_versioned(tmp_path):
         assert response.status_code == 200
         assert response.json()["version"] == CONTEXT_VERSION
         assert response.json()["cohort"]["total"] == 2
+        summary = client.get("/api/workflow-invocation-summary")
+        assert summary.status_code == 200
+        assert summary.json() == workflow_invocation_summary(app.state.service.active)
+        assert set(summary.json()["workflows"]) == set(ids.values())
         assert client.get("/api/workflows/missing/migration-context").status_code == 404
         assert client.get(f"/api/workflows/{ids['Parent']}/migration-context?limit=201").status_code == 422
 
