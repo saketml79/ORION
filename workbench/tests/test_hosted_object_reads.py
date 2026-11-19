@@ -20,10 +20,25 @@ def selected(project, package, token=TOKEN_A2):
     return headers(token, **{"X-Workbench-Project": project, "X-Workbench-Package": package})
 
 
+def clear_artifact_cache():
+    import workbench.delta_runtime as runtime
+    import workbench.hosted_object_reads as reads
+    with runtime._VERIFIED_ARTIFACT_CACHE_LOCK:
+        runtime._VERIFIED_ARTIFACT_CACHE.clear()
+        runtime._VERIFIED_ARTIFACT_CACHE_BYTES = 0
+    with reads._REVIEW_INDEX_LOCK:
+        reads._REVIEW_INDEX_CACHE.clear()
+
+
 def test_warm_design_index_reuses_verified_hash_but_reauthorizes_volume(backend, uploaded, tmp_path):
     import workbench.hosted_object_reads as reads
+    clear_artifact_cache()
     reads._REVIEW_INDEX_CACHE.clear()
+    from workbench.delta_runtime import _artifact_cache_clear_user
+    _artifact_cache_clear_user('https://workspace.example.com', 'alice-id')
     project, package, index = full_index(backend, uploaded, tmp_path / 'cache-baseline')
+    clear_artifact_cache()
+    reads._REVIEW_INDEX_CACHE.clear()
     canonical = (index.directory / 'understanding.json.gz').read_bytes()
     backend.calls.clear()
     with browser(backend) as client:
@@ -37,6 +52,7 @@ def test_warm_design_index_reuses_verified_hash_but_reauthorizes_volume(backend,
         create(client, 'Bob', TOKEN_B)
         assert client.get('/api/redesigns', headers=selected(project, package, TOKEN_B)).status_code == 404
     reads._REVIEW_INDEX_CACHE.clear()
+    _artifact_cache_clear_user('https://workspace.example.com', 'alice-id')
 
 
 @pytest.mark.parametrize('kind,scenario', [('agent', 'original'), ('loop', 'original'), ('loop', 'bronze')])
@@ -196,7 +212,11 @@ def test_hosted_package_cache_reserves_container_memory(monkeypatch):
 @pytest.mark.parametrize("kind", ["object", "context", "target", "invocation_summary"])
 def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts(
         backend, uploaded, tmp_path, monkeypatch, kind):
+    clear_artifact_cache()
     project, package, index = full_index(backend, uploaded, tmp_path / "full")
+    clear_artifact_cache()
+    import workbench.hosted_object_reads as reads
+    reads._REVIEW_INDEX_CACHE.clear()
     identifier = index.kinds["workflow"][0]["id"]
     from workbench.target_review import target_review
     path = (f"/api/object/{identifier}" if kind == "object" else
@@ -237,7 +257,7 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     # Each request verifies a fresh generation manifest. The same canonical gzip
     # and in-memory session artifacts are hydrated once after fresh authorization.
     downloads = [path for _, action, path in backend.calls if action == "download"]
-    assert len(downloads) == 5
+    assert len(downloads) == 4
     assert all(backend.objects[path] != b"" for path in downloads)
     xml_downloads = [path for path in downloads if path.endswith(".xml")]
     assert len(xml_downloads) == 1
@@ -278,7 +298,11 @@ def test_invocation_summary_retains_fresh_scope_authority(backend, uploaded, tmp
 
 @pytest.mark.parametrize("case", ["cross_user", "stale_package", "missing_project", "denied", "tampered", "missing_row", "artifact_corrupt"])
 def test_selected_projection_fails_closed_fresh_each_request(backend, uploaded, tmp_path, monkeypatch, case):
+    clear_artifact_cache()
     project, package, index = full_index(backend, uploaded, tmp_path / "full")
+    clear_artifact_cache()
+    import workbench.hosted_object_reads as reads
+    reads._REVIEW_INDEX_CACHE.clear()
     path = "/api/object/" + index.kinds["workflow"][0]["id"]
     with browser(backend) as client:
         assert client.get(path, headers=selected(project, package)).status_code == 200
@@ -305,6 +329,7 @@ def test_selected_projection_fails_closed_fresh_each_request(backend, uploaded, 
                 # copy is not overwritten by later corrupt remote bytes.
                 from workbench.hosted_object_reads import _REVIEW_INDEX_CACHE
                 _REVIEW_INDEX_CACHE.clear()
+                clear_artifact_cache()
             else:
                 original = backend.client
                 def revoked(token):

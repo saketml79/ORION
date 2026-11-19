@@ -101,6 +101,8 @@ def ui(browser):
       const byId = id => document.getElementById(id);
       byId('agent-workflow').append(new Option('Overview workflow one', 'wf/one'), new Option('Overview workflow two', 'wf/two'));
     byId('agent-workflow').value = 'wf/one';
+    const workflowRoller = document.createElement('div'); workflowRoller.id = 'agent-workflow-roller';
+    byId('agent-workflow').parentElement.append(workflowRoller);
       byId('project-select').append(new Option('Project one', 'project-one'), new Option('Project two', 'project-two'));
       byId('project-package').append(new Option('Package one', 'package-one'), new Option('Package two', 'package-two'));
       byId('project-package').disabled = false;
@@ -829,6 +831,23 @@ def test_pagination_reads_real_versions_without_generation(ui):
     expect(page.locator("#redesign-detail")).to_contain_text("Historical version, read-only")
     expect(page.locator("#redesign-next")).to_be_disabled()
     assert any(r["query"].get("offset") == ["50"] for r in state["requests"])
+
+
+def test_saved_design_card_shows_three_latest_versions_and_collapses_older(ui):
+    page, state, _ = ui
+    state["records"] = [design_record(version) for version in range(7, 0, -1)]
+    page.locator('#scenario').select_option('original', force=True)
+    page.locator('[data-page="proposals"]').click()
+    expect(page.locator("#redesign-detail h3").first).to_have_text("Actual submitted outline")
+    primary = page.locator("#proposal-saved-outputs .saved-design-versions").first
+    expect(primary.locator(":scope > li")).to_have_count(3)
+    older = page.locator("#proposal-saved-outputs .saved-design-older").first
+    expect(older).to_be_visible()
+    assert not older.evaluate("node => node.open")
+    expect(older.locator("summary")).to_have_text("Show 4 older versions")
+    older.locator("summary").click()
+    expect(older.locator(".saved-design-versions-older > li")).to_have_count(4)
+    expect(older.locator(".saved-design-versions-older")).to_contain_text("Version 4")
 
 
 def test_bronze_is_separate_and_handoff_preserves_scenario(ui):

@@ -7,13 +7,17 @@ multi-table cloud transaction, distributed lock, or durable background worker.
 """
 from __future__ import annotations
 
+from collections import OrderedDict
 from contextlib import closing
 from hashlib import sha256
+import gc
 import json
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import tempfile
+from threading import RLock
 from uuid import uuid4
 
 from databricks.sdk.errors import NotFound
@@ -26,6 +30,71 @@ from workbench.intake_limits import max_xml_bytes
 RUNTIME_SCOPE = dict(project_id="__runtime__", package_hash="__none__", context_id="hosted-runtime-v1")
 AUDIT_SCOPE = dict(project_id="__runtime__", package_hash="__none__", context_id="hosted-http-audit-v1")
 DATABASE_SUFFIXES = {".sqlite", ".sqlite3", ".db"}
+_VERIFIED_ARTIFACT_CACHE = OrderedDict()
+_VERIFIED_ARTIFACT_CACHE_LOCK = RLock()
+_VERIFIED_ARTIFACT_CACHE_BYTES = 0
+_VERIFIED_ARTIFACT_CACHE_LIMIT = 512 * 1024 * 1024
+_VERIFIED_ARTIFACT_MEMORY_RESERVE = 1536 * 1024 * 1024
+
+
+def _container_memory_state():
+    """Return current/limit from the Linux cgroup memory controller if exposed."""
+    for current_path, limit_path in (
+            ("/sys/fs/cgroup/memory.current", "/sys/fs/cgroup/memory.max"),
+            ("/sys/fs/cgroup/memory/memory.usage_in_bytes",
+             "/sys/fs/cgroup/memory/memory.limit_in_bytes")):
+        try:
+            current = int(Path(current_path).read_text(encoding="ascii").strip())
+            raw_limit = Path(limit_path).read_text(encoding="ascii").strip()
+            if raw_limit == "max":
+                return None
+            limit = int(raw_limit)
+            if 0 < current <= limit < (1 << 60):
+                return current, limit
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def _artifact_cache_key(store, root, digest, size):
+    return store.workspace_id, store.user_id, root, digest, size
+
+
+def _artifact_cache_get(key):
+    with _VERIFIED_ARTIFACT_CACHE_LOCK:
+        raw = _VERIFIED_ARTIFACT_CACHE.get(key)
+        if raw is not None:
+            _VERIFIED_ARTIFACT_CACHE.move_to_end(key)
+        return raw
+
+
+def _artifact_cache_put(key, raw):
+    global _VERIFIED_ARTIFACT_CACHE_BYTES
+    size = len(raw)
+    if not size or size > _VERIFIED_ARTIFACT_CACHE_LIMIT:
+        return
+    state = _container_memory_state()
+    if state is not None and state[0] + size + _VERIFIED_ARTIFACT_MEMORY_RESERVE > state[1]:
+        return
+    with _VERIFIED_ARTIFACT_CACHE_LOCK:
+        previous = _VERIFIED_ARTIFACT_CACHE.pop(key, None)
+        if previous is not None:
+            _VERIFIED_ARTIFACT_CACHE_BYTES -= len(previous)
+        while (_VERIFIED_ARTIFACT_CACHE
+               and _VERIFIED_ARTIFACT_CACHE_BYTES + size > _VERIFIED_ARTIFACT_CACHE_LIMIT):
+            _, evicted = _VERIFIED_ARTIFACT_CACHE.popitem(last=False)
+            _VERIFIED_ARTIFACT_CACHE_BYTES -= len(evicted)
+        _VERIFIED_ARTIFACT_CACHE[key] = raw
+        _VERIFIED_ARTIFACT_CACHE_BYTES += size
+
+
+def _artifact_cache_clear_user(workspace_id, user_id):
+    global _VERIFIED_ARTIFACT_CACHE_BYTES
+    with _VERIFIED_ARTIFACT_CACHE_LOCK:
+        for key in tuple(_VERIFIED_ARTIFACT_CACHE):
+            if key[:2] == (workspace_id, user_id):
+                _VERIFIED_ARTIFACT_CACHE_BYTES -= len(_VERIFIED_ARTIFACT_CACHE.pop(key))
+    gc.collect()
 
 
 class RequestStateStore(ds.DeltaStateStore):
@@ -76,6 +145,7 @@ class RequestArtifacts(ds.VolumeArtifacts):
     def __init__(self, store, volume):
         super().__init__(store, volume)
         self._verified_binding = None
+        self.memory_cache_hits = 0
 
     def authorize(self):
         self.store._authorize()
@@ -86,6 +156,23 @@ class RequestArtifacts(ds.VolumeArtifacts):
             self._verified_binding = binding
         elif binding != self._verified_binding:
             raise PermissionError("Request artifact namespace changed")
+
+    def get(self, digest, *, max_bytes=1024 * 1024 * 1024):
+        """Fetch only on a cold content key; authenticate this request before cache reuse."""
+        self.authorize()
+        if not re.fullmatch(r"[a-f0-9]{64}", digest):
+            raise ValueError("Invalid artifact checksum")
+        key = _artifact_cache_key(self.store, self.root, digest, max_bytes)
+        raw = _artifact_cache_get(key)
+        if raw is not None:
+            if len(raw) > max_bytes or sha256(raw).hexdigest() != digest:
+                _artifact_cache_clear_user(self.store.workspace_id, self.store.user_id)
+                raise ValueError("Cached immutable artifact checksum mismatch")
+            self.memory_cache_hits += 1
+            return raw
+        raw = super().get(digest, max_bytes=max_bytes)
+        _artifact_cache_put(key, raw)
+        return raw
 
 
 def _quote(name):

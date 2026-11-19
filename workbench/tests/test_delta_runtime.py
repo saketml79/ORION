@@ -12,7 +12,10 @@ import pytest
 from databricks.sdk.errors import NotFound
 
 from workbench import delta_state as ds
-from workbench.delta_runtime import DeltaRuntime, RUNTIME_SCOPE, RequestStateStore
+from workbench.delta_runtime import (DeltaRuntime, RUNTIME_SCOPE, RequestArtifacts,
+                                     RequestStateStore, _artifact_cache_clear_user,
+                                     _VERIFIED_ARTIFACT_CACHE_LIMIT,
+                                     _VERIFIED_ARTIFACT_MEMORY_RESERVE)
 from workbench.tests.delta_runtime_fakes import RuntimeStatementClient
 from workbench.tests.test_delta_state import estate, write_json
 
@@ -30,6 +33,66 @@ def authority():
 def adapter(authority, root):
     _, store, artifacts, identity, remote = authority
     return DeltaRuntime(lambda: identity, remote, root, warehouse="warehouse", store=store, artifacts=artifacts)
+
+
+def test_fresh_request_artifacts_reuse_verified_immutable_blob_after_fresh_volume_authorization(authority):
+    client, store, _, _, _ = authority
+    raw = b"verified immutable package artifact"
+    digest = sha256(raw).hexdigest()
+    writer = ds.VolumeArtifacts(store)
+    writer.put(raw)
+    _artifact_cache_clear_user(store.workspace_id, store.user_id)
+
+    downloads, owner_checks = [], []
+    original_download = client.files.download
+    original_owner = client.volumes.read
+    def download(path):
+        downloads.append(path)
+        return original_download(path)
+    def owner(name):
+        owner_checks.append(name)
+        return original_owner(name)
+    client.files.download = download
+    client.volumes.read = owner
+
+    first = RequestArtifacts(store, "artifacts")
+    assert first.get(digest, max_bytes=len(raw)) == raw
+    second = RequestArtifacts(store, "artifacts")
+    assert second.get(digest, max_bytes=len(raw)) == raw
+    assert len(downloads) == 1
+    assert len(owner_checks) == 2
+    assert second.memory_cache_hits == 1
+
+    client.user = NS(id="user-456", user_name="second@example.com")
+    client.catalog_owner = client.schema_owner = client.volume_owner = client.user.user_name
+    other_store = ds.DeltaStateStore(client, "warehouse", "user_catalog", "workbench", "user-456")
+    other = RequestArtifacts(other_store, "artifacts")
+    client.objects[other._path(digest)] = raw
+    assert other.get(digest, max_bytes=len(raw)) == raw
+    assert len(downloads) == 2
+    _artifact_cache_clear_user(store.workspace_id, store.user_id)
+    _artifact_cache_clear_user(other_store.workspace_id, other_store.user_id)
+
+
+def test_immutable_artifact_cache_respects_memory_headroom_and_hard_cap(monkeypatch):
+    import workbench.delta_runtime as runtime
+    gib = 1024 ** 3
+    with runtime._VERIFIED_ARTIFACT_CACHE_LOCK:
+        runtime._VERIFIED_ARTIFACT_CACHE.clear()
+        runtime._VERIFIED_ARTIFACT_CACHE_BYTES = 0
+    raw = b"x" * (2 * 1024 * 1024)
+    key = ("workspace", "user", "/owned/root", "a" * 64, len(raw))
+    monkeypatch.setattr(runtime, "_container_memory_state", lambda: (5 * gib, 6 * gib))
+    runtime._artifact_cache_put(key, raw)
+    assert runtime._artifact_cache_get(key) is None
+    monkeypatch.setattr(runtime, "_container_memory_state", lambda: (2 * gib, 6 * gib))
+    runtime._artifact_cache_put(key, raw)
+    assert runtime._artifact_cache_get(key) == raw
+    assert runtime._VERIFIED_ARTIFACT_CACHE_BYTES <= _VERIFIED_ARTIFACT_CACHE_LIMIT
+    assert _VERIFIED_ARTIFACT_MEMORY_RESERVE == 1536 * 1024 * 1024
+    with runtime._VERIFIED_ARTIFACT_CACHE_LOCK:
+        runtime._VERIFIED_ARTIFACT_CACHE.clear()
+        runtime._VERIFIED_ARTIFACT_CACHE_BYTES = 0
 
 
 def sources(runtime):

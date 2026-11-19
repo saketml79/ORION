@@ -78,7 +78,10 @@ async function click(id, data) { queue.push(Promise.resolve(data)); get(id).clic
 (async () => {
   explorer.sync();
   assert.equal(calls.length, 0);
-  assert.match(explorer.root.textContent, /Metadata only/);
+  assert.equal(explorer.root.tag, 'details');
+  assert.equal(explorer.root.children[0].tag, 'summary');
+  assert.match(explorer.root.children[0].textContent, /Optional.*Oracle source metadata/);
+  assert.match(explorer.root.textContent, /does not bind it to the workflow/i);
   await click('catalogs-load', response('catalogs', [], {has_more: true, next_offset: 20}));
   assert.match(status(), /No visible items.*partial/);
   assert.equal(calls[0].url.searchParams.get('limit'), '20');

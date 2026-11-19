@@ -201,7 +201,9 @@
       `Unverified call boundary: ${call.caller_name || 'caller'} → ${items(call.candidate_names).join(', ') || 'missing or dynamic child'}. Retained for review, not silently excluded.`, 'notice'));
   }
   // Move the original controls, not copies: Agent activity owns scope and progress.
-  document.getElementById('agent-workflow-roller').parentElement.after(scopePanel);
+  const workflowRoller = document.getElementById('agent-workflow-roller');
+  (workflowRoller?.parentElement || document.getElementById('agent-workflow')?.parentElement || panel)
+    .after(scopePanel);
   const scopeActive = () => scopePanel.isConnected && !agentPage.hidden;
   const scopeWorkerReady = () => scopeActive() && valid() && !agentScope.disabled
     && agentPage.dataset.agentRunStatus === 'idle' && !$('agent-submit').disabled;
@@ -291,20 +293,34 @@
   const workflowKnown = id => hasWorkflow(id) && !agentWorkflow.disabled;
   // Independent of output-target review: this is a transient, explicit metadata browse.
   function createOracleSourceExplorer() {
-    const root = node('section', '', 'proposal-review-card section-gap'); root.id = 'oracle-source-explorer';
-    root.append(node('h3', 'Explore Oracle sources'), node('p',
-      'Browse accessible Unity Catalog foreign metadata for possible Oracle sources. A foreign catalog does not establish its connection type. Metadata only: no row access, network verification, binding, approval, execution, or connection secrets.', 'small muted'));
-    const start = button('oracle-source-catalogs-load', 'Load foreign catalog metadata', root);
-    const catalog = field('select', 'oracle-source-catalog', 'Foreign catalog', root);
-    const schemas = button('oracle-source-schemas-load', 'Load schemas', root);
-    const schema = field('select', 'oracle-source-schema', 'Schema', root);
-    const tables = button('oracle-source-tables-load', 'Load tables', root);
-    const table = field('select', 'oracle-source-table', 'Table', root);
-    const detail = button('oracle-source-table-load', 'Inspect table columns', root);
-    const nextPage = button('oracle-source-next', 'Next metadata page', root);
+    const root = node('details', '', 'review-disclosure section-gap oracle-source-disclosure');
+    root.id = 'oracle-source-explorer-disclosure';
+    root.append(node('summary', 'Optional: browse possible Oracle source metadata'));
+    const panel = node('section', '', 'proposal-review-card oracle-source-content'); panel.id = 'oracle-source-explorer';
+    panel.append(node('h3', 'Inspect foreign-catalog metadata'), node('p',
+      'Choose a table only to inspect its columns. This does not bind it to the workflow or read rows.', 'small muted'));
+    const steps = node('div', '', 'oracle-metadata-steps'); panel.append(steps);
+    const catalogStep = node('section', '', 'oracle-metadata-step'); steps.append(catalogStep);
+    catalogStep.append(node('strong', '1. Foreign catalog'));
+    const catalogActions = node('div', '', 'button-row'); catalogStep.append(catalogActions);
+    const start = button('oracle-source-catalogs-load', 'Load catalogs', catalogActions);
+    const catalog = field('select', 'oracle-source-catalog', 'Catalog', catalogStep);
+    const schemaStep = node('section', '', 'oracle-metadata-step'); steps.append(schemaStep);
+    schemaStep.append(node('strong', '2. Schema'));
+    const schemaActions = node('div', '', 'button-row'); schemaStep.append(schemaActions);
+    const schemas = button('oracle-source-schemas-load', 'Load schemas', schemaActions);
+    const schema = field('select', 'oracle-source-schema', 'Schema', schemaStep);
+    const tableStep = node('section', '', 'oracle-metadata-step oracle-metadata-table'); steps.append(tableStep);
+    tableStep.append(node('strong', '3. Table columns'));
+    const tableActions = node('div', '', 'button-row'); tableStep.append(tableActions);
+    const tables = button('oracle-source-tables-load', 'Load tables', tableActions);
+    const detail = button('oracle-source-table-load', 'Inspect selected table columns', tableActions);
+    const table = field('select', 'oracle-source-table', 'Table', tableStep);
+    const nextPage = button('oracle-source-next', 'Next metadata page', tableStep);
     const status = node('p', 'Select a workflow, then explicitly load catalog metadata.', 'small muted');
     status.id = 'oracle-source-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
-    const output = node('div', '', 'detail-list'); output.id = 'oracle-source-output'; root.append(status, output);
+    const output = node('div', '', 'detail-list'); output.id = 'oracle-source-output'; panel.append(status, output);
+    root.append(panel);
     let serial = 0, pending = false, pageInfo = null, catalogForeign = false;
     const selects = {catalogs: catalog, schemas: schema, tables: table};
     const blank = (select, label) => select.replaceChildren(new Option(label, ''));
@@ -1109,16 +1125,28 @@
     for (const member of unique) {
       const card = node('details', '', 'proposal-review-card'); card.open = unique.length === 1;
       const rows = savedRows.filter(row => row.workflow_id === member.workflow_id);
-      card.append(node('summary', `${member.name || member.workflow_id}: ${rows.length ? 'saved design available' : 'no saved design on this page'}`));
-      card.append(node('p', rows.length ? 'Open a saved version to review its task graph and available code.' : 'No saved design for this workflow appears on this page.', 'small muted'));
+      card.append(node('summary', `${member.name || member.workflow_id}: ${rows.length ? `${rows.length} saved version${rows.length === 1 ? '' : 's'}` : 'no saved design on this page'}`));
+      card.append(node('p', rows.length
+        ? `Showing the ${Math.min(3, rows.length)} latest version${Math.min(3, rows.length) === 1 ? '' : 's'}${rows.length > 3 ? `. ${rows.length - 3} older versions are available below.` : '.'}`
+        : 'No saved design for this workflow appears on this page.', 'small muted'));
       const codeNote = node('p', rows.length ? 'Open the saved design to check its notebook code.' : 'Select a saved design to check for notebook code.', 'small muted');
       card.append(codeNote); savedCodeNotes.set(member.workflow_id, codeNote);
       const versionList = node('ul', '', 'saved-design-versions');
       versionList.setAttribute('aria-label', `Saved versions for ${member.name || member.workflow_id}`);
       card.append(versionList);
-      for (const row of rows) {
+      const olderRows = rows.slice(3);
+      let olderList = null;
+      if (olderRows.length) {
+        const older = node('details', '', 'saved-design-older');
+        older.append(node('summary', `Show ${olderRows.length} older version${olderRows.length === 1 ? '' : 's'}`));
+        olderList = node('ul', '', 'saved-design-versions saved-design-versions-older');
+        olderList.setAttribute('aria-label', `Older saved versions for ${member.name || member.workflow_id}`);
+        older.append(olderList);
+        card.append(older);
+      }
+      for (const [index, row] of rows.entries()) {
         const origin = row.source?.kind === 'agent' ? 'agent-submitted' : 'source not confirmed as agent';
-        const entry = node('li'); versionList.append(entry);
+        const entry = node('li'); (index < 3 ? versionList : olderList).append(entry);
         const open = button('', '', entry); open.removeAttribute('id'); open.classList.add('saved-design-version');
         open.append(node('span', row.design?.title || member.name || member.workflow_id, 'saved-design-version-title'),
           node('span', `Version ${row.version} · ${String(row.status || 'status not reported').replaceAll('_', ' ')}${row.stale ? ' · stale' : ''} · ${origin}`, 'saved-design-version-meta'));
