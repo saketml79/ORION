@@ -8,7 +8,9 @@ from hashlib import sha256
 from collections import OrderedDict
 from concurrent.futures import Future
 from copy import copy
+import gc
 import json
+from pathlib import Path
 import re
 from threading import RLock
 
@@ -26,9 +28,43 @@ ROUTE = re.compile(r"/api/(?:object/([a-f0-9]{64})|workflows/([a-f0-9]{64})/migr
 _REVIEW_INDEX_CACHE = OrderedDict()
 _REVIEW_INDEX_LOCK = RLock()
 _REVIEW_INDEX_FLIGHTS = {}
+_REVIEW_INDEX_LOAD_LOCK = RLock()
+_SESSION_COMPONENTS_MAX_BYTES = 512 * 1024 * 1024
+_SESSION_MEMORY_RESERVE_BYTES = 1536 * 1024 * 1024
+_INDEX_ESTIMATE_MULTIPLIER = 20
+_INDEX_CACHE_MAX_ESTIMATE_BYTES = 3 * 1024 * 1024 * 1024
 
 
-def _immutable_index(key, directory, load):
+def _container_memory_state():
+    """Return cgroup current/limit when available, without adding a dependency."""
+    for current_path, limit_path in (
+            ("/sys/fs/cgroup/memory.current", "/sys/fs/cgroup/memory.max"),
+            ("/sys/fs/cgroup/memory/memory.usage_in_bytes",
+             "/sys/fs/cgroup/memory/memory.limit_in_bytes")):
+        try:
+            current = int(Path(current_path).read_text(encoding="ascii").strip())
+            raw_limit = Path(limit_path).read_text(encoding="ascii").strip()
+            if raw_limit == "max":
+                return None
+            limit = int(raw_limit)
+            if 0 < current <= limit < (1 << 60):
+                return current, limit
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def _admit_package_memory(estimated_bytes):
+    if type(estimated_bytes) is not int or not 0 <= estimated_bytes <= _INDEX_CACHE_MAX_ESTIMATE_BYTES:
+        raise HTTPException(503, "Selected package exceeds the hosted in-memory session budget")
+    state = _container_memory_state()
+    if state is not None:
+        current, limit = state
+        if current + estimated_bytes + _SESSION_MEMORY_RESERVE_BYTES > limit:
+            raise HTTPException(503, "Insufficient memory headroom to safely load this package")
+
+
+def _immutable_index(key, directory, load, estimated_memory_bytes):
     """One hydration owner per verified immutable identity, not per route.
 
     Callers must verify current membership, committed inventories and Volume
@@ -37,6 +73,7 @@ def _immutable_index(key, directory, load):
     with _REVIEW_INDEX_LOCK:
         cached = _REVIEW_INDEX_CACHE.get(key)
         if cached is not None:
+            _REVIEW_INDEX_CACHE.move_to_end(key)
             current = copy(cached)
             current.directory = directory
             return current
@@ -47,12 +84,37 @@ def _immutable_index(key, directory, load):
             _REVIEW_INDEX_FLIGHTS[key] = future
     if owner:
         try:
-            index = load()
-            with _REVIEW_INDEX_LOCK:
-                _REVIEW_INDEX_CACHE[key] = index
-                _REVIEW_INDEX_CACHE.move_to_end(key)
-                while len(_REVIEW_INDEX_CACHE) > 1:
-                    _REVIEW_INDEX_CACHE.popitem(last=False)
+            with _REVIEW_INDEX_LOAD_LOCK:
+                # Another package can finish while this owner waits for the
+                # cold-load lock. Reuse it if it is now the active cache entry.
+                with _REVIEW_INDEX_LOCK:
+                    cached = _REVIEW_INDEX_CACHE.get(key)
+                    if cached is not None:
+                        _REVIEW_INDEX_CACHE.move_to_end(key)
+                if cached is None:
+                    with _REVIEW_INDEX_LOCK:
+                        # One active package per app process. Release stale
+                        # graphs before allocating another expanded model.
+                        _REVIEW_INDEX_CACHE.clear()
+                    from workbench.app import _evict_hosted_package_indexes
+                    _evict_hosted_package_indexes()
+                    gc.collect()
+                    _admit_package_memory(estimated_memory_bytes)
+                    index = load()
+                    state = _container_memory_state()
+                    if state is not None and state[0] + _SESSION_MEMORY_RESERVE_BYTES > state[1]:
+                        from workbench.app import _evict_hosted_package_indexes
+                        with _REVIEW_INDEX_LOCK:
+                            _REVIEW_INDEX_CACHE.clear()
+                        _evict_hosted_package_indexes()
+                        del index
+                        gc.collect()
+                        raise HTTPException(503, "Package load used the protected hosted memory reserve")
+                    with _REVIEW_INDEX_LOCK:
+                        _REVIEW_INDEX_CACHE[key] = index
+                        _REVIEW_INDEX_CACHE.move_to_end(key)
+                else:
+                    index = cached
             future.set_result(index)
         except BaseException as error:
             future.set_exception(error)
@@ -173,20 +235,28 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         if row is None:
             raise ValueError("Required canonical artifact missing")
         reference = runtime._decode(json.loads(row["payload"]))
-        if (set(reference) != {"volume_path", "sha256", "byte_size"}
+        if (set(reference) not in ({"volume_path", "sha256", "byte_size"},
+                       {"volume_path", "sha256", "byte_size", "source"})
+            or ("source" in reference and reference["source"] is not True)
                 or reference["volume_path"] != row["artifact_path"]
                 or reference["sha256"] != row["artifact_sha256"] or reference["byte_size"] != row["byte_size"]):
             raise ValueError("Projection artifact reference mismatch")
+        target = runtime.local / full
+        target.parent.mkdir(parents=True, exist_ok=True)
         if table_rows is not None:
             rows = [r for r in table_rows if r["source_path"] == full]
             if any(ds._scope(r["source_path"]) != scope or json.loads(r["source_key"]) != full for r in rows):
                 raise ValueError("Projection JSON identity mismatch")
             raw = ds._json(runtime._json_file(name, rows)).encode()
+        elif reference.get("source") is True:
+            if not full.endswith(".xml"):
+                raise ValueError("Only verified XML source artifacts may use streaming source reads")
+            runtime._verify_source(reference, target)
+            raw = target.read_bytes()
         else:
             raw = runtime._object(reference)
-        target = runtime.local / full
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(raw)
+        if not (table_rows is None and reference.get("source") is True):
+            target.write_bytes(raw)
         return target
 
     active_path = f"projects/{project}/package-contexts/{package}/state/active.json"
@@ -255,16 +325,50 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         identities.append((name, row['content_hash'], row['artifact_sha256'], row['byte_size']))
     if by_path[canonical_names[0]]['artifact_sha256'] != canonical_manifest['understanding_sha256']:
         raise ValueError('Canonical manifest checksum mismatch')
+    session_names = list(dict.fromkeys([
+        name for name in (prefix + "source.xml", prefix + "english.md") if name in by_path
+    ] + canonical_names))
+    session_identities = []
+    session_component_bytes = 0
+    for name in session_names:
+        row = by_path.get(name)
+        if row is None:
+            raise ValueError("Required hosted package-session artifact missing")
+        reference = runtime._decode(json.loads(row["payload"]))
+        if (set(reference) != {"volume_path", "sha256", "byte_size"}
+                and set(reference) != {"volume_path", "sha256", "byte_size", "source"}):
+            raise ValueError("Invalid hosted package-session artifact reference")
+        if (reference["volume_path"] != row["artifact_path"]
+                or reference["sha256"] != row["artifact_sha256"]
+                or type(reference["byte_size"]) is not int
+                or reference["byte_size"] != row["byte_size"]):
+            raise ValueError("Hosted package-session artifact reference mismatch")
+        session_component_bytes += reference["byte_size"]
+        session_identities.append((name, row["content_hash"], row["artifact_sha256"], row["byte_size"]))
+    if session_component_bytes > _SESSION_COMPONENTS_MAX_BYTES:
+        raise HTTPException(503, "Selected package artifacts exceed the bounded hosted memory-session size")
     immutable_key = (cache_scope, runtime.artifacts.root, project, package,
-                     ds._json(canonical_manifest), tuple(identities))
+                     ds._json(canonical_manifest), tuple(identities), tuple(session_identities))
+    understanding_size = by_path[canonical_names[0]]["byte_size"]
+    estimated_memory_bytes = understanding_size * _INDEX_ESTIMATE_MULTIPLIER + session_component_bytes
+    if estimated_memory_bytes > _INDEX_CACHE_MAX_ESTIMATE_BYTES:
+        raise HTTPException(503, "Selected package exceeds the hosted in-memory session budget")
 
     def hydrate():
-        materialize('understanding.json.gz')
-        if len(canonical_names) > 1:
-            materialize('analysis/' + version + '.json.gz')
-        return PackageIndex.load(runtime.local / prefix, cache_scope=cache_scope)
+        session_artifacts = {}
+        for full in session_names:
+            relative = full[len(prefix):]
+            path = materialize(relative)
+            session_artifacts[relative] = path.read_bytes()
+        index = PackageIndex.load(runtime.local / prefix, cache_scope=cache_scope)
+        # Publish one complete immutable package session only after every
+        # referenced artifact has passed its current authorization/hash checks.
+        index.hosted_session_artifacts = session_artifacts
+        index.hosted_session_artifact_bytes = sum(len(raw) for raw in session_artifacts.values())
+        index.hosted_session_identity = tuple(session_identities)
+        return index
 
-    index = _immutable_index(immutable_key, runtime.local / prefix, hydrate)
+    index = _immutable_index(immutable_key, runtime.local / prefix, hydrate, estimated_memory_bytes)
     if progress:
         total = 5 if prefix + "source-analysis.json" in by_path else 3
         progress("artifact_files", verified_files=total, total_files=total)

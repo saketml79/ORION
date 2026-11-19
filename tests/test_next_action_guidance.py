@@ -55,6 +55,7 @@ def suggested(page, selector):
     assert hint.get_attribute('aria-live') is None
     assert hint.get_attribute('role') is None
     assert hint.get_attribute('id') in page.locator(selector).get_attribute('aria-describedby').split()
+    assert page.locator(selector).evaluate('el => getComputedStyle(el).filter !== "none"')
 
 
 @pytest.mark.parametrize('name,label,selector', CASES)
@@ -320,7 +321,7 @@ def test_reduced_motion_retains_static_cue_without_live_announcements_or_focus(n
     suggested(page, '#evidence-design-open')
     cue = page.locator('#evidence-design-open')
     assert cue.evaluate('el => getComputedStyle(el).animationName') == 'none'
-    assert cue.evaluate('el => getComputedStyle(el).boxShadow') != 'none'
+    assert cue.evaluate('el => getComputedStyle(el).filter !== "none"')
     assert cue.evaluate("el => !el.getAnimations().some(a => a.animationName === 'orion-next-step')")
     assert not cue.evaluate('el => document.activeElement === el')
 

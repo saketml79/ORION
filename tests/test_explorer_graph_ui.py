@@ -246,6 +246,21 @@ def object_reads(state):
     return [entry for entry in state["trace"] if entry["path"].startswith("/api/object/")]
 
 
+def test_hosted_object_selection_uses_direct_scoped_get_not_operation_journal(explorer):
+    page, state, _, wire = explorer(hosted=True)
+    before = len(wire)
+    selected_object(page).click()
+    loaded(page)
+    reads = object_reads(state)
+    assert len(reads) == 1
+    assert reads[0]["method"] == "GET"
+    assert reads[0]["headers"].get("x-workbench-project") == PROJECT_A
+    assert reads[0]["headers"].get("x-workbench-package") == PACKAGE_A
+    assert not any(method == "POST" and path == "/api/hosted/operations"
+                   for method, path in wire[before:])
+    expect(page.locator("#operation-banner")).to_be_hidden()
+
+
 @pytest.mark.parametrize("hosted", [False, True])
 @pytest.mark.parametrize("activation", ["click", "Enter", "Space"])
 def test_graph_opens_actual_fields_without_requests_or_diagram_rebuild(explorer, hosted, activation):

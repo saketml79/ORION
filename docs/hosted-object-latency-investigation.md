@@ -1,5 +1,42 @@
 # Hosted object-read latency: measured root cause
 
+## 2026-11-18 hosted memory-session remediation
+
+The user explicitly authorized a bounded in-memory package session using the
+available Databricks Apps compute. Selected workflow object reads now use the
+existing fresh-OBO, project/package-authorized direct GET projection, not the
+durable `/api/hosted/operations` result journal. This removes the inline-24-KiB
+threshold and 20-KiB Delta chunk writes from this read path; other long-running
+hosted actions retain their durable journal.
+
+The process-local selected-package session keeps the verified `PackageIndex`,
+raw `source.xml`, `english.md`, canonical `understanding.json.gz`, and the exact
+versioned source-analysis artifacts when present. It is content-addressed and
+scoped by workspace/user, project, package, manifest and artifact hashes. Each
+request still performs OBO identity resolution, committed project/package
+membership and generation/inventory checks, metadata/envelope validation and
+Volume authorization before reuse. No identity, client, authorization verdict,
+or mutable response is cached. Source XML is streamed and hash-verified on cold
+session hydration; object presentation uses the canonical model and does not
+parse XML per click.
+
+The cache is a one-package LRU per app process. Before another cold package is
+admitted, the previous hosted package index is evicted from both graph-cache
+layers and Python garbage collection is requested. Admission is bounded by the
+actual Linux cgroup memory limit when available, a conservative 20x expanded
+index estimate, a 512-MiB package-component cap, a 3-GiB estimated-index cap,
+and a 1.5-GiB protected reserve. If preflight or post-load headroom is
+insufficient, the request fails with HTTP 503 rather than admitting another
+large graph; a post-load reserve failure evicts that graph immediately. The
+policy reduces OOM risk but is not a mathematical guarantee against all native
+allocator, runtime, or platform memory use.
+
+Hosted UI workflow-object reads bypass the journal operation envelope, while
+other operations keep their existing safety and progress behavior. The
+`next-action.css` theme-aware pulse asset remains in the staged release.
+Regression coverage and live cold/warm timing still need to be recorded after
+the coordinated deployment.
+
 ## Subsequent scoped implementation authorization
 
 The user subsequently authorized “fix what is remaining”, including the proposed

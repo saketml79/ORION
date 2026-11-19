@@ -80,7 +80,7 @@ def test_redesign_projection_uses_verified_design_families_without_runtime_resto
     backend.calls.clear()
     def forbidden(*args, **kwargs):
         pytest.fail('Redesign read must not restore execution history, parse XML or publish')
-    for method in ('restore', 'restore_audit', 'flush', 'flush_audit', '_records', '_database', '_verify_source'):
+    for method in ('restore', 'restore_audit', 'flush', 'flush_audit', '_records', '_database'):
         monkeypatch.setattr(DeltaRuntime, method, forbidden)
     monkeypatch.setattr('workbench.understanding.analyze_package', forbidden)
     monkeypatch.setattr('workbench.hosted.user_app', forbidden)
@@ -163,6 +163,36 @@ def full_index(backend, uploaded, tmp_path):
     return project, package, index
 
 
+def test_hosted_package_cache_is_lru_bounded_and_evicts_before_cold_load(tmp_path, monkeypatch):
+    import workbench.hosted_object_reads as reads
+    from types import SimpleNamespace
+    reads._REVIEW_INDEX_CACHE.clear()
+    evicted = []
+    monkeypatch.setattr(reads, "_container_memory_state", lambda: None)
+    monkeypatch.setattr("workbench.app._evict_hosted_package_indexes", lambda: evicted.append(True))
+    first_key = ("scope", "volume", "project", "a" * 64)
+    second_key = ("scope", "volume", "project", "b" * 64)
+    first = reads._immutable_index(first_key, tmp_path / "first", lambda: SimpleNamespace(directory=None), 1024)
+    second = reads._immutable_index(second_key, tmp_path / "second", lambda: SimpleNamespace(directory=None), 1024)
+    assert first.directory == tmp_path / "first" and second.directory == tmp_path / "second"
+    assert list(reads._REVIEW_INDEX_CACHE) == [second_key]
+    assert evicted == [True, True]
+
+
+def test_hosted_package_cache_reserves_container_memory(monkeypatch):
+    import workbench.hosted_object_reads as reads
+    gib = 1024 ** 3
+    monkeypatch.setattr(reads, "_container_memory_state", lambda: (5 * gib, 6 * gib))
+    with pytest.raises(Exception) as failure:
+        reads._admit_package_memory(gib)
+    assert getattr(failure.value, "status_code", None) == 503
+    monkeypatch.setattr(reads, "_container_memory_state", lambda: (2 * gib, 6 * gib))
+    reads._admit_package_memory(2 * gib)
+    with pytest.raises(Exception) as oversized:
+        reads._admit_package_memory(4 * gib)
+    assert getattr(oversized.value, "status_code", None) == 503
+
+
 @pytest.mark.parametrize("kind", ["object", "context", "target", "invocation_summary"])
 def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts(
         backend, uploaded, tmp_path, monkeypatch, kind):
@@ -184,8 +214,14 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     backend.calls.clear()
     def forbidden(*args, **kwargs):
         pytest.fail("Selected read must not restore execution/audit state, parse XML or publish")
-    for method in ("restore", "restore_audit", "flush", "flush_audit", "_records", "_database", "_verify_source"):
+    for method in ("restore", "restore_audit", "flush", "flush_audit", "_records", "_database"):
         monkeypatch.setattr(DeltaRuntime, method, forbidden)
+    verify_source = DeltaRuntime._verify_source
+    verified_source = []
+    def track_source_verification(runtime, reference, target=None):
+        verified_source.append(reference["sha256"])
+        return verify_source(runtime, reference, target)
+    monkeypatch.setattr(DeltaRuntime, "_verify_source", track_source_verification)
     monkeypatch.setattr("workbench.understanding.analyze_package", forbidden)
     monkeypatch.setattr("workbench.hosted.user_app", forbidden)
     with browser(backend) as client:
@@ -199,11 +235,22 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     assert not any(sql.startswith(("CREATE", "MERGE", "INSERT", "UPDATE", "DELETE")) for sql in statements)
     assert not any(".`audit_events`" in sql or ".`jobs`" in sql or ".`model_routes`" in sql for sql in statements)
     # Each request verifies a fresh generation manifest. The same canonical gzip
-    # is downloaded once, after authorization, across both presentations.
+    # and in-memory session artifacts are hydrated once after fresh authorization.
     downloads = [path for _, action, path in backend.calls if action == "download"]
-    assert len(downloads) == 3
+    assert len(downloads) == 5
     assert all(backend.objects[path] != b"" for path in downloads)
-    assert not any(path.endswith(".xml") for path in downloads)
+    xml_downloads = [path for path in downloads if path.endswith(".xml")]
+    assert len(xml_downloads) == 1
+    assert len(verified_source) == 1
+    import workbench.hosted_object_reads as reads
+    cached = next(iter(reads._REVIEW_INDEX_CACHE.values()))
+    artifacts = cached.hosted_session_artifacts
+    assert {"source.xml", "english.md", "understanding.json.gz"} <= set(artifacts)
+    assert cached.hosted_session_artifact_bytes == sum(map(len, artifacts.values()))
+    identities = {name: digest for name, _, digest, _ in cached.hosted_session_identity}
+    assert all(sha256(artifacts[name]).hexdigest() == identities[name]
+               for name in artifacts if name in identities)
+    assert backend.objects[xml_downloads[0]] == artifacts["source.xml"]
 
 
 def test_invocation_summary_retains_fresh_scope_authority(backend, uploaded, tmp_path, monkeypatch):

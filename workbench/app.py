@@ -74,6 +74,14 @@ _PACKAGE_INDEX_CACHE = OrderedDict()
 _PACKAGE_INDEX_CACHE_LIMIT = 1
 
 
+def _evict_hosted_package_indexes():
+    """Release hosted-only canonical graphs before admitting a different package."""
+    with _CACHE_LOCK:
+        for key in tuple(_PACKAGE_INDEX_CACHE):
+            if key[0] != "local":
+                _PACKAGE_INDEX_CACHE.pop(key, None)
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
 

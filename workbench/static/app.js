@@ -523,8 +523,7 @@
       || pathname === '/api/redesigns' || /^\/api\/redesigns\/[a-f0-9]{64}$/.test(pathname)
       || pathname === '/api/reviews' || pathname === '/api/impact'
       || /^\/api\/impact\/[a-f0-9]{64}$/.test(pathname)
-      || /^\/api\/agents\/runs\/[a-f0-9]{32}$/.test(pathname)
-      || /^\/api\/object\/[A-Za-z0-9%._~-]{1,512}$/.test(pathname);
+      || /^\/api\/agents\/runs\/[a-f0-9]{32}$/.test(pathname);
   }
   async function request(path, options = {}) {
     const controller = new AbortController();

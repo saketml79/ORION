@@ -111,6 +111,9 @@ def navigation(browser):
                 data = {"items": [], "storage": "bounded test diagnostics"}
             elif path == "/api/objects":
                 data = {"items": state["objects"], "total": len(state["objects"])}
+            elif path == "/api/workflow-invocation-summary":
+                data = {"package_hash": entry["headers"].get("x-workbench-package"), "workflows": {},
+                        "basis": "literal_pmcmd_calls_only_other_dependencies_not_assessed"}
             elif path == "/api/proposals":
                 data = {"items": state["proposals"], "total": len(state["proposals"])}
             elif any(path == f'/api/proposals/{row["id"]}' for row in state["proposals"]):
@@ -140,6 +143,9 @@ def navigation(browser):
                 if hold_models:
                     state['pending_models'].append((route, data))
                     return
+            elif path == "/api/models/external/status":
+                data = {"mode": "databricks", "configured": False,
+                        "inference_ready": False, "status": "default"}
             elif path == "/api/models/workspace":
                 data = {"workspace": "https://workspace.example.com", "mode": "obo"}
             elif path == "/api/tracing/status":
