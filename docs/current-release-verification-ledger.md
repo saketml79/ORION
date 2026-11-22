@@ -6,6 +6,27 @@ with checks pending; record those gaps clearly and never present them as passed.
 Passing regression tests is not a migration specification or runtime-parity
 certificate.
 
+## Hosted release 2026-11-22, diagnostics and presentation
+
+- Deployment `01f1e6b669a213f796ef16e1797c6851` was created at
+	20:50:55 UTC and switched traffic at 20:53:35 UTC. The existing app reported
+	RUNNING and ACTIVE with its six OBO scopes unchanged. Authenticated health
+	returned HTTP 200. Hosted app, tracing and guidance JavaScript plus app CSS
+	matched the staged files, and the root HTML matched after normalizing Windows
+	line endings. The hosted UI and a new hosted model run were not exercised.
+- The saved local end-to-end run and the exact renamed heading were checked in
+	the actual shared app. JavaScript syntax, Python compilation, whitespace,
+	staged source hashes and bundle validation passed. The post-run clock fix
+	was not checked on another active run. No old test suites were run.
+- Writer-stage diagnostics and lower-flicker log updates are included but not
+	verified against the original hosted failure. The Delta permission-denial
+	root cause, granular live writer token accounting, application-only log filter,
+	MLflow integration, and requested application analytics tab remain open.
+	No enterprise-grade observability or migration runtime parity is claimed.
+- Before switching traffic, the current user's committed run history reported
+	no active run; other users and uncommitted in-memory operations were not
+	proven idle. The user explicitly requested deployment after the heading fix.
+
 ## Migration run heading, local change
 
 - The run summary heading and accessible section label now read
