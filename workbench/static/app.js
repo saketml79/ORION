@@ -41,20 +41,41 @@
   const loadingDiagnosticText = document.createElement('span');
   loadingDiagnosticText.className = 'package-progress-diagnostics';
   overviewProgress.append(loadingDiagnosticText);
+  const inventoryRetry = document.createElement('button');
+  inventoryRetry.type = 'button';
+  inventoryRetry.textContent = 'Retry Explorer inventory';
+  inventoryRetry.hidden = true;
+  overviewProgress.append(inventoryRetry);
+  const readinessRetry = document.createElement('button');
+  readinessRetry.type = 'button';
+  readinessRetry.textContent = 'Retry readiness';
+  readinessRetry.hidden = true;
+  overviewProgress.append(readinessRetry);
+  const warmRetry = document.createElement('button');
+  warmRetry.type = 'button';
+  warmRetry.textContent = 'Retry package preparation';
+  warmRetry.hidden = true;
+  overviewProgress.append(warmRetry);
   packageCard.append(overviewProgress);
   document.querySelectorAll('a[href="/api/export/english"]').forEach((link) => {
     link.textContent = 'Download package analysis report (Markdown)';
-    link.title = "Download the selected package's structural inventory, summaries, and evidence references as a Markdown report";
+    link.title = "Download the selected package's structural inventory, summaries, and source references as a Markdown report";
   });
   const all = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const workflowSessionStatus = document.createElement('p');
+  workflowSessionStatus.id = 'agent-workflow-session-status';
+  workflowSessionStatus.className = 'small muted';
+  workflowSessionStatus.setAttribute('role', 'status');
+  workflowSessionStatus.hidden = true;
+  $('agent-workflow').after(workflowSessionStatus);
   const array = (value) => Array.isArray(value) ? value : [];
   const text = (value) => value == null ? 'Not supplied' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
   const human = (value) => String(value).replace(/_/g, ' ');
-  const roleLabel = value => ({supervisor: 'Lead migration analyst', discovery: 'Informatica package analyst',
+  const roleLabel = value => ({supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
     semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
-    validation: 'Independent validation analyst', artifact: 'Artifact and code specialist'})[value] || human(value);
+    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[value] || human(value);
   const roleSkillDescription = value => ({
-    supervisor: 'Reconciles specialist evidence into a non-executing proposal advisory.',
+    supervisor: 'Coordinates specialist findings and can submit or correct the logical migration design. Candidate code is drafted separately by the Spark and SQL code writer.',
     discovery: 'Inspects scoped Informatica objects, source contracts, and discovery gaps.',
     semantics: 'Reviews captured mapping, write, transaction, and control semantics.',
     architecture: 'Proposes evidence-qualified Lakeflow boundaries, reuse, and medallion placement.',
@@ -70,22 +91,32 @@
     page: 'estate', overview: null, healthCapabilities: null, ready: false, packageKey: null, epoch: 0, hosted: false,
     overviewLoading: false, overviewError: '', loadingDiagnostic: null, loadingDiagnosticSequence: 0,
     overviewTimer: null, jobTimer: null, jobId: null, jobBusy: false,
-    inventoryOffset: 0, inventoryTotal: 0, inventoryTicket: 0, inventoryLoaded: false,
+    inventoryOffset: 0, inventoryTotal: 0, inventoryCount: 0, inventoryTicket: 0, inventoryLoaded: false,
+    inventoryPreload: 'not_started', inventoryPreloadError: '',
     object: null, objectTicket: 0, selectedNode: null, selectedObjectId: null, objectLoadState: 'idle', view: 'graph',
     proposals: [], proposal: null, proposalOffset: 0, proposalTotal: 0, proposalPageSize: 20,
     proposalTicket: 0, proposalsLoaded: false,
-    runTimer: null, runId: null, runTicket: 0, settingsLoaded: false, overviewTicket: 0,
-    projectId: '', memberHash: '', project: null, projectTicket: 0, projectTimer: null,
-    projectJobs: [], projectSubmitting: false, requests: 0, agentRunning: false, agentRunsLoaded: false,
-    graphOffset: 0, graphTicket: 0, graphOpen: false, graphBusy: false, graphHasMore: false,
+    runTimer: null, runId: null, runTicket: 0, settingsLoaded: false, settingsTicket: 0, overviewTicket: 0,
+    projectId: '', memberHash: '', project: null, legacyWorkspaceSelected: false, projectTicket: 0, projectTimer: null,
+    projectJobs: [], projectSubmitting: false, requests: 0, agentRunning: false, agentSubmitting: false, submittedRunId: null, agentRunsLoaded: false,
+    projectsLoaded: false, projectsLoading: false, projectsTicket: 0,
+    inputsLoaded: false, inputsLoading: false, inputsTicket: 0, projectLoading: false,
+    documentsLoaded: false, documentsLoading: false, documentsTicket: 0,
+    runsRowsLoaded: false, runsListTicket: 0,
+    runtimeWarmKey: null, runtimeWarmStatus: 'not_started', runtimeWarmFlight: null, runtimeWarmTicket: 0, runtimeWarmError: '',
+    readinessPreload: 'not_started', readinessPreloadError: '', readinessTicket: 0, readinessEpoch: 0, readinessFlight: null,
+    pagePreload: 'not_started', pagePreloadError: '', pagePreloadTicket: 0, pagePreloadFlight: null,
+    graphOffset: 0, graphTicket: 0, graphOpen: false, graphBusy: false, graphHasMore: false, graphRenderedKey: '',
     logsOffset: 0, logsTicket: 0, logsTimer: null,
     hostedLogsTicket: 0, hostedLogsTimer: null,
   };
   // Presentation metadata only. Request accounting, polling, and workflow state stay authoritative.
   const requestActivity = new Map();
+  let hostedActivity = null;
   const recordedRunStates = new Map();
   let legacyJobStatus = '';
   let initializingNavigation = true;
+  let startupUserPage = '';
   const iconPaths = Object.freeze({
     grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     graph: 'M4 4h5v5H4z M15 15h5v5h-5z M15 4h5v5h-5z M9 6.5h6 M6.5 9v8.5H15',
@@ -295,6 +326,31 @@
     node.append(details);
     return details;
   }
+  function logCopyButton(record) {
+    const button = action('Copy log', async () => {
+      const contents = window.orionRedaction.text(JSON.stringify(record, null, 2));
+      try {
+        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(contents);
+        else {
+          const field = document.createElement('textarea');
+          field.value = contents; field.setAttribute('readonly', '');
+          field.style.position = 'fixed'; field.style.opacity = '0';
+          document.body.append(field); field.select();
+          const copied = document.execCommand('copy'); field.remove();
+          if (!copied) throw new Error('Clipboard unavailable');
+        }
+        button.textContent = 'Copied';
+        button.setAttribute('aria-label', 'Log entry copied');
+      } catch (_) {
+        button.textContent = 'Copy unavailable';
+        button.setAttribute('aria-label', 'Copy log entry unavailable');
+      }
+    });
+    button.classList.add('log-copy-button');
+    button.setAttribute('aria-label', 'Copy redacted log entry');
+    button.title = 'Copy this entry with credential-like values redacted.';
+    return button;
+  }
   function rows(node, value, labelFor = human) {
     for (const [key, val] of Object.entries(value || {})) {
       const row = el('div', 'detail-row');
@@ -334,7 +390,7 @@
   });
   const operationPhases = Object.freeze({
     reading_history: 'Loading saved agent history metadata',
-    queued: 'Queued for workspace processing', starting: 'Starting background operation',
+    queued: 'Accepted; waiting for a background worker slot', starting: 'Starting background operation',
     provisioning: 'Opening user-scoped workspace storage', metadata_restore: 'Restoring committed package metadata',
     artifact_files: 'Verifying committed package files', verifying_artifact: 'Verifying package checksum',
     decoding_nodes: 'Reading canonical package nodes', decoding_edges: 'Reading canonical package links',
@@ -436,22 +492,47 @@
     const activeRuns = [...recordedRunStates.values()].filter((run) => run.epoch === state.epoch && activeRun(run));
     const legacyActive = state.jobId && ['queued', 'running'].includes(legacyJobStatus);
     const jobs = activeJobs.length + (legacyActive ? 1 : 0) + activeRuns.length;
-    const busy = state.requests > 0 || jobs > 0;
+    const hostedBusy = state.hosted && hostedActivity?.busy === true;
+    const busy = state.requests > 0 || jobs > 0 || hostedBusy;
     const requests = [...requestActivity.values()].filter((item) => item.epoch === state.epoch
-      && (!item.readOnly || item.overview || item.page === state.page));
+      && (!item.inventory || item.inventoryTicket === state.inventoryTicket)
+      && (!item.readOnly || item.overview || item.page === state.page
+        || (item.inventory && state.inventoryPreload === 'loading')
+        ));
     const foreground = requests.filter((item) => !item.background);
     const loadingOverview = foreground.some((item) => item.overview);
     const loadingInventory = foreground.some((item) => item.inventory);
+    const loadingReadiness = state.readinessPreload === 'loading';
+    const loadingPages = state.pagePreload === 'loading';
     const activeRead = foreground.find((item) => item.operation);
-    const operationLabel = activeRead ? operationProgressText(activeRead.operation) : '';
-    overviewProgress.hidden = !(loadingOverview || loadingInventory);
-    overviewProgress.setAttribute('aria-busy', String(loadingOverview || loadingInventory));
-    overviewProgressHeading.textContent = loadingInventory && !loadingOverview ? 'Package inventory' : 'Package understanding';
-    overviewProgressDescription.textContent = operationLabel || (loadingInventory ? 'Loading the requested inventory page in a background operation.' : 'Loading selected XML understanding in a background operation.');
+    const packageRead = foreground.find((item) => (item.overview || item.inventory) && item.operation);
+    const operationLabel = packageRead ? operationProgressText(packageRead.operation) : '';
+    const readinessFailed = state.readinessPreload === 'failed' && baseAssessmentReady();
+    const warmFailed = state.hosted && state.runtimeWarmStatus === 'unavailable' && baseAssessmentReady();
+    overviewProgress.hidden = !(loadingOverview || loadingInventory || loadingReadiness || loadingPages || state.pagePreloadError || state.inventoryPreload === 'failed' || readinessFailed || warmFailed);
+    overviewProgress.setAttribute('aria-busy', String(loadingOverview || loadingInventory || loadingReadiness || loadingPages));
+    overviewProgressHeading.textContent = (loadingInventory || state.inventoryPreload === 'failed') && !loadingOverview ? 'Explorer inventory'
+        : loadingReadiness || readinessFailed ? 'Readiness evidence' : loadingPages || state.pagePreloadError ? 'Initial page data' : warmFailed ? 'Package preparation' : 'Package understanding';
+    overviewProgressDescription.textContent = state.inventoryPreload === 'failed'
+      ? `Explorer inventory could not be loaded. ${state.inventoryPreloadError} Retry to enable package views.`
+      : readinessFailed ? `Readiness evidence could not be loaded. ${state.readinessPreloadError} Retry to enable package views.`
+      : state.pagePreloadError ? `The initial read did not confirm: ${state.pagePreloadError}. Check the relevant page status and refresh if needed.`
+      : loadingPages ? 'Loading saved documents, release settings, connections, readiness and the first page of agent history. Other details remain on demand.'
+      : warmFailed ? `Package preparation could not be confirmed. ${state.runtimeWarmError} Retry before invoking agents.`
+      : operationLabel || (loadingInventory ? 'Loading the current Explorer inventory page (up to 50 objects). Other pages and object details are not loaded.'
+        : loadingReadiness ? 'Loading saved readiness evidence for the selected package. Runtime and output parity remain unassessed.' : 'Loading selected XML understanding in a background operation.');
+    if (state.hosted && state.projectId && state.memberHash && !loadingOverview) {
+      const step = loadingInventory || state.inventoryPreload === 'failed' ? 1
+        : loadingReadiness || readinessFailed ? 2 : 0;
+      if (step) overviewProgressDescription.textContent = `Step ${step} of 2: ${overviewProgressDescription.textContent}`;
+    }
+    inventoryRetry.hidden = state.inventoryPreload !== 'failed';
+    readinessRetry.hidden = !readinessFailed;
+    warmRetry.hidden = !warmFailed;
     const diagnostic = state.loadingDiagnostic;
     const diagnosticLabel = diagnostic ? loadingDiagnosticLabel(diagnostic) : '';
     loadingDiagnosticText.textContent = diagnosticLabel ? ` ${diagnosticLabel}` : '';
-    const operationProgress = activeRead?.operation?.progress;
+    const operationProgress = packageRead?.operation?.progress;
     const verified = diagnostic?.data?.verified_files ?? (operationProgress?.unit === 'files' ? operationProgress.completed : null);
     const total = diagnostic?.data?.total_files ?? (operationProgress?.unit === 'files' ? operationProgress.total : null);
     const operationCompleted = operationProgress?.completed, operationTotal = operationProgress?.total;
@@ -469,10 +550,10 @@
       overviewProgressBar.setAttribute('aria-label', `${count(operationCompleted)} of ${count(operationTotal)} ${operationProgress.unit || 'records'}`);
     }
     if (Number.isInteger(verified) && Number.isInteger(total) && verified >= 0 && total >= verified) loadingDiagnosticText.textContent += ` · ${verified} of ${total} artifact files verified`;
-    const prominent = jobs > 0 || foreground.length > 0;
+    const prominent = jobs > 0 || foreground.length > 0 || hostedBusy;
     const packageTarget = selectedCompletedPackage()?.name || state.overview?.package?.name || 'selected package';
-    const label = diagnosticLabel || (activeRead
-      ? (activeRead.history ? activeRead.label : `Reading saved package evidence for ${packageTarget}`)
+    const label = (hostedBusy && hostedActivity.message) || diagnosticLabel || (activeRead
+      ? (activeRead.history ? activeRead.label : `Reading saved package information for ${packageTarget}`)
       : jobs ? `${count(jobs)} active ${jobs === 1 ? 'job' : 'jobs'}` : foreground.length ? foreground[0].label : requests.length ? 'Refreshing logs' : 'Idle');
     const activity = clear($('activity-status'));
     activity.classList.toggle('is-active', busy && prominent);
@@ -496,12 +577,15 @@
   function requestDescription(path, options) {
     const pathname = String(path).split('?')[0];
     const background = (!options.method || options.method === 'GET') && (pathname === '/api/logs'
+      || (pathname === '/api/agents/runs' && state.page !== 'agents')
       || (/^\/api\/agents\/runs\/[a-f0-9]{32}$/.test(pathname)
         && new URLSearchParams(String(path).split('?')[1]).get('status_only') === 'true'));
     let label = options.download ? 'Downloading service export' : options.method === 'POST' ? 'Saving requested changes' : 'Waiting for workspace response';
     const overview = pathname === '/api/overview';
     const inventory = pathname === '/api/objects';
+    const warm = pathname === '/api/package/warm';
     if (overview) label = state.projectId ? 'Loading selected package understanding' : 'Refreshing package inventory';
+    else if (pathname === '/api/package/warm') label = 'Preparing selected package workspace';
     else if (inventory) label = 'Loading selected package inventory';
     else if (pathname === '/api/projects') label = 'Loading saved projects';
     else if (/^\/api\/projects\/[a-f0-9]{32}$/.test(pathname)) label = 'Loading selected project and its XML packages';
@@ -513,12 +597,16 @@
     else if (pathname.startsWith('/api/object/')) label = 'Inspecting pipeline structure';
     else if (pathname === '/api/proposals') label = 'Loading proposal candidates';
     else if (background) label = 'Refreshing logs';
-    return { label, background, overview, inventory, history: pathname.startsWith('/api/agents/runs'), epoch: state.epoch, operation: null,
+    return { label, background, overview, inventory, warm, inventoryTicket: state.inventoryTicket, history: pathname.startsWith('/api/agents/runs'), epoch: state.epoch, operation: null,
       readOnly: !options.method || options.method === 'GET', page: state.page };
   }
   function hostedBackgroundReadPath(path) {
     const pathname = String(path).split('?')[0];
-    return pathname === '/api/overview' || pathname === '/api/objects' || pathname === '/api/package-graph'
+    if (/^\/api\/agents\/runs\/[a-f0-9]{32}$/.test(pathname)
+        && new URLSearchParams(String(path).split('?')[1] || '').get('status_only') === 'true') return false;
+    if (pathname === '/api/overview') return true;
+    if (state.overview?.retained_service_ready === true && pathname !== '/api/package/warm') return false;
+    return pathname === '/api/package/warm' || pathname === '/api/objects' || pathname === '/api/package-graph'
       || pathname === '/api/proposals' || /^\/api\/proposals\/[a-f0-9]{64}$/.test(pathname)
       || pathname === '/api/redesigns' || /^\/api\/redesigns\/[a-f0-9]{64}$/.test(pathname)
       || pathname === '/api/reviews' || pathname === '/api/impact'
@@ -541,7 +629,10 @@
     try {
       if (readOnly && hostedBackgroundReadPath(path) && state.hosted && window.orionHostedIntake?.read) {
         const result = await window.orionHostedIntake.read(path, contextHeaders(), operation => {
-          if (epoch !== state.epoch || controller.signal.aborted || (!overviewRead && descriptor.page !== state.page)) return;
+          if (epoch !== state.epoch || controller.signal.aborted || (inventoryRead && descriptor.inventoryTicket !== state.inventoryTicket)
+              || (!overviewRead && descriptor.page !== state.page
+                && !(inventoryRead && state.inventoryPreload === 'loading')
+                && !(descriptor.warm && state.runtimeWarmStatus === 'loading'))) return;
           descriptor.operation = operation;
           updateActivity();
           if (inventoryRead && operation.status === 'running')
@@ -578,10 +669,6 @@
     return api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: json(body) });
   };
 
-  // Persist only selection hints. The service remains the membership authority.
-  function rememberSelection() {
-    try { localStorage.setItem('lakeflow-studio-selection', json({ project: state.projectId, package: state.memberHash })); } catch { /* Optional local hint. */ }
-  }
   function selectedCompletedPackage() {
     return state.projectId ? array(state.project?.packages).find((member) => member.sha256 === state.memberHash && member.status === 'completed') : null;
   }
@@ -614,6 +701,7 @@
     state.overviewTicket += 1;
     clearTimeout(state.overviewTimer); clearTimeout(state.jobTimer);
     state.jobId = null; state.jobBusy = false; state.packageKey = null; state.overview = null;
+    state.graphRenderedKey = '';
     state.overviewLoading = false; state.overviewError = '';
     invalidatePackage();
     state.logsOffset = 0;
@@ -621,41 +709,56 @@
     $('notice').hidden = true;
     ['document-form', 'attestation-form', 'agent-form'].forEach((id) => { $(id).reset(); formStatus($(id), ''); });
     $('object-search').value = ''; clearTimeout(searchTimer);
-    renderOverview({ ready: false, status: state.projectId ? 'package_selection_required' : 'loading' });
-    $('workspace-scope').textContent = state.projectId ? `Project: ${state.project?.name ?? state.projectId} · ${state.memberHash ? `package ${state.memberHash.slice(0, 12)}` : 'select a ready member'}. No cross-package binding.` : 'Legacy package workspace';
+    renderOverview({ ready: false, status: state.projectId ? 'package_selection_required' : state.legacyWorkspaceSelected ? 'loading' : 'selection_required' });
+    $('workspace-scope').textContent = state.projectId
+      ? `Project: ${state.project?.name ?? state.projectId} · ${state.memberHash ? `package ${state.memberHash.slice(0, 12)}` : 'select a ready member'}. No cross-package binding.`
+      : state.legacyWorkspaceSelected ? 'Legacy package workspace' : 'No project or XML package selected.';
     updateControls();
   }
   async function switchProject(id, preferredHash = '') {
+    const legacyWorkspace = !state.hosted && id === '__legacy__';
+    const projectId = legacyWorkspace ? '' : id;
     state.projectTicket += 1;
     clearTimeout(state.projectTimer);
-    state.projectId = id; state.memberHash = ''; state.project = null; state.projectJobs = []; state.projectSubmitting = false;
+    state.projectLoading = false;
+    state.projectId = projectId; state.memberHash = ''; state.project = null; state.legacyWorkspaceSelected = legacyWorkspace; state.projectJobs = []; state.projectSubmitting = false;
     clear($('project-members')); message($('project-jobs'), 'Loading the selected project.');
     $('project-upload-form').reset(); $('project-sample-form').reset();
     formStatus($('project-upload-form'), ''); formStatus($('project-sample-form'), '');
     clear($('project-package')).append(new Option('Select a package explicitly', ''));
     $('project-package').disabled = true;
-    $('project-package').dataset.emptyMessage = id ? 'Loading XML packages for the selected project…' : 'Select a saved project to view its XML packages.';
-    $('project-select').value = id;
-    resetContext(); rememberSelection();
-    if (id) await loadProject(preferredHash);
-    else {
+    $('project-package').dataset.emptyMessage = projectId ? 'Loading XML packages for the selected project…' : 'Select a saved project to view its XML packages.';
+    $('project-select').value = legacyWorkspace ? '__legacy__' : projectId;
+    resetContext();
+    if (projectId) await loadProject(preferredHash);
+    else if (legacyWorkspace) {
       $('project-summary').textContent = 'Legacy package workspace selected.';
       message($('project-jobs'), 'Select a project to view persisted per-file outcomes.');
       await loadOverview();
+    } else {
+      $('project-summary').textContent = 'Choose a project to view its uploaded XML packages.';
+      message($('project-jobs'), 'Select a project to view persisted per-file outcomes.');
     }
+    if (!initializingNavigation && projectId && state.projectId === projectId && state.page === 'projects' && selectedCompletedPackage())
+      navigate('estate', true);
     if (state.page === 'logs') loadLogs();
   }
   async function loadProjects() {
-    const epoch = state.epoch;
-    if (!state.projectId) $('project-summary').textContent = 'Loading saved projects from the service. Project existence is not confirmed yet.';
+    const epoch = state.epoch, ticket = ++state.projectsTicket;
+    state.projectsLoading = true;
+    updateControls();
+    if (!state.projectId && !state.legacyWorkspaceSelected) $('project-summary').textContent = 'Loading saved projects from the service. Project existence is not confirmed yet.';
     $('project-select').setAttribute('aria-busy', 'true');
     try {
       const data = await api('/api/projects');
-      if (epoch !== state.epoch) return;
-      clear($('project-select')).append(new Option(state.hosted ? 'Choose an existing project' : 'Legacy package workspace', ''));
+      if (epoch !== state.epoch || ticket !== state.projectsTicket) return;
+      state.projectsLoaded = true;
+      const selector = clear($('project-select'));
+      selector.append(new Option(state.hosted ? 'Choose an existing project' : 'Choose a project', ''));
+      if (!state.hosted) selector.append(new Option('Legacy package workspace', '__legacy__'));
       array(data.items).forEach((project) => $('project-select').append(new Option(`${project.name} (${count(project.ready_package_count)} ready)`, project.id)));
-      $('project-select').value = state.projectId;
-      if (!state.projectId) {
+      $('project-select').value = state.projectId || (state.legacyWorkspaceSelected ? '__legacy__' : '');
+      if (!state.projectId && !state.legacyWorkspaceSelected) {
         const projects = array(data.items);
         $('project-summary').textContent = projects.length
           ? `${projects.length} saved project${projects.length === 1 ? '' : 's'} available. Choose a project above to view its uploaded XML packages.`
@@ -663,17 +766,19 @@
         message($('project-members'), projects.length ? 'No project selected. Uploaded XML packages are listed after selecting a saved project.' : 'No project packages to display yet. Create a project before adding XML.');
       }
     } catch (error) {
-      if (epoch === state.epoch) {
+      if (epoch === state.epoch && ticket === state.projectsTicket) {
         $('project-summary').textContent = `Saved projects could not be loaded. This does not mean they are missing. ${error.message}`;
         if (!state.projectId) $('project-package').dataset.emptyMessage = 'Project list unavailable. Use Refresh projects; no package absence is inferred.';
       }
-    } finally { $('project-select').setAttribute('aria-busy', 'false'); }
+    } finally { if (ticket === state.projectsTicket) { state.projectsLoading = false; $('project-select').setAttribute('aria-busy', 'false'); updateControls(); } }
   }
   async function loadInputs() {
-    const epoch = state.epoch;
+    const epoch = state.epoch, ticket = ++state.inputsTicket;
+    state.inputsLoading = true;
     try {
       const data = await api('/api/input-packages');
-      if (epoch !== state.epoch) return;
+      if (epoch !== state.epoch || ticket !== state.inputsTicket) return;
+      state.inputsLoaded = true;
       const checked = new Set(all('input:checked', $('server-inputs')).map((input) => input.value));
       clear($('server-inputs')).append(el('legend', '', 'Available sample packages'));
       array(data.items).forEach((item, index) => {
@@ -684,7 +789,8 @@
         $('server-inputs').append(label);
       });
       if (!array(data.items).length) paragraph($('server-inputs'), 'No sample packages found in the local input folder.');
-    } catch (error) { if (epoch === state.epoch) message($('server-inputs'), `Sample packages could not be loaded. ${error.message}`); }
+    } catch (error) { if (epoch === state.epoch && ticket === state.inputsTicket) message($('server-inputs'), `Sample packages could not be loaded. ${error.message}`); }
+    finally { if (ticket === state.inputsTicket) state.inputsLoading = false; }
   }
   function renderProjectJobs() {
     const host = clear($('project-jobs'));
@@ -731,6 +837,7 @@
   async function loadProject(preferredHash = '') {
     const id = state.projectId, epoch = state.epoch, ticket = ++state.projectTicket;
     if (!id) return;
+    state.projectLoading = true;
     clearTimeout(state.projectTimer);
     $('project-package').setAttribute('aria-busy', 'true');
     updateControls();
@@ -759,11 +866,11 @@
         ? members.length ? 'Select a completed XML package to load its analysis.' : 'Packages found. Analysis must complete before they can be selected.'
         : 'No XML packages added to this project yet.';
       const desired = state.memberHash || preferredHash;
-      const valid = members.some((member) => member.sha256 === desired) ? desired : members.length === 1 ? members[0].sha256 : '';
+      const valid = members.some((member) => member.sha256 === desired) ? desired : '';
       $('project-package').value = valid;
       renderProjectJobs();
-      if (state.memberHash !== valid) { state.memberHash = valid; resetContext(); rememberSelection(); await loadOverview(false); }
-      else if (!state.overview) await loadOverview(false);
+      if (state.memberHash !== valid) { state.memberHash = valid; resetContext(); }
+      if (valid && (!state.overview || state.overview.package?.sha256 !== valid)) await loadOverview(false);
       if (id !== state.projectId || ticket !== state.projectTicket) return;
       const active = state.projectJobs.filter((job) => ['queued', 'running'].includes(job.status));
       if (active.length) state.projectTimer = setTimeout(() => pollProjectJobs(id, state.epoch), 2000);
@@ -773,6 +880,7 @@
       $('project-package').dataset.emptyMessage = 'Package loading failed. Use Refresh projects; existing XML was not deleted.';
     } } finally {
       if (id === state.projectId && ticket === state.projectTicket) {
+        state.projectLoading = false;
         $('project-package').setAttribute('aria-busy', 'false');
         updateControls();
       }
@@ -815,7 +923,8 @@
   function selectProjectPackage(hash) {
     if (hash && !array(state.project?.packages).some((member) => member.sha256 === hash && member.status === 'completed')) return;
     $('project-package').value = hash;
-    state.memberHash = hash; resetContext(); rememberSelection(); loadOverview(false);
+    state.memberHash = hash; resetContext();
+    if (hash) loadOverview(false);
     if (state.projectJobs.some((job) => ['queued', 'running'].includes(job.status))) { clearTimeout(state.projectTimer); state.projectTimer = setTimeout(() => pollProjectJobs(state.projectId, state.epoch), 2000); }
     if (state.page === 'logs') loadLogs();
   }
@@ -901,7 +1010,7 @@
         const row = el('article', 'record event-card'); row.dataset.severity = item.level === 'ERROR' ? 'error' : 'warning';
         const headingNode = el('div', 'record-heading');
         headingNode.append(el('strong', 'record-title', `${text(item.method)} ${text(item.path)} · HTTP ${text(item.status_code)}`),
-          el('span', 'event-severity error', text(item.error_type)));
+          el('span', 'event-severity error', text(item.error_type)), logCopyButton(item));
         row.append(headingNode, el('small', 'record-time', text(item.timestamp)));
         const error = item.error && typeof item.error === 'object' ? item.error : {};
         const summary = [error.error_code && `Databricks error: ${error.error_code}`,
@@ -948,7 +1057,7 @@
         const header = el('div', 'record-heading');
         const badge = el('span', `event-severity ${severity}`);
         badge.append(icon(severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'), el('span', '', human(item.level ?? 'Unknown level')));
-        header.append(el('strong', 'record-title', text(item.event)), badge);
+        header.append(el('strong', 'record-title', text(item.event)), badge, logCopyButton(item));
         record.append(header, el('small', 'record-time', text(item.timestamp)));
         paragraph(record, text(item.message), 'prose');
         const metadata = el('details', 'event-metadata');
@@ -987,15 +1096,21 @@
     legend.setAttribute('aria-label', 'Graph assessment legend');
     for (const [label, description, color] of [
       ['Source structure', 'XML definitions and references. Shared definitions are not runtime dependencies.', 'neutral'],
-      ['Issue recorded', 'A scoped canonical error diagnostic exists. Inspect its evidence.', 'red'],
+      ['Issue recorded', 'A scoped canonical error diagnostic exists. Inspect its details.', 'red'],
     ]) {
       const row = el('li', `graph-legend-${color}`);
       row.append(el('strong', '', `${label}: `), document.createTextNode(description)); legend.append(row);
     }
     packageLegend.replaceWith(legend);
   }
+  function packageGraphViewKey() {
+    return json([state.epoch, state.projectId, state.memberHash, $('package-graph-kind').value,
+      $('package-graph-size').value, state.graphOffset]);
+  }
   async function loadPackageGraph() {
     if (!state.ready || !state.graphOpen) return;
+    const viewKey = packageGraphViewKey();
+    if (state.hosted && state.graphRenderedKey === viewKey) return;
     const ticket = ++state.graphTicket, epoch = state.epoch;
     state.graphBusy = true; state.graphHasMore = false;
     $('package-graph-area').setAttribute('aria-busy', 'true');
@@ -1025,7 +1140,7 @@
           for (const [values, store] of [[chunk.nodes, nodes], [chunk.edges, edges], [chunk.groups, groups]])
             for (const value of array(values)) {
               if (!value.id || (store.has(value.id) && json(store.get(value.id)) !== json(value)))
-                throw new Error('Conflicting graph evidence. No partial graph accepted.');
+                throw new Error('Conflicting graph information. No partial graph accepted.');
               store.set(value.id, value);
             }
           $('package-graph-summary').textContent = `Loading all workflows: ${nodes.size} of ${expectedNodes} nodes, ${edges.size} of ${expectedEdges} relationships verified.`;
@@ -1051,14 +1166,15 @@
         : `${count(returned)} of ${count(graph.total_nodes)} ${kind}s, ${count(array(graph.edges).length)} of ${count(graph.page_total_edges)} relationships on this page (${count(graph.total_edges)} across the overview). ${graph.truncated ? 'Choose All to include every node and cross-page relationship.' : ''}`;
       $('package-graph-assessment').textContent = json(graph);
       renderGraph($('package-graph-area'), graph, { full: true, onSelect: (node) => {
-        clear($('package-graph-inspector')); rows($('package-graph-inspector'), { name: node.name, id: node.id, kind: node.kind, assessment: assessmentPresentation(node).summary, evidence: node.evidence });
+        clear($('package-graph-inspector')); rows($('package-graph-inspector'), { name: node.name, id: node.id, kind: node.kind, assessment: assessmentPresentation(node).summary, evidence: node.evidence }, key => key === 'evidence' ? 'Source details' : human(key));
         $('package-graph-inspector').append(action('Open in pipeline explorer', () => { navigate('explorer', true); selectObject(node.id); }));
         // Node activation navigates using the stable canonical ID, never a guessed name.
         navigate('explorer', true); selectObject(node.id, node.assessment);
       } });
       $('package-graph-prev').disabled = full || state.graphOffset === 0;
       $('package-graph-next').disabled = full || !returned || state.graphOffset + returned >= graph.total_nodes;
-    } catch (error) { if (ticket === state.graphTicket && epoch === state.epoch) { message($('package-graph-area'), `Package graph unavailable. ${error.message} No graph inferred.`); $('package-graph-summary').textContent = 'Package graph service unavailable. Hide and show to retry.'; } }
+      if (state.hosted) state.graphRenderedKey = viewKey;
+    } catch (error) { if (ticket === state.graphTicket && epoch === state.epoch) { state.graphRenderedKey = ''; message($('package-graph-area'), `Package graph unavailable. ${error.message} No graph inferred.`); $('package-graph-summary').textContent = 'Package graph service unavailable. Hide and show to retry.'; } }
     finally {
       if (ticket === state.graphTicket && epoch === state.epoch) {
         state.graphBusy = false; $('package-graph-area').setAttribute('aria-busy', 'false'); updateControls();
@@ -1070,7 +1186,7 @@
     $('package-graph-panel').hidden = !state.graphOpen;
     $('show-package-graph').setAttribute('aria-expanded', String(state.graphOpen));
     $('show-package-graph').textContent = state.graphOpen ? 'Hide package graph' : 'Show package graph';
-    if (state.graphOpen) loadPackageGraph();
+    if (state.graphOpen && (!state.hosted || state.graphRenderedKey !== packageGraphViewKey())) loadPackageGraph();
   });
   $('package-graph-kind').addEventListener('change', () => { state.graphOffset = 0; loadPackageGraph(); });
   $('package-graph-size').addEventListener('change', () => { state.graphOffset = 0; loadPackageGraph(); });
@@ -1099,6 +1215,9 @@
     // Keep the selected package's Estate page available as its progress view;
     // data actions on that page remain gated while loading.
     if (page === 'estate' && state.projectId && selectedCompletedPackage()) return '';
+    if (initializingNavigation || state.projectsLoading || state.projectLoading)
+      return 'Wait for saved projects and the selected project to finish loading.';
+    if (page === 'estate' && !state.projectId && state.ready && state.inventoryPreload !== 'ready') return '';
     if (state.overviewLoading || state.jobBusy || (state.jobId && ['queued', 'running'].includes(legacyJobStatus)))
       return 'Wait for the selected package understanding to finish loading before opening package views.';
     if (state.projectId) {
@@ -1107,14 +1226,36 @@
       if (!state.ready) return 'Wait for the selected XML package understanding to finish loading.';
       if (state.overview?.package?.sha256 !== state.memberHash) return 'Load understanding for the selected project XML package first.';
     } else if (!state.ready) return 'Select a project and completed XML package first, or load a standalone legacy package.';
+    if (state.inventoryPreload !== 'ready') return state.inventoryPreload === 'failed'
+      ? 'Explorer inventory could not be loaded. Retry from Estate before opening package views.'
+      : 'Wait for the initial Explorer inventory page to finish loading.';
+    if (state.hosted && state.projectId && state.memberHash && !hostedWarmReady())
+      return state.runtimeWarmStatus === 'unavailable'
+        ? 'Package preparation could not be confirmed. Retry from Estate before opening package views.'
+        : 'Wait for the selected package workspace to finish preparing.';
+    if (state.hosted && state.projectId && state.memberHash && state.readinessPreload !== 'ready')
+      return state.readinessPreload === 'failed'
+        ? 'Readiness evidence could not be loaded. Retry from Estate before opening package views.'
+        : 'Wait for initial readiness evidence to finish loading.';
+    if (state.pagePreload === 'not_started' || state.pagePreload === 'loading')
+      return 'Wait for initial saved page data to finish loading.';
+    if (state.pagePreload === 'failed')
+      return 'Initial page data was not confirmed. Use Refresh data on Estate to retry.';
     return '';
   }
   function navigationFallback() {
-    return selectedCompletedPackage() ? 'estate' : 'projects';
+    return selectedCompletedPackage() || (!state.projectId && state.ready) ? 'estate' : 'projects';
+  }
+  function baseAssessmentReady() {
+    return !state.overviewLoading && state.inventoryPreload === 'ready' && !state.jobBusy && !(state.jobId && ['queued', 'running'].includes(legacyJobStatus)) && state.ready && (!state.projectId || Boolean(selectedCompletedPackage()
+      && state.overview?.package?.sha256 === state.memberHash));
+  }
+  function hostedWarmReady() {
+    return state.runtimeWarmStatus === 'ready' && state.runtimeWarmKey === `${state.epoch}:${state.projectId}:${state.memberHash}`;
   }
   function assessmentReady() {
-    return !state.overviewLoading && !state.jobBusy && !(state.jobId && ['queued', 'running'].includes(legacyJobStatus)) && state.ready && (!state.projectId || Boolean(selectedCompletedPackage()
-      && state.overview?.package?.sha256 === state.memberHash));
+    return baseAssessmentReady() && (!state.hosted || !state.projectId || !state.memberHash
+      || state.readinessPreload === 'ready');
   }
   function navigate(page, focus = false, load = true) {
     if (!Object.hasOwn(pageNames, page)) page = 'estate';
@@ -1131,6 +1272,10 @@
       const active = button.dataset.page === page;
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+      const reason = navigationPrerequisite(button.dataset.page);
+      button.disabled = Boolean(reason);
+      button.setAttribute('aria-disabled', String(Boolean(reason)));
+      button.title = reason || `Open ${pageNames[button.dataset.page]}`;
     });
     $('page-name').textContent = pageNames[page];
     document.title = `${pageNames[page]} | ORION`;
@@ -1140,36 +1285,61 @@
     clearTimeout(state.logsTimer);
     clearTimeout(state.hostedLogsTimer); state.hostedLogsTicket += 1;
     state.logsTicket += 1;
-    if (load) loadPage(page);
+    const main = document.getElementById('main');
+    const entering = !initializingNavigation && main.dataset.currentPage !== page;
+    if (load) loadPage(page, false);
     // Announce actual page entry only, after startup/context prerequisites.
     // Same-page refreshes and observer rerenders are not new visits.
-    const main = document.getElementById('main');
-    if (!initializingNavigation && main.dataset.currentPage !== page) {
+    if (entering) {
       main.dataset.currentPage = page;
       document.dispatchEvent(new CustomEvent('orion:navigate', { detail: { page } }));
     }
   }
-  all('[data-page]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.page, true)));
+  all('[data-page]').forEach((button) => button.addEventListener('click', () => {
+    if (initializingNavigation && ['projects', 'logs', 'evolution'].includes(button.dataset.page)) startupUserPage = button.dataset.page;
+    navigate(button.dataset.page, true);
+  }));
   all('[data-go]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.go, true)));
   window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
 
   function loadPage(page, force = false) {
-    if (initializingNavigation || navigationPrerequisite(page)) return;
-    if (page === 'projects') { loadProjects(); loadInputs(); if (state.projectId) loadProject(); return; }
+    if ((initializingNavigation && !['projects', 'logs', 'evolution'].includes(page)) || navigationPrerequisite(page)) return;
+    if (page === 'projects') {
+      if (force || (!state.projectsLoaded && !state.projectsLoading)) loadProjects();
+      if (force || (!state.inputsLoaded && !state.inputsLoading)) loadInputs();
+      if (state.projectId && (force || (!state.project && !state.projectLoading))) loadProject();
+      return;
+    }
     if (page === 'logs') { loadHostedDiagnostics(); loadLogs(); return; }
     if (!state.ready) return;
     if (page === 'explorer' && (force || !state.inventoryLoaded)) loadInventory();
     if (page === 'proposals' && $('proposal-baseline').open && (force || !state.proposalsLoaded)) loadProposals();
-    if (page === 'evidence') loadDocuments();
-    if (page === 'agents' && assessmentReady()) loadRuns();
-    if (page === 'release') { loadSettings(); if (force || !state.proposalsLoaded) loadProposals(); else renderReleaseBlockers(); }
+    if (page === 'evidence' && force && !state.documentsLoading) loadDocuments();
+    if (page === 'agents' && assessmentReady() && (force || !state.agentRunsLoaded)) loadRuns(0);
+    if (page === 'release') { if (force) loadSettings(); if (force || !state.proposalsLoaded) loadProposals(); else renderReleaseBlockers(); }
   }
   function agentModelAvailable() {
     return window.orionExternalModels?.availability() ?? (state.overview?.agent?.available === true);
   }
   function updateControls() {
+    if (assessmentReady() && state.pagePreload === 'not_started') startInitialPagePreload();
+    const hostedOperationBusy = state.hosted && Boolean(window.orionHostedIntake?.hasActiveOperation());
+    if (state.hosted && state.projectId && state.memberHash && baseAssessmentReady()
+      && hostedWarmReady() && state.readinessPreload === 'not_started') startHostedReadiness();
+    warmRetry.disabled = hostedOperationBusy || !baseAssessmentReady();
     const agentPackageReady = String(assessmentReady());
     const selectedPackageHash = state.memberHash || state.packageKey || '';
+    const workflowId = $('agent-workflow').value;
+    const listedWorkflow = array(state.overview?.workflows).some(workflow => workflow.id === workflowId);
+    workflowSessionStatus.hidden = !state.hosted || !workflowId;
+    if (!workflowSessionStatus.hidden) {
+      const confirmed = listedWorkflow && state.overview?.retained_service_ready === true
+        && state.overview?.package?.sha256 === state.memberHash;
+      const message = confirmed
+        ? 'This workflow was found in the loaded hosted package session. A restart or eviction may require reloading.'
+        : 'Workflow selected. A loaded hosted package session has not been confirmed.';
+      if (workflowSessionStatus.textContent !== message) workflowSessionStatus.textContent = message;
+    }
     const folderPage = $('page-folder-migration');
     for (const [key, value] of Object.entries({ projectId: state.projectId, packageHash: selectedPackageHash, packageReady: agentPackageReady }))
       if (folderPage.dataset[key] !== value) folderPage.dataset[key] = value;
@@ -1177,7 +1347,7 @@
       if ($(id).dataset.packageHash !== selectedPackageHash) $(id).dataset.packageHash = selectedPackageHash;
     if ($('page-agents').dataset.packageReady !== agentPackageReady) $('page-agents').dataset.packageReady = agentPackageReady;
     if ($('page-proposals').dataset.packageReady !== agentPackageReady) $('page-proposals').dataset.packageReady = agentPackageReady;
-    const agentRunStatus = !state.agentRunsLoaded ? 'unknown' : state.agentRunning ? 'busy' : 'idle';
+    const agentRunStatus = state.agentSubmitting || state.agentRunning ? 'busy' : !state.agentRunsLoaded ? 'unknown' : 'idle';
     if ($('page-agents').dataset.agentRunStatus !== agentRunStatus) $('page-agents').dataset.agentRunStatus = agentRunStatus;
     all('.navigation [data-page]').forEach((button) => {
       const reason = navigationPrerequisite(button.dataset.page);
@@ -1216,13 +1386,17 @@
     for (const selector of ['#object-kind', '#object-search', '#objects-prev', '#objects-next', '[data-view]',
       '#package-graph-kind', '#package-graph-size'])
       all(selector).forEach((control) => { control.disabled = !packageActionReady; });
+    $('objects-prev').disabled = !packageActionReady || !state.inventoryLoaded || state.inventoryOffset === 0;
+    $('objects-next').disabled = !packageActionReady || !state.inventoryLoaded || state.inventoryOffset + state.inventoryCount >= state.inventoryTotal;
     const fullGraph = $('package-graph-size').value === 'all';
     $('package-graph-prev').disabled = !packageActionReady || !state.graphOpen || state.graphBusy || fullGraph || state.graphOffset === 0;
     $('package-graph-next').disabled = !packageActionReady || !state.graphOpen || state.graphBusy || fullGraph || !state.graphHasMore;
     $('load-impact').disabled = !packageActionReady || state.object?.node?.kind !== 'workflow';
     $('download-object').disabled = !packageActionReady || !state.object;
+    // A hosted settings write must not freeze the next workflow choice. The
+    // invocation button remains gated by hostedOperationBusy below.
     all('#agent-workflow, #agent-scenario, #agent-review-scope, #agent-prompt')
-      .forEach((control) => { control.disabled = packageBusy || !assessmentReady() || state.agentRunning; });
+      .forEach((control) => { control.disabled = packageBusy || !assessmentReady() || state.agentRunning || state.agentSubmitting; });
     for (const page of ['explorer', 'readiness', 'proposals', 'evidence', 'validate', 'release']) {
       const section = $(`page-${page}`);
       section.inert = packageBusy;
@@ -1240,12 +1414,18 @@
     packagePicker.setAttribute('aria-busy', String(packageLoading));
     all('#project-upload-form button, #project-sample-form button').forEach((button) => { button.disabled = !state.projectId || projectBusy; });
     $('refresh-inputs').disabled = projectBusy;
+    const runtimeWarmBlocked = state.hosted && Boolean(state.projectId && state.memberHash)
+      && !hostedWarmReady();
     $('agent-submit').disabled = !assessmentReady() || !agentModelAvailable()
       || !$('agent-workflow').value
       || !$('agent-workflow').selectedOptions[0] || $('agent-workflow').selectedOptions[0].disabled
-      || state.agentRunning || !state.agentRunsLoaded;
-    $('agent-submit').title = state.agentRunning
+      || state.agentRunning || state.agentSubmitting || !state.agentRunsLoaded || hostedOperationBusy || runtimeWarmBlocked;
+    $('agent-submit').title = state.agentSubmitting ? 'Agent submission is in progress; its outcome has not yet been reconciled.' : state.agentRunning
       ? 'An agent run is queued or running for this package.'
+      : hostedOperationBusy ? 'A hosted operation is still active. Its lock remains in force across page navigation.'
+      : runtimeWarmBlocked ? state.runtimeWarmStatus === 'loading'
+        ? 'Preparing the selected package workspace; Invoke will enable when warm-up completes.'
+        : 'Package review is available, but Invoke waits for a verified warm workspace. Retry preparation from Estate if needed.'
       : !state.agentRunsLoaded ? 'Waiting for persisted run status to be confirmed.' : '';
     $('agent-submit').textContent = document.getElementById('agent-review-scope')?.value === 'cohort'
       ? 'Review cohort before invoking' : 'Invoke agents';
@@ -1254,23 +1434,41 @@
     updateActivity();
     window.orionExternalModels?.render();
   }
+  document.addEventListener('orion:hosted-operation-state', event => {
+    hostedActivity = event.detail || null;
+    updateControls();
+  });
+  document.addEventListener('orion:hosted-agent-accepted', event => {
+    const live = event.detail;
+    if (!state.hosted || !state.agentSubmitting || live?.state !== 'accepted_in_process_not_committed'
+        || live.project_id !== state.projectId || live.package_hash !== state.memberHash
+        || live.workflow_id !== $('agent-workflow').value || !/^[a-f0-9]{32}$/.test(live.run_id || '')) return;
+    if (state.submittedRunId === live.run_id) return;
+    state.submittedRunId = live.run_id;
+    formStatus($('agent-form'), `Run ${live.run_id} accepted in the active app session. Live status is shown below; the Delta commit is pending.`);
+    selectRun(live.run_id);
+  });
   document.addEventListener('orion:external-model-state', updateControls);
   window.orionModelRouteConfigured = (result) => {
     window.orionExternalModels?.databricksConfigured(result || {});
     if (!result || result.inference_ready !== true || !state.overview?.agent) return;
     state.overview.agent = { ...state.overview.agent, available: true,
-      reason: 'User-scoped workspace model route configured. Inference has not been run or verified.' };
+      reason: 'Workspace model saved. This configuration step does not test the model.' };
     if (state.overview.capabilities?.agents && typeof state.overview.capabilities.agents === 'object') {
       state.overview.capabilities.agents = { ...state.overview.capabilities.agents, available: true,
         status: 'model_route_configured', inference_verified: false };
     }
-    $('agent-availability').textContent = 'Agent runtime is configured for the selected workspace endpoint. No model inference has been run or verified.';
+    $('agent-availability').textContent = 'The selected workspace model is configured for the agents. It has not been tested by this step.';
     $('agent-availability').className = 'notice';
     updateControls();
     renderCapabilities(state.overview.capabilities);
   };
   function setPackageReady(ready) { state.ready = ready; updateControls(); }
 
+  document.addEventListener('orion:inventory-preload', event => {
+    const status = $('inventory-preload-status');
+    if (status) status.textContent = event.detail?.message || '';
+  });
   function renderOverview(data) {
     const ready = data.ready === true;
     window.orionInventory?.setContext({projectId: state.projectId || '',
@@ -1312,6 +1510,11 @@
     if (!counts.length) message($('metrics'), ready ? 'The API did not supply estate counts.' : 'Estate counts are unavailable until parsing is complete.', 'panel empty');
     const summary = clear($('overview-summary'));
     heading(summary, 'Package inventory');
+    if (ready) {
+      const preloadStatus = el('p', 'small muted', window.orionInventory?.preloadStatus() || '');
+      preloadStatus.id = 'inventory-preload-status'; preloadStatus.setAttribute('role', 'status');
+      summary.append(preloadStatus);
+    }
     const inventory = el('div', 'inventory-facts');
     if (ready && typeof data.coverage?.xml_elements === 'number') fact(inventory, data.coverage.xml_elements === 1 ? 'XML element' : 'XML elements', data.coverage.xml_elements, 'inventory-total');
     const inventoryLabels = { repository: ['Repository', 'Repositories'], folder: ['Folder', 'Folders'], mapping: ['Mapping', 'Mappings'], mapplet: ['Mapplet', 'Mapplets'], workflow: ['Workflow', 'Workflows'], worklet: ['Worklet', 'Worklets'], session: ['Session', 'Sessions'], source: ['Source', 'Sources'], target: ['Target', 'Targets'] };
@@ -1360,7 +1563,7 @@
         const details = el('details', 'lifecycle-details');
         details.append(el('summary', '', 'Unavailable operational dimensions'));
         const missing = Object.values(dimensions).filter(value => value == null || value === '' || value === 'unknown').length;
-        if (missing) paragraph(lifecycle, 'Source export does not contain production run history or ownership. Unavailable operational dimensions are not evidence of broken, inactive or retired workflows.', 'small muted');
+        if (missing) paragraph(lifecycle, 'Source export does not contain production run history or ownership. Unavailable operational dimensions do not mean workflows are broken, inactive or retired.', 'small muted');
         for (const [key, value] of Object.entries(dimensions)) {
           const unknown = value == null || value === '' || value === 'unknown';
           const row = el('dl', `lifecycle-row${unknown ? ' lifecycle-unknown' : ' lifecycle-provided'}`);
@@ -1369,7 +1572,7 @@
         }
         if (missing) lifecycle.append(details);
       } else paragraph(lifecycle, 'Source export does not contain production run history or ownership.', 'small muted');
-      const attest = action('Provide owner evidence', () => { navigate('evidence', true); $('attestation-form')?.scrollIntoView({block: 'start'}); });
+      const attest = action('Provide an owner statement', () => { navigate('evidence', true); $('attestation-form')?.scrollIntoView({block: 'start'}); });
       lifecycle.append(attest);
       coverage.append(lifecycle);
     }
@@ -1393,7 +1596,10 @@
         const option = el('option', '', workflow.name ?? workflow.id);
         option.value = workflow.id;
         option.title = `${text(workflow.name)} | ${text(workflow.scope)} | ${workflow.id}`;
-        if (select.id === 'agent-workflow') option.dataset.invocationLabel = 'Checking calls';
+        if (select.id === 'agent-workflow') {
+          option.dataset.workflowClass = 'Assessing';
+          option.dataset.invocationLabel = 'Checking calls';
+        }
         select.append(option);
       }
       if (workflows.some((workflow) => workflow.id === selected)) select.value = selected;
@@ -1407,6 +1613,7 @@
 
   document.addEventListener('change', event => {
     if (!['agent-workflow', 'redesign-workflow'].includes(event.target.id)) return;
+    if (state.hosted && event.target.id === 'agent-workflow') updateControls();
     const workflow = event.target.value;
     const packageHash = state.overview?.package?.sha256;
     if (!packageHash) return;
@@ -1427,7 +1634,7 @@
       overview.append(icon('grid'), el('strong', 'stat-emphasis', count(entries.length)),
         el('span', '', `scoped capability groups: ${implemented} implemented, ${entries.length - implemented} configured/unverified. Runtime validation is separate. Execution gates still apply.`));
       paragraph(overview, inventory.count_definition, 'small muted');
-      paragraph(overview, 'Blue means scoped code exists. Amber means runtime evidence is missing. Green is used only for the specific check that passed.', 'small muted');
+      paragraph(overview, 'Blue means scoped code exists. Amber means runtime verification is missing. Green is used only for the specific check that passed.', 'small muted');
       $('capabilities').append(overview);
       const assessed = document.getElementById('capability-assessed-at');
       if (assessed) {
@@ -1482,7 +1689,7 @@
         ? 'Model route required' : value && typeof value === 'object' && value.status === 'model_route_configured'
           ? 'Model route configured' : value?.status === 'bounded_reviewed_workflows' ? 'Available: four reviewed bronze workflows'
             : value?.status === 'request_obo_authenticated' ? 'Hosted request/OBO authenticated'
-              : value?.status === 'inference_unverified' ? 'Inference unverified'
+              : value?.status === 'inference_unverified' ? 'Model not tested'
                 : value?.status === 'app_hosted' ? 'App hosted'
                   : value?.status === 'local_only' ? 'Local loopback only, not authenticated'
                     : value?.status === 'local_app' ? 'Local app, not hosted'
@@ -1521,8 +1728,10 @@
     state.proposalTicket += 1;
     state.runTicket += 1;
     state.inventoryLoaded = false;
+    state.inventoryCount = 0;
+    state.inventoryPreload = 'not_started'; state.inventoryPreloadError = '';
     state.proposalsLoaded = false;
-    state.settingsLoaded = false;
+    state.settingsLoaded = false; state.settingsTicket += 1;
     state.inventoryOffset = 0;
     state.proposalOffset = 0;
     state.object = null;
@@ -1533,7 +1742,15 @@
     state.proposals = [];
     state.runId = null;
     state.agentRunning = false;
+    state.agentSubmitting = false;
+    state.submittedRunId = null;
     state.agentRunsLoaded = false;
+    state.runtimeWarmKey = null; state.runtimeWarmStatus = 'not_started';
+    state.runtimeWarmFlight = null; state.runtimeWarmTicket += 1; state.runtimeWarmError = '';
+    state.readinessPreload = 'not_started'; state.readinessPreloadError = ''; state.readinessTicket += 1; state.readinessFlight = null;
+    state.pagePreload = 'not_started'; state.pagePreloadError = ''; state.pagePreloadTicket += 1; state.pagePreloadFlight = null;
+    state.runsRowsLoaded = false; state.runsListTicket += 1;
+    state.documentsLoaded = false; state.documentsLoading = false; state.documentsTicket += 1;
     state.graphTicket += 1;
     state.graphOffset = 0;
     state.graphOpen = false;
@@ -1567,11 +1784,120 @@
     $('proposals-next').disabled = true;
   }
 
+  async function preloadHostedReadiness() {
+    if (!state.hosted || !state.projectId || !state.memberHash || !baseAssessmentReady()
+        || state.readinessPreload !== 'not_started') return;
+    const ticket = ++state.readinessTicket, selectionEpoch = state.epoch;
+    const scope = {projectId: state.projectId, packageHash: state.memberHash,
+      scenario: $('readiness-scenario').value, epoch: ++state.readinessEpoch};
+    const current = () => ticket === state.readinessTicket && selectionEpoch === state.epoch
+      && scope.projectId === state.projectId && scope.packageHash === state.memberHash;
+    state.readinessPreload = 'loading'; state.readinessPreloadError = '';
+    $('package-ready').textContent = 'Loading readiness evidence';
+    updateControls();
+    try {
+      if (document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
+      if (!current()) return;
+      if (typeof window.orionReadiness?.preload !== 'function') throw new Error('Readiness module is unavailable.');
+      const result = await window.orionReadiness.preload(scope);
+      if (!current()) return;
+      if (result?.status !== 'ready' || result.epoch !== scope.epoch
+          || result.scope?.projectId !== scope.projectId || result.scope?.packageHash !== scope.packageHash
+          || result.scope?.scenario !== scope.scenario || $('readiness-scenario').value !== scope.scenario)
+        throw new Error(result?.message || 'Readiness was not confirmed for the selected scope.');
+      state.readinessPreload = 'ready';
+      if (baseAssessmentReady()) $('package-ready').textContent = 'Package ready for review';
+    } catch (error) {
+      if (!current()) return;
+      state.readinessPreload = 'failed'; state.readinessPreloadError = error.message;
+      if (baseAssessmentReady()) $('package-ready').textContent = 'Readiness unavailable';
+    }
+    if (current()) updateControls();
+  }
+  function startHostedReadiness() {
+    if (state.readinessPreload !== 'not_started') return;
+    const flight = preloadHostedReadiness();
+    state.readinessFlight = flight;
+    flight.finally(() => { if (state.readinessFlight === flight) state.readinessFlight = null; });
+  }
+  readinessRetry.addEventListener('click', () => {
+    if (state.readinessPreload !== 'failed' || !baseAssessmentReady()) return;
+    state.readinessPreload = 'not_started';
+    startHostedReadiness();
+  });
+
+  async function warmHostedPackage(packageHash) {
+    if (!state.hosted || !state.projectId || !packageHash || packageHash !== state.memberHash || !baseAssessmentReady()) return;
+    const key = `${state.epoch}:${state.projectId}:${packageHash}`;
+    if (state.runtimeWarmKey === key && ['loading', 'ready', 'unavailable'].includes(state.runtimeWarmStatus))
+      return state.runtimeWarmFlight;
+    const ticket = ++state.runtimeWarmTicket, epoch = state.epoch, project = state.projectId;
+    state.runtimeWarmKey = key;
+    state.runtimeWarmStatus = 'loading';
+    state.runtimeWarmError = '';
+    $('package-ready').textContent = 'Preparing package workspace';
+    const status = $('agent-runtime-cache-status');
+    status.hidden = false;
+    status.textContent = 'Preparing the selected package workspace in the background. No model is running.';
+    $('agent-runtime-cache-retry').hidden = true;
+    updateControls();
+    const flight = (async () => {
+      let result;
+      try {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (ticket !== state.runtimeWarmTicket || epoch !== state.epoch || project !== state.projectId
+              || packageHash !== state.memberHash) return;
+          result = await api('/api/package/warm');
+          if (result.cache_ready === true || result.cache_reason !== 'capture_busy' || attempt === 2) break;
+          status.textContent = `The package is being prepared by another request. Retrying (${attempt + 1} of 2); no model is running.`;
+          await new Promise(resolve => setTimeout(resolve, 750));
+        }
+        if (ticket !== state.runtimeWarmTicket || epoch !== state.epoch || project !== state.projectId
+            || packageHash !== state.memberHash) return;
+        state.runtimeWarmStatus = result?.cache_ready === true ? 'ready' : 'unavailable';
+        state.runtimeWarmError = result?.cache_ready === true ? '' : `Cache not retained: ${result?.cache_reason || 'reason unavailable'}.`;
+        status.textContent = result?.cache_ready === true
+          ? 'Package workspace prepared for reuse. Storage and access are still verified for each action.'
+          : `Package review is available. Preparing the workspace for agent runs needs another attempt. ${state.runtimeWarmError} No model was invoked.`;
+        $('agent-runtime-cache-retry').hidden = result?.cache_ready === true;
+        updateControls();
+      } catch (error) {
+        if (ticket !== state.runtimeWarmTicket || epoch !== state.epoch || project !== state.projectId
+            || packageHash !== state.memberHash) return;
+        state.runtimeWarmStatus = 'unavailable';
+        state.runtimeWarmError = error.message;
+        status.textContent = `Package review is available, but the workspace could not be prepared for agent runs. ${error.message} Use retry to try again. No model was invoked.`;
+        $('agent-runtime-cache-retry').hidden = false;
+        updateControls();
+      }
+    })().finally(() => { if (state.runtimeWarmFlight === flight) state.runtimeWarmFlight = null; });
+    state.runtimeWarmFlight = flight;
+    return flight;
+  }
+  function retryHostedPackageWarm() {
+    if (state.runtimeWarmStatus !== 'unavailable' || !baseAssessmentReady()
+        || window.orionHostedIntake?.hasActiveOperation()) return;
+    state.runtimeWarmKey = null;
+    state.runtimeWarmStatus = 'not_started';
+    void warmHostedPackage(state.memberHash);
+  }
+  $('agent-runtime-cache-retry').addEventListener('click', retryHostedPackageWarm);
+  warmRetry.addEventListener('click', retryHostedPackageWarm);
+
   async function loadOverview(schedule = true) {
-    if (state.hosted && !state.projectId) return;
+    if ((state.hosted && !state.projectId) || (state.projectId && !state.memberHash)
+        || (!state.projectId && !state.legacyWorkspaceSelected)) return;
     clearTimeout(state.overviewTimer);
+    clearTimeout(searchTimer);
+    if (state.pagePreload === 'loading' || state.pagePreload === 'failed') {
+      state.pagePreloadTicket += 1; state.pagePreload = 'not_started'; state.pagePreloadError = ''; state.pagePreloadFlight = null;
+      state.documentsTicket += 1; state.documentsLoading = false; state.settingsTicket += 1; state.runsListTicket += 1;
+    }
+    if (state.inventoryPreload === 'loading') window.orionScopedReads?.invalidate();
     const ticket = ++state.overviewTicket;
     const wasReady = state.ready;
+    state.inventoryTicket += 1;
+    state.inventoryPreload = 'not_started'; state.inventoryPreloadError = '';
     state.overviewLoading = true; state.overviewError = '';
     updateControls();
     if (selectedCompletedPackage() && !wasReady) renderOverview({ ready: false });
@@ -1593,18 +1919,54 @@
       const changed = key !== state.packageKey || (wasReady && data.ready !== true);
       const becameReady = !state.ready && data.ready === true;
       if (changed) { invalidatePackage(); state.packageKey = key; }
-      state.overviewLoading = false;
       state.overview = data;
+      if (state.hosted && state.projectId && data.retained_service_ready === true
+          && data.package?.sha256 === state.memberHash) {
+        state.runtimeWarmKey = `${state.epoch}:${state.projectId}:${state.memberHash}`;
+        state.runtimeWarmStatus = 'ready';
+        state.runtimeWarmError = '';
+        $('agent-runtime-cache-status').hidden = true;
+        $('agent-runtime-cache-retry').hidden = true;
+      }
       renderOverview(data);
+      if (data.ready === true && (!state.projectId || (selectedCompletedPackage() && data.package?.sha256 === state.memberHash))) {
+        state.inventoryPreload = 'loading';
+        $('package-ready').textContent = 'Loading Explorer inventory';
+        updateControls();
+        const loaded = await loadInventory();
+        await window.orionInventory?.waitForPreload();
+        if (ticket !== state.overviewTicket) return;
+        state.inventoryPreload = loaded ? 'ready' : 'failed';
+        if (!loaded && !state.inventoryPreloadError) state.inventoryPreloadError = 'The current page was not confirmed.';
+        $('package-ready').textContent = loaded ? (state.hosted && state.projectId && !hostedWarmReady()
+          ? state.runtimeWarmStatus === 'unavailable' ? 'Package preparation unavailable' : 'Preparing package workspace'
+          : state.hosted && state.projectId && state.readinessPreload !== 'ready'
+            ? state.readinessPreload === 'failed' ? 'Readiness unavailable' : 'Loading readiness evidence'
+            : 'Package ready') : 'Explorer inventory unavailable';
+      }
+      state.overviewLoading = false;
+      if (data.ready !== true) renderOverview(data);
+      else updateControls();
       if (data.ready && data.package?.sha256) {
         const packageHash = data.package.sha256;
+        if (state.hosted && state.projectId && state.memberHash === packageHash)
+          void warmHostedPackage(packageHash);
+        if (state.hosted && state.projectId && state.memberHash === packageHash && hostedWarmReady())
+          startHostedReadiness();
         api('/api/workflow-invocation-summary').then(summary => {
           if (ticket !== state.overviewTicket || state.overview?.package?.sha256 !== packageHash
               || summary.package_hash !== packageHash) return;
           for (const option of $('agent-workflow').options) {
             if (!option.value) continue;
             const calls = summary.workflows?.[option.value];
-            if (!calls) { option.dataset.invocationLabel = 'XML call information unavailable'; continue; }
+            if (summary.basis !== 'literal_pmcmd_calls_only_other_dependencies_not_assessed'
+                || !calls || !['outgoing', 'incoming', 'unresolved'].every(key => Number.isSafeInteger(calls[key]) && calls[key] >= 0)) {
+              option.dataset.workflowClass = 'Not assessed';
+              option.dataset.invocationLabel = 'XML call information unavailable';
+              continue;
+            }
+            option.dataset.workflowClass = calls.outgoing || calls.incoming ? 'Composite candidate'
+              : calls.unresolved ? 'Needs review' : 'Standalone candidate';
             const labels = [];
             if (calls.outgoing) labels.push('Calls other workflows');
             if (calls.incoming) labels.push('May be called by another workflow');
@@ -1614,7 +1976,10 @@
         }).catch(() => {
           if (ticket !== state.overviewTicket || state.overview?.package?.sha256 !== packageHash) return;
           for (const option of $('agent-workflow').options)
-            if (option.value) option.dataset.invocationLabel = 'XML call information unavailable';
+            if (option.value) {
+              option.dataset.workflowClass = 'Not assessed';
+              option.dataset.invocationLabel = 'XML call information unavailable';
+            }
         });
       }
       syncPackagePicker();
@@ -1718,7 +2083,7 @@
   });
 
   async function loadInventory() {
-    if (!state.ready) { message($('object-list'), 'A ready package is required.'); return; }
+    if (!state.ready) { message($('object-list'), 'A ready package is required.'); return false; }
     const ticket = ++state.inventoryTicket;
     const params = new URLSearchParams({ kind: $('object-kind').value, q: $('object-search').value, offset: String(state.inventoryOffset), limit: '50' });
     message($('object-list'), 'Loading inventory…');
@@ -1726,9 +2091,12 @@
     $('objects-next').disabled = true;
     try {
       const data = await api(`/api/objects?${params}`);
-      if (ticket !== state.inventoryTicket) return;
+      if (ticket !== state.inventoryTicket) return false;
+      if (!Array.isArray(data.items) || !Number.isSafeInteger(data.total) || data.total < 0)
+        throw new Error('The service did not return a valid inventory page.');
       state.inventoryLoaded = true;
       state.inventoryTotal = data.total;
+      state.inventoryCount = data.items.length;
       clear($('object-list'));
       const items = array(data.items);
       $('inventory-count').textContent = `${count(data.total)} matching objects. Showing ${items.length ? state.inventoryOffset + 1 : 0}–${state.inventoryOffset + items.length}.`;
@@ -1744,13 +2112,17 @@
       syncObjectSelection();
       $('objects-prev').disabled = state.inventoryOffset === 0;
       $('objects-next').disabled = !(state.inventoryOffset + items.length < data.total);
+      return true;
     } catch (error) {
-      if (ticket !== state.inventoryTicket) return;
+      if (ticket !== state.inventoryTicket) return false;
       state.inventoryLoaded = false;
       message($('object-list'), `Inventory unavailable. ${error.message}`);
       $('inventory-count').textContent = 'Could not retrieve object counts.';
+      if (state.inventoryPreload === 'loading') state.inventoryPreloadError = error.message;
+      return false;
     }
   }
+  inventoryRetry.addEventListener('click', () => { void loadOverview(false); });
   let searchTimer;
   $('object-search').addEventListener('input', () => {
     state.inventoryTicket += 1;
@@ -1945,7 +2317,7 @@
           heading(output, source.actual_full_name || source.expected_full_name || source.source_id, 'h4');
           paragraph(output, `${human(source.status)}. Table exists: ${source.exists === null ? 'unknown' : source.exists}. Schema exists: ${source.schema_exists === null ? 'unknown' : source.schema_exists}. Observed: ${source.observed_at || 'not read'}.`);
           if (source.error) paragraph(output, `Metadata error: ${source.error}. Not treated as missing.`);
-          jsonDetails(output, 'Actual columns, expected schema and package fixture provenance', source);
+          jsonDetails(output, 'Actual columns, expected schema and package fixture source information', source);
         }
         if (!array(result.sources).length) paragraph(output, 'Called child sources are separate scopes. See Convert together before choosing a child for a separate, bounded metadata read. No fixture existence is inferred.');
         jsonDetails(output, 'Scoped metadata observation and unresolved targets', result);
@@ -1965,7 +2337,7 @@
       const reason = 'XML/source structure only. Package risk not assessed, not marked safe. No completed agent or service assessment is recorded; correctness has not been scored.';
       return {status: 'neutral', reason, summary: reason};
     }
-    return {status: assessment.status, reason: assessment.reason || 'Inspect recorded assessment evidence.', summary: assessment};
+    return {status: assessment.status, reason: assessment.reason || 'Inspect recorded assessment details.', summary: assessment};
   }
   function renderPackageMigrationContext(parent, contract, loadPage) {
     clear(parent);
@@ -1980,20 +2352,22 @@
         const relation = call.direction === 'inward' ? `${other} can call this workflow` : `This workflow can call ${other}`;
         const mode = call.wait_mode === 'nowait' ? 'without waiting for completion' :
           call.wait_mode === 'wait' ? 'with a wait requested' : 'with waiting behavior not established';
-        return `${relation}, ${mode}. This is captured command evidence, not proof of a live execution.`;
+        return `${relation}, ${mode}. This is a captured command definition, not proof of a live execution.`;
       }));
     } else {
       paragraph(parent, 'No direct caller or child is shown on this page. Other invocation forms and external schedulers may not be captured.', 'small muted');
     }
     if (contract.invocations.truncated) paragraph(parent, 'The call list is paged; review the other pages before treating it as complete.', 'small muted');
-    paragraph(parent, `Source: selected saved canonical package ${contract.package_hash || 'not supplied'}; ${contract.version || 'context version not supplied'}. This is captured evidence, not live execution.`, 'small muted');
+    paragraph(parent, `Source: selected saved canonical package ${contract.package_hash || 'not supplied'}; ${contract.version || 'context version not supplied'}. This is captured package information, not live execution.`, 'small muted');
     paragraph(parent, `Package risk not assessed. ${contract.selected.direct_sources} direct sources and ${contract.selected.direct_targets} direct targets in the selected workflow. Child counts below are XML metadata, not UC observations or readiness.`, 'small muted');
     if (contract.selected.source_explanation) paragraph(parent, contract.selected.source_explanation);
     paragraph(parent, 'Definition counts do not resolve embedded SQL, Java or procedure side effects. Source connectivity and output parity remain unverified.', 'small muted');
     if (contract.reference_diagnostics) {
       const report = contract.reference_diagnostics, summary = report.summary;
-      heading(parent, 'Reference resolution and required evidence', 'h4');
-      paragraph(parent, `${summary.unresolved_total} unresolved canonical references, ${summary.source_definition_blockers} source-definition blockers, ${summary.external_connection_metadata_gaps} external connection metadata gaps. Physical tables and source data have not been observed.`, 'small muted');
+      heading(parent, 'Reference resolution and information needed', 'h4');
+      const historicalConnections = summary.categories?.historical_connection_redaction || 0;
+      paragraph(parent, `${summary.unresolved_total} unresolved references in the saved analysis, including ${historicalConnections} historical connection redactions. ${summary.source_definition_blockers} source-definition blockers; ${summary.external_connection_metadata_gaps} separately recorded external connection metadata gaps. These counts do not establish physical table or source-data availability.`, 'small muted');
+      if (historicalConnections) paragraph(parent, 'The saved analysis withheld these connection values. They are not missing source definitions. A newer parser cannot change this immutable saved analysis automatically; a separately versioned canonical reanalysis is needed.', 'small muted');
       paragraph(parent, 'This view uses the selected saved analysis. A fresh parser result does not replace historical artifacts or activate a new version. Creating or populating mock tables does not repair XML references.', 'small muted');
       const refs = el('details'); refs.append(el('summary', '', `Inspect reference causes (${report.references.items.length} of ${report.references.total})`));
       list(refs, array(report.references.items).map(row => `${row.name}: ${human(row.status)}. ${row.action}`), 'No unresolved canonical references in this definition closure. External SQL, parameters and runtime bindings still require review.');
@@ -2017,18 +2391,18 @@
       for (const child of children) review.append(action(`Review child: ${child.name || child.workflow_id}`, () => {
         navigate('explorer', true); selectObject(child.workflow_id);
       }));
-      paragraph(review, 'Opening a child reads its evidence only. UC metadata, model inference and execution require separate explicit actions.', 'small muted');
+      paragraph(review, 'Opening a child reads its package information only. Reading Unity Catalog, running agents and executing jobs are separate actions.', 'small muted');
       parent.append(review);
     }
     heading(parent, 'Invocation and completion boundaries', 'h4');
     paragraph(parent, `${contract.invocations.total} captured invocation sites in the cohort. Async launches are not completion dependencies. External callers and runtime routing remain unverified.`, 'small muted');
-    const calls = el('details'); calls.append(el('summary', '', `Review inward, outward and cohort invocation evidence (${contract.invocations.items.length} returned)`));
-    list(calls, array(contract.invocations.items).map(r => `${human(r.direction || 'direction unknown')}: ${r.caller_name || 'Caller name unknown'} → ${array(r.candidate_names).filter(Boolean).join(', ') || r.workflow_name || 'unresolved child'}. Command definition: ${r.command_name || 'not supplied'}. Launch mode: ${r.wait_mode === 'nowait' ? 'nowait, asynchronous launch, not child completion' : r.wait_mode === 'wait' ? 'wait requested, runtime completion unverified' : 'unknown or not specified'}. ${r.resolution === 'scoped_literal_candidate' ? 'Exact export candidate; runtime repository routing unverified.' : `${human(r.resolution_reason || r.resolution || 'resolution unknown')}; requires review.`}`), 'No literal pmcmd invocation evidence captured. External callers remain unknown.');
+    const calls = el('details'); calls.append(el('summary', '', `Review inward, outward and cohort invocation details (${contract.invocations.items.length} returned)`));
+    list(calls, array(contract.invocations.items).map(r => `${human(r.direction || 'direction unknown')}: ${r.caller_name || 'Caller name unknown'} → ${array(r.candidate_names).filter(Boolean).join(', ') || r.workflow_name || 'unresolved child'}. Command definition: ${r.command_name || 'not supplied'}. Launch mode: ${r.wait_mode === 'nowait' ? 'nowait, asynchronous launch, not child completion' : r.wait_mode === 'wait' ? 'wait requested, runtime completion unverified' : 'unknown or not specified'}. ${r.resolution === 'scoped_literal_candidate' ? 'Exact export candidate; runtime repository routing unverified.' : `${human(r.resolution_reason || r.resolution || 'resolution unknown')}; requires review.`}`), 'No literal pmcmd invocation captured. External callers remain unknown.');
     parent.append(calls);
     heading(parent, 'Keep external explicitly', 'h4'); paragraph(parent, contract.keep_external_explicitly);
     heading(parent, 'Coverage blockers and human questions', 'h4');
     list(parent, [...array(contract.blockers), ...array(contract.human_questions)]);
-    if (contract.potential_data_dependencies.total) paragraph(parent, `${contract.potential_data_dependencies.total} potential exact-identity data/shared-write relationships. Not enforced dependencies; inspect technical evidence and confirm bindings.`);
+    if (contract.potential_data_dependencies.total) paragraph(parent, `${contract.potential_data_dependencies.total} potential exact-identity data/shared-write relationships. Not enforced dependencies; inspect technical details and confirm bindings.`);
     for (const key of ['cohort', 'referenced_children', 'invocations', 'outside_references', 'cycles', 'potential_data_dependencies']) {
       const page = contract[key];
       if (page.truncated) paragraph(parent, `${human(key)}: showing ${page.items.length} of ${page.total}, offset ${page.offset}. The review is partial; retrieve remaining pages before claiming coverage.`, 'small muted');
@@ -2041,7 +2415,7 @@
           || contract.reference_diagnostics?.connections?.has_more)
         parent.append(action('Read next package-context page', () => loadPage(offset + limit)));
     }
-    jsonDetails(parent, 'Technical package contract, pagination and canonical evidence', contract);
+    jsonDetails(parent, 'Technical package contract, pagination and source details', contract);
   }
   // One presentation for Explorer and Proposals, scoped requests remain owned by each view.
   window.renderPackageMigrationContext = renderPackageMigrationContext;
@@ -2082,7 +2456,7 @@
     $('object-title').textContent = model.node.name;
     $('object-title').title = `${model.node.name} | ${model.node.id}`;
     $('object-kind-label').textContent = human(model.node.kind).toUpperCase();
-    $('object-summary').textContent = `${human(model.node.kind)} in ${[model.node.scope?.repository, model.node.scope?.folder].filter(Boolean).join(' / ') || 'captured package scope'}. Use Graph for relationships, Fields & evidence for the selected node's captured schemas, English Description for behavior, and JSON Definition for the loaded object.`;
+    $('object-summary').textContent = `${human(model.node.kind)} in ${[model.node.scope?.repository, model.node.scope?.folder].filter(Boolean).join(' / ') || 'captured package scope'}. Use Graph for relationships, Fields & XML details for the selected node's captured schemas, English Description for behavior, and JSON Definition for the loaded object.`;
     $('object-json').textContent = json(model);
     clear($('english-content'));
     if (model.node.kind === 'workflow') {
@@ -2104,7 +2478,7 @@
     }
     heading($('english-content'), 'XML-derived behavior', 'h3');
     if (model.behavior_explanation) {
-      paragraph($('english-content'), 'Workflow behavior derived from captured XML evidence. This same explanation is available to the runtime agents through their workflow_explanation tool.', 'small muted');
+      paragraph($('english-content'), 'Workflow behavior derived from the captured source XML. This same explanation is available to the runtime agents through their workflow_explanation tool.', 'small muted');
       for (const section of array(model.behavior_explanation.sections)) {
         if (section.title === 'What this workflow does') continue;
         heading($('english-content'), section.title, 'h4');
@@ -2115,10 +2489,10 @@
         if (!bullets.children.length) paragraph($('english-content'), 'No matching records captured in this inspected scope.', 'small muted');
         else $('english-content').append(bullets);
       }
-      if (model.behavior_explanation.coverage?.truncated) paragraph($('english-content'), 'Explanation is bounded. Additional records require evidence retrieval; this is not complete semantic coverage.', 'notice');
-      jsonDetails($('english-content'), 'Explanation coverage and evidence IDs', model.behavior_explanation);
+      if (model.behavior_explanation.coverage?.truncated) paragraph($('english-content'), 'Explanation is bounded. Additional records require further retrieval; this is not complete semantic coverage.', 'notice');
+      jsonDetails($('english-content'), 'Explanation coverage and source reference IDs', model.behavior_explanation);
     } else if (model.node.kind === 'workflow') {
-      paragraph($('english-content'), 'The running backend has not returned a workflow behavior explanation. Container statistics are not a substitute. Backend update required; no generated explanation is assumed.', 'notice');
+      paragraph($('english-content'), 'A workflow behavior explanation is unavailable for this selection. Review the XML details and relationships for the captured source information.', 'notice');
     } else {
       heading($('english-content'), 'Captured object inventory', 'h4');
       const facts = el('div', 'inventory-facts');
@@ -2155,7 +2529,7 @@
     clear($('inspector-content'));
     const node = state.selectedNode;
     if (!node) return;
-    rows($('inspector-content'), { name: node.name, id: node.id, kind: node.kind, scope: node.scope, assessment: assessmentPresentation(node).summary, attributes: node.attributes, evidence: node.evidence });
+    rows($('inspector-content'), { name: node.name, id: node.id, kind: node.kind, scope: node.scope, assessment: assessmentPresentation(node).summary, attributes: node.attributes, evidence: node.evidence }, key => key === 'evidence' ? 'Source details' : human(key));
   }
   function renderFields() {
     clear($('fields-content'));
@@ -2172,7 +2546,7 @@
       const caption = el('caption', 'small muted', 'Canonical field metadata. Full records follow below.');
       const head = el('thead');
       const row = el('tr');
-      ['Field', 'Type', 'Kind', 'Evidence locator'].forEach((name) => row.append(el('th', '', name)));
+      ['Field', 'Type', 'Kind', 'Source locator'].forEach((name) => row.append(el('th', '', name)));
       head.append(row);
       const body = el('tbody');
       for (const field of fields) {
@@ -2184,9 +2558,9 @@
       table.append(caption, head, body);
       scroll.append(table);
       $('fields-content').append(scroll);
-      jsonDetails($('fields-content'), 'Returned fields and field evidence (bounded snapshot)', fields);
+      jsonDetails($('fields-content'), 'Returned fields and source details (bounded snapshot)', fields);
     }
-    jsonDetails($('fields-content'), 'Properties and source evidence', { properties: node.properties ?? [], evidence: node.evidence });
+    jsonDetails($('fields-content'), 'Properties and source details', { properties: node.properties ?? [], evidence: node.evidence });
     const children = array(state.object?.children);
     jsonDetails($('fields-content'), `Object children (${children.length} of ${state.object?.children_total ?? children.length} returned${state.object?.children_truncated ? ', truncated' : ''})`, children);
   }
@@ -2316,7 +2690,7 @@
       const position = positions.get(node.id);
       const {status, reason} = assessmentPresentation(node);
       const group = svgEl('g', { class: `node status-${status}${options.selected === node.id ? ' selected' : ''}`, transform: `translate(${position.x},${position.y})`, role: 'button', tabindex: 0, 'aria-label': `${human(node.kind ?? 'object')}: ${node.name ?? node.id}. ${status}: ${reason}. Inspect details.`, 'aria-pressed': options.selected === node.id ? 'true' : 'false', 'data-node-id': node.id, 'data-assessment-status': status });
-      group.append(svgEl('title', {}, `${text(node.name)} | ${node.id} | ${status}: ${reason} | basis: ${text(node.assessment?.basis)} | evidence: ${text(node.assessment?.evidence_ids)} | ${text(node.attributes)}`));
+      group.append(svgEl('title', {}, `${text(node.name)} | ${node.id} | ${status}: ${reason} | basis: ${text(node.assessment?.basis)} | source references: ${text(node.assessment?.evidence_ids)} | ${text(node.attributes)}`));
       group.append(svgEl('rect', { width: 215, height: 66, rx: 9 }));
       const component = graphComponent(node);
       const componentIcon = icon(component.symbol);
@@ -2354,7 +2728,7 @@
     zoomOut.setAttribute('aria-label', 'Zoom graph out'); zoomIn.setAttribute('aria-label', 'Zoom graph in');
     toolbar.append(zoomOut, zoomIn, action('Reset', () => { setZoom(1); scroll.scrollTo(0, 0); }));
     scroll.append(svg); host.append(scroll);
-    host.append(el('p', 'graph-legend', 'Raw canonical references · deterministic layered layout · arrows preserve supplied direction. Cycles remain visible. Select a node for full identifiers and evidence.'));
+    host.append(el('p', 'graph-legend', 'Raw canonical references · deterministic layered layout · arrows preserve supplied direction. Cycles remain visible. Select a node for full identifiers and source details.'));
     host.append(el('p', 'graph-legend', 'Source structure from XML is not a correctness assessment. Agent review checks transformation correctness, dependency semantics and validation coverage. No completed review is recorded for neutral nodes; this does not mean broken, disabled or failed.'));
     const controlLinks = edges.filter((edge) => edge.kind === 'workflow_control');
     host.append(el('p', 'graph-legend', controlLinks.length
@@ -2373,7 +2747,7 @@
     if (model?.node?.kind !== 'workflow') return;
     const ticket = state.objectTicket;
     $('load-impact').disabled = true;
-    message($('impact-content'), 'Loading evidence-backed impact…');
+    message($('impact-content'), 'Loading impact from package information…');
     try {
       const impact = await api(`/api/impact/${encodeURIComponent(model.node.id)}`);
       if (ticket !== state.objectTicket) return;
@@ -2586,7 +2960,7 @@
       renderGraph(originalGraph, model.graph, { total: model.graph_total_nodes, truncated: model.graph_truncated });
     }).catch((error) => { if (originalGraph.isConnected) message(originalGraph, `Original structure unavailable. ${error.message}`); });
     heading(host, 'Review this version');
-    paragraph(host, 'The current release has no approval or gate-clearing path. Comments are nonexecuting. Request rework only records a draft revision request; it does not execute rework. Separately invoked live agent runs are advisory and do not apply draft graph changes.', 'small muted');
+    paragraph(host, 'Reviews record comments and revision requests. To produce a new agent design, start a separate agent run; it will not automatically change this draft. Execution and deployment require separate approval.', 'small muted');
     const form = el('form', 'stack');
     const commentLabel = el('label', '', 'Review comment'); commentLabel.htmlFor = 'review-comment';
     const comment = el('textarea'); comment.id = 'review-comment'; comment.rows = 3; comment.required = true; comment.maxLength = 12000;
@@ -2657,36 +3031,80 @@
 
   async function loadDocuments() {
     if (!state.ready) return;
-    const epoch = state.epoch;
-    message($('documents-list'), 'Loading stored documents…');
+    const epoch = state.epoch, ticket = ++state.documentsTicket;
+    state.documentsLoading = true;
+    if (!state.documentsLoaded) message($('documents-list'), 'Loading stored documents…');
     try {
       const data = await api('/api/documents');
-      if (epoch !== state.epoch) return;
+      if (epoch !== state.epoch || ticket !== state.documentsTicket) return;
+      if (!Array.isArray(data.items)) throw new Error('The service did not return a valid document list.');
+      state.documentsLoaded = true;
       clear($('documents-list'));
       if (!array(data.items).length) message($('documents-list'), 'No supporting documents have been stored for this package.');
       for (const documentRecord of array(data.items)) {
         const record = el('article', 'record document-card');
         const header = el('div', 'record-heading');
         header.append(icon('file'), title(el('strong', 'record-title', documentRecord.filename ?? documentRecord.id), documentRecord.filename ?? documentRecord.id));
-        const badge = pill('Unverified evidence', 'caution'); badge.prepend(icon('info')); header.append(badge);
+        const badge = pill('Unverified supporting context', 'caution'); badge.prepend(icon('info')); header.append(badge);
         record.append(header);
         paragraph(record, 'The API extracts document text. Extracted text is unverified supporting context, not semantic assertions or independent verification; it does not clear blockers.', 'small muted');
         jsonDetails(record, 'Document record and metadata', documentRecord);
         $('documents-list').append(record);
       }
-    } catch (error) { if (epoch === state.epoch) message($('documents-list'), `Documents unavailable. ${error.message}`); }
+      return true;
+    } catch (error) { if (epoch === state.epoch && ticket === state.documentsTicket) {
+      if (!state.documentsLoaded) message($('documents-list'), `Documents unavailable. ${error.message}`);
+      else notify(`Documents refresh unavailable. ${error.message} Previously displayed documents remain visible.`, 'error');
+    } } finally { if (ticket === state.documentsTicket) state.documentsLoading = false; }
+  }
+  function startInitialPagePreload() {
+    if (!assessmentReady() || state.pagePreload !== 'not_started') return;
+    const epoch = state.epoch, ticket = ++state.pagePreloadTicket;
+    state.pagePreload = 'loading'; state.pagePreloadError = '';
+    $('package-ready').textContent = 'Loading initial page data';
+    const flight = (async () => {
+      if (document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
+      if (epoch !== state.epoch || ticket !== state.pagePreloadTicket) return;
+      if (!assessmentReady()) { state.pagePreload = 'not_started'; updateControls(); return; }
+      const localReadiness = !state.hosted || !state.projectId || !state.memberHash;
+      const scope = {projectId: state.projectId, packageHash: state.projectId ? state.memberHash : '',
+        scenario: $('readiness-scenario').value, epoch: ++state.readinessEpoch};
+      const results = await Promise.allSettled([
+        loadDocuments(), loadSettings(), readRuns(0, true),
+        window.orionConnections?.preload() ?? Promise.reject(new Error('Connections module unavailable.')),
+        localReadiness ? (window.orionReadiness?.preload(scope) ?? Promise.reject(new Error('Readiness module unavailable.'))) : Promise.resolve({status: 'ready'})
+      ]);
+      if (epoch !== state.epoch || ticket !== state.pagePreloadTicket) return;
+      const unavailable = [];
+      if (results[0].status !== 'fulfilled' || results[0].value !== true) unavailable.push('documents');
+      if (results[1].status !== 'fulfilled' || results[1].value !== true) unavailable.push('release settings');
+      if (results[2].status !== 'fulfilled' || results[2].value !== true) unavailable.push('saved agent history');
+      if (results[3].status !== 'fulfilled' || results[3].value !== true) unavailable.push('connections');
+      if (results[4].status !== 'fulfilled' || results[4].value?.status !== 'ready') unavailable.push('readiness');
+      state.pagePreloadError = unavailable.join(', ');
+      state.pagePreload = unavailable.length ? 'failed' : 'finished';
+      $('package-ready').textContent = unavailable.length ? 'Initial page reads partially unavailable' : 'Initial selected page reads complete';
+      updateControls();
+    })().catch(error => {
+      if (epoch !== state.epoch || ticket !== state.pagePreloadTicket) return;
+      state.pagePreloadError = `Initial page loading failed: ${error.message}`;
+      state.pagePreload = 'failed';
+      $('package-ready').textContent = 'Initial page data unavailable';
+      updateControls();
+    }).finally(() => { if (state.pagePreloadFlight === flight) state.pagePreloadFlight = null; });
+    state.pagePreloadFlight = flight;
   }
   $('refresh-documents').addEventListener('click', loadDocuments);
   $('document-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!state.ready) return;
     const form = event.currentTarget, file = $('document-file').files[0], epoch = state.epoch;
-    if (!file || !/\.(md|txt|pdf)$/i.test(file.name)) { formStatus(form, 'Only .md, .txt, and .pdf evidence files are supported.', 'error'); return; }
+    if (!file || !/\.(md|txt|pdf)$/i.test(file.name)) { formStatus(form, 'Only .md, .txt, and .pdf supporting documents are supported.', 'error'); return; }
     const body = new FormData(); body.append('file', file);
     if ($('document-workflow').value) body.append('workflow_id', $('document-workflow').value);
     if ($('document-description').value.trim()) body.append('description', $('document-description').value.trim());
     const button = form.querySelector('button'); button.disabled = true;
-    formStatus(form, 'Uploading supporting evidence…');
+    formStatus(form, 'Uploading supporting document…');
     try {
       await api('/api/documents', { method: 'POST', body });
       if (epoch !== state.epoch) return;
@@ -2706,11 +3124,11 @@
     event.preventDefault();
     if (!state.ready) return;
     const form = event.currentTarget, epoch = state.epoch, button = form.querySelector('button');
-    button.disabled = true; formStatus(form, 'Recording unverified owner evidence…');
+    button.disabled = true; formStatus(form, 'Recording unverified owner statement…');
     try {
       const record = await post('/api/attestations', { workflow_id: $('attestation-workflow').value, field: $('attestation-field').value, value: $('attestation-value').value.trim(), comment: $('attestation-comment').value });
       if (epoch !== state.epoch) return;
-      formStatus(form, 'Owner attestation stored as unverified evidence. Proposal blockers remain unchanged.', 'success');
+      formStatus(form, 'Owner attestation stored as an unverified statement. Proposal blockers remain unchanged.', 'success');
       clear($('attestation-result')); jsonDetails($('attestation-result'), 'Stored attestation response', record, true);
     } catch (error) { if (epoch === state.epoch) formStatus(form, `Attestation not confirmed. ${error.message}`, 'error'); }
     finally { button.disabled = !state.ready; }
@@ -2722,16 +3140,17 @@
     const form = event.currentTarget;
     if (document.getElementById('agent-review-scope')?.value === 'cohort') {
       if (!assessmentReady() || !agentModelAvailable()
-          || state.agentRunning || !state.agentRunsLoaded || !$('agent-workflow').value) {
+          || state.agentRunning || state.agentSubmitting || !state.agentRunsLoaded || !$('agent-workflow').value) {
         formStatus(form, 'A configured agent, selected workflow and confirmed idle run status are required.', 'error'); return;
       }
       document.dispatchEvent(new CustomEvent('orion:open-cohort-review', {detail: {
         workflow_id: $('agent-workflow').value, scenario: $('agent-scenario').value}}));
       return;
     }
-    if (!assessmentReady() || !agentModelAvailable() || state.agentRunning || !state.agentRunsLoaded) { formStatus(form, 'A configured agent and confirmed idle run status are required.', 'error'); return; }
+    if (!assessmentReady() || !agentModelAvailable() || state.agentRunning || state.agentSubmitting || !state.agentRunsLoaded) { formStatus(form, 'A configured agent and confirmed idle run status are required.', 'error'); return; }
     const epoch = state.epoch;
     $('agent-submit').disabled = true;
+    state.agentSubmitting = true;
     state.agentRunning = true;
     updateControls();
     formStatus(form, 'Submitting the explicitly requested agent run…');
@@ -2740,7 +3159,13 @@
       if (epoch !== state.epoch) return;
       if (!run.id) throw new Error('The service did not return a run ID. Refresh recorded runs before submitting again.');
       formStatus(form, `Run ${run.id} submitted. Actual status: ${text(run.status)}. Design and candidate-code drafting are part of this run; execution and deployment are not.`, 'success');
+      state.submittedRunId = String(run.id);
       await loadRuns();
+      if (epoch !== state.epoch) return;
+      // The list can lag the accepted submission. Keep the slot locked until
+      // this run is observed and a terminal observation triggers a fresh list.
+      state.agentRunning = true; state.agentRunsLoaded = false;
+      updateControls();
       selectRun(run.id);
     } catch (error) {
       if (epoch === state.epoch) {
@@ -2748,38 +3173,40 @@
         await loadRuns();
       }
     }
-    finally { updateControls(); }
+    finally { if (epoch === state.epoch) { state.agentSubmitting = false; updateControls(); } }
   });
   let runsPending = null;
   function loadRuns(offset = 0) {
-    if (runsPending?.epoch === state.epoch) return runsPending.promise;
-    const pending = { epoch: state.epoch, promise: null };
+    if (runsPending?.epoch === state.epoch && runsPending.offset === offset) return runsPending.promise;
+    const pending = { epoch: state.epoch, offset, promise: null };
     runsPending = pending;
     pending.promise = readRuns(offset).finally(() => { if (runsPending === pending) runsPending = null; });
     return pending.promise;
   }
-  async function readRuns(offset) {
+  async function readRuns(offset, prefetch = false) {
     if (!assessmentReady()) return;
-    const epoch = state.epoch;
-    state.agentRunsLoaded = false;
-    updateControls();
+    const epoch = state.epoch, ticket = ++state.runsListTicket;
+    if (!prefetch) { state.agentRunsLoaded = false; updateControls(); }
     try {
       const data = await api(`/api/agents/runs?status_only=true&offset=${offset}&limit=50`);
-      if (epoch !== state.epoch) return;
-      if (!Array.isArray(data.items) || data.run_status_verified === false || array(data.items).some(run =>
+      if (epoch !== state.epoch || ticket !== state.runsListTicket) return;
+      if (!Array.isArray(data.items) || data.run_status_verified !== true
+          || typeof data.active_run_present !== 'boolean' || array(data.items).some(run =>
         !terminal.has(String(run.status).toLowerCase()) && !activeRunStatuses.has(String(run.status).toLowerCase())
         || (run.candidate_writer && !terminal.has(String(run.candidate_writer.status).toLowerCase())
           && !activeRunStatuses.has(String(run.candidate_writer.status).toLowerCase()))))
         throw new Error('Persisted run status is unknown.');
-      recordedRunStates.clear();
-      array(data.items).forEach((run) => recordedRunStates.set(run.id, runState(run, epoch)));
       // Older local servers do not expose a whole-history active indicator.
       // A truncated page without that indicator cannot establish an idle slot.
-      state.agentRunning = data.active_run_present === true || array(data.items).some(activeRun);
-      if (data.truncated && typeof data.active_run_present !== 'boolean')
+      if (!prefetch && data.truncated && typeof data.active_run_present !== 'boolean')
         throw new Error('Active-run status is unknown beyond this history page.');
+      recordedRunStates.clear();
+      array(data.items).forEach((run) => recordedRunStates.set(run.id, runState(run, epoch)));
+      state.agentRunning = Boolean(state.submittedRunId) || data.active_run_present || array(data.items).some(activeRun);
       state.agentRunsLoaded = true;
+      state.runsRowsLoaded = true;
       clear($('runs-list'));
+      $('runs-list').dataset.offset = String(offset);
       if (!array(data.items).length) message($('runs-list'), 'No agent runs recorded. No AI activity has been fabricated.');
       for (const run of array(data.items)) {
         const button = action('', () => selectRun(run.id), 'object-item');
@@ -2802,9 +3229,10 @@
         button.title = `${workflowLabel}\nRun ID: ${run.id}`;
         $('runs-list').append(button);
       }
-      if (data.truncated) paragraph($('runs-list'), `Showing ${array(data.items).length} of ${data.total} saved agent runs. Active status was checked across the complete committed history.`, 'small muted');
+      if (data.truncated) paragraph($('runs-list'), `Showing ${array(data.items).length} of ${data.total} saved agent runs. ${prefetch ? 'Saved history is not a current active-status check.' : 'Active status was checked across the complete committed history.'}`, 'small muted');
       if (offset > 0) $('runs-list').append(action('Previous saved agent runs', () => loadRuns(Math.max(0, offset - 50))));
       if (data.truncated) $('runs-list').append(action('Next saved agent runs', () => loadRuns(offset + 50)));
+      if (prefetch) { updateControls(); return true; }
       updateControls();
       const activeRuns = array(data.items).filter(activeRun);
       if (!state.runId && activeRuns.length) selectRun(activeRuns[0].id);
@@ -2812,7 +3240,7 @@
       // active history rows without delaying the committed history display.
       for (const active of activeRuns.filter(run => run.id !== state.runId)) {
         api(`/api/agents/runs/${encodeURIComponent(active.id)}?status_only=true`).then(run => {
-          if (epoch !== state.epoch) return;
+          if (epoch !== state.epoch || ticket !== state.runsListTicket) return;
           recordedRunStates.set(run.id, runState(run, epoch));
           const button = Array.from($('runs-list').querySelectorAll('[data-run-id]'))
             .find(item => item.dataset.runId === run.id);
@@ -2820,10 +3248,15 @@
         }).catch(() => { /* History remains a saved observation, not an idle-slot verdict. */ });
       }
     } catch (error) {
-      if (epoch === state.epoch) {
-        state.agentRunsLoaded = false;
-        message($('runs-list'), `Recorded agent runs unavailable. ${error.message} Agent invocation stays disabled until active-run status is confirmed.`);
-        updateControls();
+      if (epoch === state.epoch && ticket === state.runsListTicket) {
+        if (!prefetch) state.agentRunsLoaded = false;
+        const detail = `Recorded agent runs unavailable. ${error.message} Agent invocation stays disabled until active-run status is confirmed.`;
+        if (!state.runsRowsLoaded) message($('runs-list'), detail);
+        else {
+          $('runs-list').querySelector('.runs-load-error')?.remove();
+          paragraph($('runs-list'), detail, 'runs-load-error small error-copy');
+        }
+        if (!prefetch) updateControls();
       }
     }
   }
@@ -2919,7 +3352,7 @@
     if (!receipt || !Array.isArray(receipt.per_role) || !Array.isArray(receipt.turns)) {
       const history = el('div', 'agent-call-history');
       const missing = el('div');
-      paragraph(missing, 'Per-agent counters and per-turn timestamps: not available from this running backend. The aggregate graph above uses actual returned counters only, not a reconstructed agent breakdown. Backend activation must wait until the current run finishes; refreshing this page cannot supply missing fields.', 'small muted agent-per-role-unavailable');
+      paragraph(missing, 'Per-agent counts and call timestamps are unavailable for this run. The graph shows the aggregate counts that were recorded.', 'small muted agent-per-role-unavailable');
       history.append(missing, renderAgentToolTurns(run, receipt, previous));
       panel.append(history);
       return panel;
@@ -2945,6 +3378,9 @@
     const disclosure = el('details', 'agent-model-turns');
     disclosure.open = previous ? previous.open : true;
     disclosure.append(el('summary', '', `Model-call turns (${receipt.turns.length}, all recorded turns)`));
+    const modelNotes = el('div', 'agent-call-history-notes');
+    paragraph(modelNotes, 'One actual model call per row. Token counts and elapsed durations are shown when recorded.', 'small muted');
+    disclosure.append(modelNotes);
     const turns = el('div', 'agent-turns'); turns.tabIndex = 0;
     turns.setAttribute('aria-label', 'All recorded model-call turns, scroll to review');
     const durationValue = turn => ['completed', 'failed'].includes(turn.status)
@@ -2992,13 +3428,15 @@
     disclosure.open = previous ? previous.toolOpen ?? true : true;
     disclosure.append(el('summary', '', recorded
       ? `Tool-call turns (${tools.tool_turns.length}, all recorded calls)` : 'Tool-call turns (unavailable)'));
-    if (observation?.ledgerReadback) paragraph(disclosure,
+    const toolNotes = el('div', 'agent-call-history-notes');
+    disclosure.append(toolNotes);
+    if (observation?.ledgerReadback) paragraph(toolNotes,
       'Separate ledger readback for the same verified public and runtime run IDs. This is not part of the immutable historical snapshot; the historical observation is unchanged.', 'small muted agent-tool-ledger-readback');
     if (!recorded) {
-      paragraph(disclosure, 'Tool-call list unavailable from this receipt or older backend. Missing tool activity is unknown, not zero.', 'small muted agent-tool-unavailable');
+      paragraph(toolNotes, 'Tool-call list unavailable from this receipt or older backend. Missing tool activity is unknown, not zero.', 'small muted agent-tool-unavailable');
       return disclosure;
     }
-    paragraph(disclosure, 'One actual tool call per row. Rejected is not failed. Retry status is explicit; repeated tool names do not establish retries.', 'small muted');
+    paragraph(toolNotes, 'One actual tool call per row. Rejected is not failed. Retry status is explicit; repeated tool names do not establish retries.', 'small muted');
     const turns = el('div', 'agent-tool-turn-list');
     turns.tabIndex = 0;
     turns.setAttribute('aria-label', 'All recorded tool calls, scroll to review');
@@ -3045,7 +3483,7 @@
     }
     panel.append(skillGuide);
     if (stats?.status !== 'recorded' || !Array.isArray(stats.per_role)) {
-      paragraph(panel, 'Skill statistics: not available from the current backend/run. Hash-only tool arguments do not identify skills. Refreshing cannot add missing receipts; backend activation must wait until the active run finishes. No history is reconstructed.', 'small muted');
+      paragraph(panel, 'Skill statistics are unavailable for this run. The saved activity does not identify which skills were read.', 'small muted');
       return panel;
     }
     const table = el('table');
@@ -3066,7 +3504,7 @@
     details.append(el('summary', '', 'SKILL AND CONTEXT NAMES'));
     for (const role of stats.per_role) {
       paragraph(details, roleLabel(role.role), 'small');
-      for (const item of array(role.loaded)) paragraph(details, `Loaded: ${text(item.path)} · SHA-256 ${text(item.content_sha256)}`, 'small muted');
+      for (const item of array(role.loaded)) paragraph(details, `Loaded: ${text(item.path)}`, 'small muted');
       for (const item of array(role.tool_reads)) paragraph(details, `Tool read: ${text(item.path)} · ${text(item.count)} successful call(s)`, 'small muted');
       if (role.status === 'unavailable') paragraph(details, 'No load/read receipts available for this role.', 'small muted');
     }
@@ -3305,6 +3743,7 @@
     card.append(el('p', 'small muted', completed
       ? 'This is the latest event retained in the completed run receipt, not a live activity indicator.'
       : 'This is the latest committed event receipt. It may have completed; see in-flight calls above for current recorded state.'));
+    card.append(logCopyButton(event));
     row.append(card);
     return row;
   }
@@ -3312,10 +3751,10 @@
     const panel = el('section', 'agent-evaluation-panel');
     panel.setAttribute('aria-label', 'Agent evaluation scorecard');
     heading(panel, 'AGENT EVALUATIONS', 'h3');
-    paragraph(panel, 'Recorded operational indicators, not a business-correctness certificate. Unavailable evaluations are not scored as zero.', 'small muted');
+    paragraph(panel, 'Review recorded activity and operational results here. Business correctness requires separate validation; unavailable evaluations remain unscored.', 'small muted');
     const references = el('section', 'agent-evaluation-unavailable');
     heading(references, 'Reference-based quality KPIs', 'h4');
-    paragraph(references, 'Visible for every run. These remain unscored until a labeled reference set or calibrated evaluator is attached; operational success is not a substitute.', 'small muted');
+    paragraph(references, 'These quality measures require a labeled reference set or calibrated evaluator. Operational success is reported separately.', 'small muted');
     const referenceList = el('ul');
     for (const label of ['Evidence precision@K and recall@K', 'Citation correctness and claim-level groundedness',
       'Business-logic equivalence to reviewed Informatica behavior', 'Source/target mapping correctness and target authorization'])
@@ -3443,13 +3882,16 @@
       void loadModelListPrices();
       const parentTerminal = terminal.has(String(run.status).toLowerCase());
       const writerActive = activeWriter(run);
-      const completed = parentTerminal && !writerActive;
+      const commitPending = state.hosted && state.agentSubmitting;
+      const completed = parentTerminal && !writerActive && !commitPending;
+      if (completed && state.submittedRunId === String(run.id)) {
+        state.submittedRunId = null;
+        state.agentRunsLoaded = false;
+      }
       clearInterval(liveRunClock); liveRunClock = null;
       liveRunObservation = completed ? null : {id,
         status: text(writerActive ? `candidate writer ${run.candidate_writer.status}` : run.status), epoch, ticket,
-        started: Date.parse(writerActive
-          ? (run.candidate_writer.started_at || run.candidate_writer.created_at || run.started_at || run.created_at || '')
-          : (run.started_at || run.created_at || '')),
+        started: Date.parse(run.started_at || run.created_at || ''),
         receivedAt: Date.now(), pending: false};
       if (liveRunObservation) liveRunClock = setInterval(updateLiveRunClock, 1000);
       const phaseLabels = {agent_analysis: 'Agent analysis', candidate_code_generation: 'Candidate code drafting', complete: 'Complete'};
@@ -3465,7 +3907,7 @@
       const elapsedSeconds = Number.isFinite(started) && Number.isFinite(observedEnd)
         ? Math.max(0, Math.floor((observedEnd - started) / 1000)) : null;
       const elapsed = elapsedSeconds === null ? '' : ` · ${elapsedSeconds}s`;
-      formStatus($('agent-form'), `Run ${run.id}: ${text(run.status)}${writerActive ? ` · Candidate writer ${text(run.candidate_writer.status)}` : ''}${phase ? ` · ${phase}` : ''}${run.output?.status ? ` · ${human(run.output.status)}` : ''}${elapsed}. ${completed ? 'Review the recorded findings and generated draft below.' : 'Waiting for the next service status update.'}`, run.status === 'failed' ? 'error' : completed ? 'success' : '');
+      formStatus($('agent-form'), `Run ${run.id}: ${text(run.status)}${writerActive ? ` · Candidate writer ${text(run.candidate_writer.status)}` : ''}${phase ? ` · ${phase}` : ''}${run.output?.status ? ` · ${human(run.output.status)}` : ''}${elapsed}. ${commitPending && parentTerminal ? 'Run finished in the active session; Delta commit is not yet confirmed.' : completed ? 'Review the recorded findings and generated draft below.' : 'Waiting for the next service status update.'}`, run.status === 'failed' ? 'error' : completed ? 'success' : '');
       if (!completed) state.agentRunning = true;
       updateControls();
       const oldCharts = $('run-detail').querySelector('.agent-usage-charts');
@@ -3560,7 +4002,8 @@
           const entry = el('article', 'agent-live-log-entry');
           entry.append(el('strong', '', roleLabel(call.role)),
             el('code', '', call.kind === 'tool' ? `Tool: ${text(call.tool_name)}` : `Model: ${text(call.endpoint)}`),
-            el('span', 'small muted', `Started ${activityTime(call.started_at)} · ${completed ? 'Completion absent at finish, not live' : 'Completion not yet recorded'}`));
+            el('span', 'small muted', `Started ${activityTime(call.started_at)} · ${completed ? 'Completion absent at finish, not live' : 'Completion not yet recorded'}`),
+            logCopyButton(call));
           logEntries.append(entry);
         }
         if (!array(live.active_calls).length) paragraph(logEntries, completed
@@ -3736,9 +4179,11 @@
       }
       jsonDetails($('run-detail'), 'Complete run record', run);
       paragraph($('run-detail'), 'Output is advisory and statically checked only. Candidate notebooks/SQL remain unapproved drafts. No Databricks Job was run and no deployment occurred.', 'small muted');
-      if (!terminal.has(String(run.status).toLowerCase())) {
+      if (!completed) {
         updateLiveRunClock();
-        paragraph($('run-detail'), 'Status is nonterminal. Checking the service every 2 seconds.', 'small muted');
+        paragraph($('run-detail'), commitPending && parentTerminal
+          ? 'The run finished in this session. Waiting for the hosted commit to be confirmed.'
+          : 'Status is nonterminal. Checking the service every 2 seconds.', 'small muted');
         state.runTimer = setTimeout(() => pollRun(ticket), 2000);
       } else {
         loadRuns();
@@ -3765,16 +4210,19 @@
 
   const settingNames = ['github_owner', 'github_repo', 'default_branch', 'dev_host', 'test_host', 'prod_host'];
   async function loadSettings() {
-    if (state.settingsLoaded || !state.ready) return;
-    const epoch = state.epoch;
+    if (state.settingsLoaded) return true;
+    if (!state.ready) return false;
+    const epoch = state.epoch, ticket = ++state.settingsTicket;
     try {
       const data = await api('/api/settings');
-      if (epoch !== state.epoch) return;
+      if (epoch !== state.epoch || ticket !== state.settingsTicket) return false;
       const settings = data.settings ?? data;
+      if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error('The service did not return valid settings.');
       for (const name of settingNames) $('settings-form').elements.namedItem(name).value = typeof settings[name] === 'string' ? settings[name] : '';
       state.settingsLoaded = true;
       updateControls();
-    } catch (error) { if (epoch === state.epoch) formStatus($('settings-form'), `Settings unavailable. ${error.message} Refresh before editing.`, 'error'); }
+      return true;
+    } catch (error) { if (epoch === state.epoch && ticket === state.settingsTicket) formStatus($('settings-form'), `Settings unavailable. ${error.message} Refresh before editing.`, 'error'); return false; }
   }
   function validateSettings(settings) {
     for (const [key, value] of Object.entries(settings)) {
@@ -3827,8 +4275,8 @@
     state.proposalTicket += 1;
     proposalListFlight = null;
     await loadOverview();
-    loadPage(state.page, true);
-    if (state.object && state.page === 'explorer') selectObject(state.object.node.id, undefined, true);
+    loadPage(state.page, state.page !== 'explorer');
+    if (assessmentReady() && state.object && state.page === 'explorer') selectObject(state.object.node.id, undefined, true);
     if (state.jobId) { clearTimeout(state.jobTimer); pollJob(); }
   });
   window.addEventListener('pagehide', () => {
@@ -3837,7 +4285,7 @@
   });
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) {
-      loadOverview();
+      if ((state.projectId && state.memberHash) || state.legacyWorkspaceSelected) loadOverview();
       if (state.runId) selectRun(state.runId);
       if (state.projectId) loadProject();
       if (state.page === 'logs') loadLogs();
@@ -3858,8 +4306,7 @@
     if (exploreArrow) clear(exploreArrow).append(icon('arrow'));
     clear($('refresh')).append(icon('running'), document.createTextNode('Refresh data'));
     updateControls();
-    let saved;
-    try { saved = JSON.parse(localStorage.getItem('lakeflow-studio-selection') || 'null'); } catch { /* Invalid/disabled optional storage. */ }
+    try { localStorage.removeItem('lakeflow-studio-selection'); } catch { /* Old selection hints are optional and no longer restored. */ }
     try {
       const health = await api('/api/health');
       state.hosted = health.local_only === false || health.authentication === 'databricks_obo';
@@ -3873,21 +4320,11 @@
       notify(`Cannot confirm workspace mode. ${error.message} Existing projects and XML may still be available.`, 'error');
       return;
     }
-    // Model setup can be used while the saved package is still restoring.
-    if (requestedPage === 'agents') navigate('agents', false, false);
-    if (saved?.project && /^[a-f0-9]{32}$/.test(saved.project)) {
-      await switchProject(saved.project, typeof saved.package === 'string' ? saved.package : '');
-      await loadProjects();
-    } else if (state.hosted) {
-      $('connection-status').textContent = 'API connected · choose a project';
-      $('workspace-scope').textContent = 'Choose an existing project to load its XML packages. No project is selected automatically.';
-      initializingNavigation = false;
-      navigate(requestedPage || 'projects');
-      return;
-    }
-    if (!state.overview) await loadOverview();
+    state.legacyWorkspaceSelected = false;
+    $('connection-status').textContent = 'API connected · choose a project';
+    $('workspace-scope').textContent = 'Choose a project and completed XML package to load package understanding. Nothing is selected automatically.';
     initializingNavigation = false;
-    navigate(requestedPage);
+    navigate(startupUserPage || requestedPage || 'projects');
   }
   initialize();
 })();

@@ -1,14 +1,16 @@
 """Fresh OBO, pinned-generation canonical reads, never execution-cache restore.
 
-Only explicit selected project/package reads use this projection. No source XML,
-English export, audit history, reviews, model routes or jobs are dependencies of
-these presenters. Mutations and unselected legacy requests retain full restore.
+Only explicit selected project/package reads use this projection. Graph-backed
+reads retain verified source XML and English alongside the canonical model;
+they do not restore execution state. Mutations and unselected legacy requests
+retain full restore.
 """
 from hashlib import sha256
 from collections import OrderedDict
 from concurrent.futures import Future
 from copy import copy
 import gc
+import io
 import json
 from pathlib import Path
 import re
@@ -21,7 +23,7 @@ from workbench import delta_state as ds
 from workbench.hosted_registry import committed_generation, _registry, _envelope
 from workbench.object_views import object_response, migration_response
 
-ROUTE = re.compile(r"/api/(?:object/([a-f0-9]{64})|workflows/([a-f0-9]{64})/migration-context|workflow-invocation-summary|readiness(?:/lineage)?|validation/campaigns/([a-f0-9]{32})(/export)?|workflows/([a-f0-9]{64})/target-review|redesigns(?:/([a-f0-9]{64}))?|proposals(?:/[a-f0-9]{64})?|cohorts/[a-f0-9]{32}|target-selections/[a-f0-9]{64}/[a-f0-9]{64}|jobs/[a-f0-9]{32}(?:/spark-drafts|/completeness)?|package-graph/chunk|objects|inventory/[a-z]+/[a-f0-9]{64})\Z")
+ROUTE = re.compile(r"/api/(?:overview|object/([a-f0-9]{64})|workflows/([a-f0-9]{64})/migration-context|workflow-invocation-summary|readiness(?:/lineage)?|validation/campaigns/([a-f0-9]{32})(/export)?|workflows/([a-f0-9]{64})/target-review|redesigns(?:/([a-f0-9]{64}))?|proposals(?:/[a-f0-9]{64})?|cohorts/[a-f0-9]{32}|target-selections/[a-f0-9]{64}/[a-f0-9]{64}|jobs/[a-f0-9]{32}(?:/spark-drafts|/completeness)?|package-graph/chunk|objects|inventory-preload|inventory/[a-z]+/[a-f0-9]{64})\Z")
 
 # One immutable graph, never an identity, client, permission or freshness cache.
 # Every use follows current receipt, scope inventories and Volume authorization.
@@ -229,6 +231,8 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
     metadata = scope_records(runtime, "packages", inventory, generation, scope)
     settings = scope_records(runtime, "settings", inventory, generation, scope)
 
+    verified_source_in_action = set()
+
     def materialize(name, table_rows=None, full=None):
         full = full or prefix + name
         row = by_path.get(full)
@@ -251,7 +255,8 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         elif reference.get("source") is True:
             if not full.endswith(".xml"):
                 raise ValueError("Only verified XML source artifacts may use streaming source reads")
-            runtime._verify_source(reference, target)
+            runtime.materialize_committed_source(reference, target)
+            verified_source_in_action.add(full)
             raw = target.read_bytes()
         else:
             raw = runtime._object(reference)
@@ -325,7 +330,11 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         identities.append((name, row['content_hash'], row['artifact_sha256'], row['byte_size']))
     if by_path[canonical_names[0]]['artifact_sha256'] != canonical_manifest['understanding_sha256']:
         raise ValueError('Canonical manifest checksum mismatch')
-    session_names = list(dict.fromkeys([
+    overview_read = path == "/api/overview"
+    # Every graph-backed presenter owns the same complete selected-package
+    # session. XML and English are retained as before for non-overview reads;
+    # the manifest and active selection have already been verified above.
+    session_names = list(dict.fromkeys([prefix + "manifest.json", active_path] + [
         name for name in (prefix + "source.xml", prefix + "english.md") if name in by_path
     ] + canonical_names))
     session_identities = []
@@ -341,7 +350,11 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         if (reference["volume_path"] != row["artifact_path"]
                 or reference["sha256"] != row["artifact_sha256"]
                 or type(reference["byte_size"]) is not int
-                or reference["byte_size"] != row["byte_size"]):
+                or not 0 <= reference["byte_size"]
+                or reference["byte_size"] != row["byte_size"]
+                or ("source" in reference and (reference["source"] is not True or not name.endswith(".xml")))
+                or ("source" not in reference
+                    and reference["volume_path"] != runtime.artifacts._path(reference["sha256"]))):
             raise ValueError("Hosted package-session artifact reference mismatch")
         session_component_bytes += reference["byte_size"]
         session_identities.append((name, row["content_hash"], row["artifact_sha256"], row["byte_size"]))
@@ -357,10 +370,17 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
     def hydrate():
         session_artifacts = {}
         for full in session_names:
-            relative = full[len(prefix):]
-            path = materialize(relative)
-            session_artifacts[relative] = path.read_bytes()
-        index = PackageIndex.load(runtime.local / prefix, cache_scope=cache_scope)
+            relative = "state/active.json" if full == active_path else full[len(prefix):]
+            if full in {prefix + "manifest.json", active_path}:
+                path = runtime.local / full
+                if not path.is_file():
+                    raise ValueError("Verified package identity artifact is unavailable")
+            else:
+                path = materialize(relative)
+            raw = path.read_bytes()
+            runtime._scan(io.BytesIO(raw), len(raw))
+            session_artifacts[relative] = raw
+        index = copy(PackageIndex.load(runtime.local / prefix, cache_scope=cache_scope))
         # Publish one complete immutable package session only after every
         # referenced artifact has passed its current authorization/hash checks.
         index.hosted_session_artifacts = session_artifacts
@@ -369,15 +389,44 @@ def object_read_response(runtime, path, project, package, query, progress=None, 
         return index
 
     index = _immutable_index(immutable_key, runtime.local / prefix, hydrate, estimated_memory_bytes)
+    try:
+        # A retained graph is not an access verdict. Recheck the selected
+        # external source using this action's OBO identity, even on a cache hit.
+        for name in session_names:
+            row = by_path[name]
+            reference = runtime._decode(json.loads(row["payload"]))
+            if reference.get("source") is True and name not in verified_source_in_action:
+                target = runtime.local / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                runtime.materialize_committed_source(reference, target)
+        # Scanned on capture is not sufficient when the forwarded credential
+        # changes between actions. Never retain a current credential in a graph.
+        for raw in index.hosted_session_artifacts.values():
+            runtime._scan(io.BytesIO(raw), len(raw))
+    except BaseException:
+        with _REVIEW_INDEX_LOCK:
+            cached = _REVIEW_INDEX_CACHE.get(immutable_key)
+            if (cached is not None and getattr(cached, "hosted_session_artifacts", None)
+                    is index.hosted_session_artifacts):
+                _REVIEW_INDEX_CACHE.pop(immutable_key, None)
+        raise
     if progress:
         total = 5 if prefix + "source-analysis.json" in by_path else 3
         progress("artifact_files", verified_files=total, total_files=total)
         progress("preparing_package")
     if index.model["package"]["sha256"] != package:
         raise ValueError("Selected canonical package mismatch")
+    if overview_read:
+        from workbench.agents import AgentRuntime
+        from workbench.app import _overview_agent, _overview_payload
+        agent = _overview_agent(AgentRuntime(Path(".")), hosted_authenticated=True)
+        return _overview_payload(index, None, agent, None, True)
     if path == '/api/workflow-invocation-summary':
         from workbench.package_context import workflow_invocation_summary
         return workflow_invocation_summary(index)
+    if path == '/api/inventory-preload':
+        from workbench.inventory_browser import inventory_preload
+        return inventory_preload(index, offset, query.get('input_version', [None])[-1])
     if path == '/api/objects':
         from workbench.inventory_browser import inventory_response
         kind, term = query.get('kind', [''])[-1], query.get('q', [''])[-1]

@@ -15,7 +15,15 @@
   let hosted = false, probing = null, activity = null;
   const blockers = new Set(), inertRoots = new Map();
   const DISMISS = 'orion.hosted-notification-dismissed.v1';
+  const COLLAPSED = 'orion.hosted-notification-collapsed.v1';
   let backdrop = null, previousFocus = null;
+
+  function operationStateChanged() {
+    document.dispatchEvent(new CustomEvent('orion:hosted-operation-state', {
+      detail: {busy: blockers.size > 0, operationId: activity?.operationId || null,
+        message: activity?.message?.textContent || ''},
+    }));
+  }
 
   // OLD presentation retained for rollback only; never invoked.
   function legacyBlockingState() {
@@ -227,6 +235,7 @@
       collapse.setAttribute('aria-controls', 'hosted-activity-content');
       collapse.addEventListener('click', () => {
         activity.collapsed = !activity.collapsed; blockingState();
+        try { sessionStorage.setItem(COLLAPSED, String(activity.collapsed)); } catch (_) { /* Presentation only. */ }
       });
       const close = node('button'), closeIcon = node('span', '×');
       close.className = 'hosted-activity-window-control';
@@ -255,22 +264,35 @@
       restore.addEventListener('click', () => {
         activity.dismissed = false; activity.collapsed = false;
         try { sessionStorage.removeItem(DISMISS); } catch (_) { /* Presentation only. */ }
+        try { sessionStorage.setItem(COLLAPSED, 'false'); } catch (_) { /* Presentation only. */ }
         blockingState(); close.focus({preventScroll: true});
       });
       compactText.append(compactMessage, compactPhase, compactElapsed);
       compactElement.append(compactIndicator, compactText, restore);
       const details = node('details'), summary = node('summary', 'Operation details');
       const identifier = node('p'); identifier.className = 'small muted';
-      details.append(summary, identifier);
+      const phase = node('p', 'Status: not started'); phase.className = 'small muted';
+      const progressDetail = node('p', 'Progress: not reported'); progressDetail.className = 'small muted';
+      const process = node('p', 'Worker process: not reported'); process.className = 'small muted';
+      details.append(summary, identifier, phase, progressDetail, process);
+      let collapsed = true;
+      try { collapsed = sessionStorage.getItem(COLLAPSED) !== 'false'; } catch (_) { /* Default minimized. */ }
       activity = {element, indicator, reconnect, close, closeIcon, elapsed, dismissed: false, message: messageNode,
-        identifier, content, collapse, collapseIcon, collapsed: false,
+        identifier, phase, progressDetail, process, content, collapse, collapseIcon, collapsed,
         compact: {element: compactElement, indicator: compactIndicator, message: compactMessage, phase: compactPhase, elapsed: compactElapsed, restore},
         transfer: meter(content, 'Active hosted file: durable acknowledged bytes'),
         processing: meter(content, 'Hosted processing: current phase (count not reported)')};
       content.append(reconnect, details);
-      const anchor = document.getElementById('operation-banner');
-      if (anchor) anchor.after(element, compactElement);
-      else document.querySelector('main').prepend(element, compactElement);
+      const disclosure = node('details');
+      disclosure.id = 'hosted-operation-disclosure';
+      disclosure.className = 'hosted-operation-disclosure';
+      disclosure.append(node('summary', 'View or reconnect to hosted operation'), element, compactElement);
+      // The purple status ribbon already communicates activity across tabs.
+      // Keep detailed progress and explicit recovery available only in Logs.
+      const logs = document.getElementById('page-logs');
+      const logsHeading = logs?.querySelector('.page-heading');
+      if (logsHeading) logsHeading.after(disclosure);
+      else if (logs) logs.prepend(disclosure);
     }
     return activity;
   }
@@ -286,12 +308,20 @@
     tick(); panel.clock = setInterval(tick, 1000);
     panel.operationId = operationId;
     panel.identifier.textContent = operationId ? `Operation ID: ${operationId}` : 'File transfer, operation ID not yet assigned.';
-    panel.content.hidden = false;
-    panel.dismissed = false; panel.collapsed = false; panel.element.hidden = false;
+    panel.phase.textContent = 'Status: running';
+    panel.progressDetail.textContent = 'Progress: waiting for the first status update';
+    panel.process.textContent = 'Worker process: pending';
+    panel.content.hidden = panel.collapsed;
+    panel.dismissed = false; panel.element.hidden = false;
     const token = {};
     if (blocking) blockers.add(token);
     blockingState();
-    return () => { blockers.delete(token); if (!blockers.size) { tick(); clearInterval(panel.clock); } blockingState(); };
+    operationStateChanged();
+    return () => {
+      blockers.delete(token);
+      if (!blockers.size) { tick(); clearInterval(panel.clock); }
+      blockingState(); operationStateChanged();
+    };
   }
   function activityStatus(message, terminal = false, upload = true, state = '') {
     const panel = activityFor();
@@ -313,6 +343,7 @@
     panel.processing.bar.setAttribute('aria-label', panel.processing.caption.textContent);
     panel.reconnect.hidden = !lastOperation();
     blockingState();
+    operationStateChanged();
   }
   function announce(view, message, terminal = false, state = '') {
     view.summary.textContent = message;
@@ -460,7 +491,7 @@
     activityFor().reconnect.disabled = true;
     activityStatus('Operation: submitting to the background worker.', false, false, 'Waiting');
     try {
-      const result = await operation(url.pathname, body, headers, record, 'stage_operation_id', {}, operationStatus(id));
+      const result = await operation(url.pathname, body, headers, record, 'stage_operation_id', {}, operationStatus(id, url.pathname));
       activityStatus(`Operation completed. Returned result: ${resultText(result)}.`, true, false);
       return result;
     } catch (error) {
@@ -473,14 +504,29 @@
     return all.find(record => record.stage_operation_id === activity?.operationId)
       || all.filter(record => !record.name).at(-1);
   }
-  function operationStatus(id) {
+  function operationStatus(id, path = '') {
     return data => {
       if (activity?.operationId !== id) return;
-      activityStatus(`${progressText(data)}.`, false, false,
+      const live = data.live_agent;
+      if (path === '/api/agents/run' && live?.state === 'accepted_in_process_not_committed'
+          && ID.test(live.run_id || '') && ID.test(live.project_id || '')
+          && SHA256.test(live.package_hash || '') && SHA256.test(live.workflow_id || '')) {
+        document.dispatchEvent(new CustomEvent('orion:hosted-agent-accepted', {detail: {...live, operation_id: id}}));
+      }
+      activity.phase.textContent = `Status: ${data.status || 'unknown'} · stage: ${data.progress?.stage || 'not reported'}`;
+      const {completed, total, unit} = data.progress || {};
+      activity.progressDetail.textContent = Number.isInteger(completed) && Number.isInteger(total)
+        ? `Progress: ${completed} of ${total}${unit ? ` ${unit}` : ''}`
+        : 'Progress: count not reported by the service';
+      activity.process.textContent = `Worker process: ${data.process_id || 'not reported'}`;
+      const preparingAgent = path === '/api/agents/run' && ['provisioning', 'metadata_restore', 'artifact_files', 'audit_restore', 'preparing_package'].includes(data.progress?.stage);
+      const explanation = preparingAgent ? ' Workspace setup is still in progress; the workflow agent has not started yet.' : '';
+      const label = live?.state === 'accepted_in_process_not_committed' && path === '/api/agents/run'
+        ? 'Agent run accepted in the active app session; Delta commit is pending' : progressText(data);
+      activityStatus(`${label}.${explanation}`, false, false,
         data.status === 'queued' ? 'Waiting' : data.status === 'running' ? 'Running' : '');
-      const {completed, total} = data.progress || {};
       const measured = Number.isInteger(completed) && Number.isInteger(total) && total > 0 && completed >= 0 && completed <= total;
-      activity.processing.caption.textContent = `${progressText(data)} (current phase only${measured ? '' : '; count not reported'})`;
+      activity.processing.caption.textContent = `${label} (current phase only${measured ? '' : '; count not reported'})`;
       activity.processing.bar.setAttribute('aria-label', activity.processing.caption.textContent);
       if (measured) {
         activity.processing.bar.max = total; activity.processing.bar.value = completed;
@@ -489,11 +535,11 @@
     };
   }
   const progressStages = Object.freeze({
-    queued: 'Queued for workspace processing', running: 'Processing the selected request', starting: 'Starting background operation',
+    queued: 'Accepted; waiting for an available operation worker', running: 'Processing the selected request', starting: 'Starting the selected request',
     audit_restore: 'Restoring recorded activity',
-    provisioning: 'Opening user-scoped workspace storage', metadata_restore: 'Restoring committed package metadata',
+    provisioning: 'Opening workspace storage', metadata_restore: 'Preparing saved workspace state',
     reading_history: 'Loading saved agent history metadata',
-    artifact_files: 'Verifying committed package files', verifying_artifact: 'Verifying package checksum',
+    artifact_files: 'Preparing saved workspace files', verifying_artifact: 'Verifying package checksum',
     decoding_nodes: 'Reading canonical package nodes', decoding_edges: 'Reading canonical package edges',
     index_cache: 'Reusing verified package index', indexing_nodes: 'Indexing package nodes',
     indexing_edges: 'Indexing package links', preparing_package: 'Preparing package view',
@@ -719,7 +765,8 @@
     } finally { view.busy = false; announce(view, 'Reconnect finished or paused. No operation was replayed. Inspect per-file outcomes.', true); release(); }
     return true;
   }
-  window.orionHostedIntake = Object.freeze({probe, upload, submit, read, resume});
+  window.orionHostedIntake = Object.freeze({probe, upload, submit, read, resume,
+    hasActiveOperation: () => blockers.size > 0});
   const recorded = lastOperation();
   if (recorded) {
     activityFor().operationId = recorded.stage_operation_id;

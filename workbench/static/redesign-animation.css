@@ -49,6 +49,7 @@
   border: 0;
   border-radius: 20px;
   background: linear-gradient(135deg, #14b8a608, #8b5cf60b 70%, #f59e0b08);
+  box-shadow: 0 14px 34px #10183024, 0 3px 8px #10183018, inset 0 1px 0 #ffffff20;
   perspective: 1600px;
 }
 .orion-redesign-animation .ora-svg { display: block; width: 100%; min-width: 0; height: auto; overflow: visible; }

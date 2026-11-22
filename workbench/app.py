@@ -107,10 +107,10 @@ def _scope_capabilities(hosted_authenticated=False):
             "status": "request_obo_authenticated" if hosted_authenticated else "local_only",
             "scope": "hosted_request_proxy_obo" if hosted_authenticated else "local_loopback_boundary",
             "inference_verified": False,
-            "reason": "Hosted request/proxy authentication and fresh Databricks user OBO authorization are verified for this action. Model inference authentication is separate and remains unverified; no service-principal fallback." if hosted_authenticated else "Local loopback access only, not authenticated user identity. Standalone remote authentication is not implemented. Model inference authentication is separate and remains unverified."},
+            "reason": "Your Databricks identity was verified for this request. Access to an AI model is checked separately." if hosted_authenticated else "This local app is available on this computer only and does not verify user identity. Access to an AI model is checked separately."},
         "model_inference_authentication": {
             "available": None, "status": "inference_unverified", "inference_verified": False,
-            "reason": "A selected model route or authenticated hosted request is not proof of authenticated model inference. No inference is performed by capability discovery."},
+            "reason": "Selecting a model or connecting to the workspace does not test the model. The model is used when you start the agents."},
     }
 
 
@@ -259,6 +259,69 @@ def _agent_delivery_status(output, candidate_drafts, generate_code):
 
 def _brief(node):
     return {k: node[k] for k in ("id", "kind", "name", "scope", "parent_id")}
+
+
+def _overview_agent(runtime, hosted_authenticated=False):
+    """Preserve the overview's request-scoped runtime status semantics."""
+    agent = runtime.status()
+    from workbench.model_access import workspace_ready
+    agent = {**agent, "available": workspace_ready(runtime),
+             "egress_consent_required": True,
+             "timeout_policy": agent.get("timeout_policy", "no_elapsed_time_cutoff_manual_cancellation")}
+    if not agent["available"] and os.environ.get("WORKBENCH_TRUST_DATABRICKS_PROXY") == "1":
+        agent["reason"] = "Six migration agents are available, but no model is selected. Connect workspace models and choose a chat model for the agents."
+    return agent
+
+
+def _package_overview(index):
+    """Pure package projection shared by local and selected hosted overviews."""
+    model = index.model
+    diagnostics = model.get("diagnostics", [])
+    return {
+        "package": model["package"], "counts": model["counts"], "summary": model["summary"],
+        "coverage": _bounded(model["coverage"]),
+        "diagnostics_count": len(diagnostics), "diagnostics": diagnostics[:50],
+        "diagnostics_truncated": len(diagnostics) > 50,
+        "workflows": [_brief(node) for node in index.kinds.get("workflow", ())],
+    }
+
+
+def _overview_payload(index, job_id, agent, startup_error, hosted_authenticated):
+    """Build the public overview contract without reading service state."""
+    capabilities = {"xml_understanding": True, "bounded_original_graphs": True, "provisional_reviews": True,
+                    "supporting_evidence": True, "zip_upload": False,
+                    **_scope_capabilities(hosted_authenticated),
+                    "captured_sql_drafts": {
+                        "available": True, "status": "syntax_drafts_only",
+                        "reason": "Explicitly consented captured-SQL transpilation can produce notebook drafts. Unsupported SQL is blocked; non-SQL transformations, semantic parity and deployment are not supplied."},
+                    "github_publication": False,
+                    "agents": {
+                        "available": agent["available"] is True,
+                        "status": "model_route_configured" if agent["available"] is True else "roles_configured_model_route_required",
+                        "description": (
+                            f"{len(agent.get('roles', []))} Deep Agents role definitions are installed: "
+                            f"{', '.join(agent.get('roles', []))}. "
+                            + ("A model is configured for the agents; the model has not been tested by this check."
+                               if agent["available"] is True else
+                               "No user-selected model route is configured. In this hosted app, use Connect workspace models and explicitly select an endpoint. "
+                               "The role definitions exist, but no agent can execute until a route is selected and authorized.")
+                        ),
+                        "configured_roles": agent.get("roles", []),
+                        "inference_verified": False,
+                    },
+                    "semantic_translation": {
+                        "available": False, "status": "not_implemented",
+                        "reason": "SQL syntax transpilation and workflow understanding exist, but general behavior-preserving conversion of Informatica transformation graphs into PySpark or Databricks SQL is not implemented."},
+                    "metadata_reuse_analysis": {
+                        "available": True, "status": "structural_candidates_only",
+                        "reason": "Mapping fingerprints and workflow planning contracts expose structural reuse candidates. Candidates are not proven semantic equivalence, approved shared libraries or automatic task consolidation."}}
+    result = {"ready": index is not None, "status": "ready" if index else "not_ready", "package": None,
+              "job_id": job_id, "agent": agent, "capabilities": capabilities, "startup_error": startup_error,
+              "capability_inventory": capability_inventory(hosted_authenticated),
+              "generation_allowed": False, "deployment_allowed": False}
+    if index is not None:
+        result.update(_package_overview(index))
+    return result
 
 
 class PackageIndex:
@@ -1160,6 +1223,24 @@ class _Service:
         self.package_executor.shutdown(wait=True, cancel_futures=False)
         self.agent_executor.shutdown(wait=True, cancel_futures=False)
 
+    def drain(self):
+        """Wait for accepted package and agent work without shutting executors down."""
+        for slot in (self.package_slot, self.agent_slot):
+            slot.acquire()
+            slot.release()
+
+    def idle(self):
+        acquired = []
+        try:
+            for slot in (self.package_slot, self.agent_slot):
+                if not slot.acquire(blocking=False):
+                    return False
+                acquired.append(slot)
+            return True
+        finally:
+            for slot in reversed(acquired):
+                slot.release()
+
     def require(self):
         with self.lock:
             if self.active is None:
@@ -1516,53 +1597,9 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
     def overview():
         with service.lock:
             index, job_id = service.active, service.active_job
-        agent = service.runtime.status()
-        from workbench.model_access import workspace_ready
-        agent = {**agent, "available": workspace_ready(service.runtime),
-                 "egress_consent_required": True,
-                 "timeout_policy": agent.get("timeout_policy", "no_elapsed_time_cutoff_manual_cancellation")}
-        if not agent["available"] and os.environ.get("WORKBENCH_TRUST_DATABRICKS_PROXY") == "1":
-            agent["reason"] = "Six agent roles are installed, but no user-scoped chat endpoint is selected. Use Connect workspace models and explicitly select an endpoint; model access and inference are not yet verified."
         hosted_authenticated = getattr(app.state, "hosted_request_authenticated", False) is True
-        capabilities = {"xml_understanding": True, "bounded_original_graphs": True, "provisional_reviews": True,
-                        "supporting_evidence": True, "zip_upload": False,
-                        **_scope_capabilities(hosted_authenticated),
-                        "captured_sql_drafts": {
-                            "available": True, "status": "syntax_drafts_only",
-                            "reason": "Explicitly consented captured-SQL transpilation can produce notebook drafts. Unsupported SQL is blocked; non-SQL transformations, semantic parity and deployment are not supplied."},
-                        "github_publication": False,
-                        "agents": {
-                            "available": agent["available"] is True,
-                            "status": "model_route_configured" if agent["available"] is True else "roles_configured_model_route_required",
-                            "description": (
-                                f"{len(agent.get('roles', []))} Deep Agents role definitions are installed: "
-                                f"{', '.join(agent.get('roles', []))}. "
-                                + ("A user-scoped model route is configured; inference authentication and a successful run are not yet verified."
-                                   if agent["available"] is True else
-                                   "No user-selected model route is configured. In this hosted app, use Connect workspace models and explicitly select an endpoint. "
-                                   "The role definitions exist, but no agent can execute until a route is selected and authorized.")
-                            ),
-                            "configured_roles": agent.get("roles", []),
-                            "inference_verified": False,
-                        },
-                        "semantic_translation": {
-                            "available": False, "status": "not_implemented",
-                            "reason": "SQL syntax transpilation and workflow understanding exist, but general behavior-preserving conversion of Informatica transformation graphs into PySpark or Databricks SQL is not implemented."},
-                        "metadata_reuse_analysis": {
-                            "available": True, "status": "structural_candidates_only",
-                            "reason": "Mapping fingerprints and workflow planning contracts expose structural reuse candidates. Candidates are not proven semantic equivalence, approved shared libraries or automatic task consolidation."}}
-        result = {"ready": index is not None, "status": "ready" if index else "not_ready", "package": None,
-                  "job_id": job_id, "agent": agent, "capabilities": capabilities, "startup_error": service.startup_error,
-                  "capability_inventory": capability_inventory(hosted_authenticated),
-                  "generation_allowed": False, "deployment_allowed": False}
-        if index:
-            model = index.model
-            result.update(package=model["package"], counts=model["counts"], summary=model["summary"],
-                          coverage=_bounded(model["coverage"]), diagnostics_count=len(model.get("diagnostics", [])),
-                          diagnostics=model.get("diagnostics", [])[:50],
-                          diagnostics_truncated=len(model.get("diagnostics", [])) > 50,
-                          workflows=[_brief(n) for n in index.kinds.get("workflow", ())])
-        return result
+        agent = _overview_agent(service.runtime, hosted_authenticated)
+        return _overview_payload(index, job_id, agent, service.startup_error, hosted_authenticated)
 
     @app.get("/api/workflow-invocation-summary")
     def workflow_invocation_summary():

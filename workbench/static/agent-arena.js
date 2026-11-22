@@ -13,15 +13,26 @@
   if (!mount || mount.dataset.initialized) return;
   mount.dataset.initialized = 'true';
   const roles = ['supervisor', 'discovery', 'semantics', 'architecture', 'validation', 'artifact'];
-  const roleLabels = {supervisor: 'Lead migration analyst', discovery: 'Informatica package analyst',
+  const roleLabels = {supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
     semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
     validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'};
-  const purposes = ['Coordinates the specialists and reconciles their source records.',
+  const reviewSkillLabels = {supervisor: 'Specialist coordination', discovery: 'Informatica package understanding',
+    semantics: 'Transformation and SQL semantics', architecture: 'Lakeflow workflow design',
+    validation: 'Evidence and coverage validation', artifact: 'Artifact readiness review'};
+  const skillLabel = (role, path) => path === '/library/review/SKILL.md' ? reviewSkillLabels[role]
+    : path === '/CONTEXT.md' ? 'Agent role context' : path === '/production-conversion-contract.md'
+      ? 'Production conversion contract' : path.split('/').slice(2, -1).join(' / ').replaceAll('-', ' ')
+        .replace(/\b[a-z]/g, letter => letter.toUpperCase());
+  const recordedSkillName = path => path === '/CONTEXT.md' ? 'Recorded file: CONTEXT.md'
+    : path === '/production-conversion-contract.md' ? 'Recorded file: production-conversion-contract.md'
+      : /^\/library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md$/.test(path)
+        ? `Recorded skill: ${path.split('/').at(-2)}` : `Recorded file: ${path}`;
+  const purposes = ['Coordinates specialist findings and can submit or correct the logical design. The separate Spark and SQL code writer drafts candidate code.',
     'Inspects Informatica folders, definitions, references, tasks, and connections.',
     'Traces mapping expressions, SQL phases, write behavior, and control conditions.',
     'Proposes a Lakeflow task graph while preserving the original workflow behavior.',
     'Checks source coverage, unsupported behavior, and validation gaps.',
-    'Checks what YAML, notebook, test, and release artifacts are actually authorized.'];
+    'Reviews notebook, test, YAML, and release requirements. The separate writer produces candidate code.'];
   const findingStatus = {supported: 'Agent-reported observation', needs_information: 'Incomplete analysis',
     unsupported: 'Agent-reported unsupported behavior', failed: 'Analysis failed'};
   const array = (value) => Array.isArray(value) ? value : [];
@@ -136,7 +147,7 @@
       unique.forEach(group => list.append(node('li', `${group.label}${group.issues.length > 1 ? ` (${group.issues.length} fields)` : ''}`)));
       outcome.append(list);
       const technical = node('details');
-      technical.append(node('summary', 'Developer diagnostics'));
+      technical.append(node('summary', 'Validation details'));
       const raw = node('ul');
       unique.flatMap(group => group.issues).forEach(issue => raw.append(node('li', `${roleLabels[issue.role] ?? 'Design specialist'}: ${issue.field}: ${issue.issue}`)));
       technical.append(raw); outcome.append(technical);
@@ -150,7 +161,7 @@
         const list = node('ul'); details.forEach(issue => list.append(node('li', issue))); outcome.append(list);
       }
     }
-    outcome.append(node('p', 'The specialist text below is analysis only. It is not a converted workflow.', 'arena-outcome-note'));
+    outcome.append(node('p', 'Review the specialist findings below to understand what needs attention before a workflow can be drafted.', 'arena-outcome-note'));
   }
   function inspect() {
     cards.forEach((card, role) => card.button.setAttribute('aria-pressed', String(role === selected)));
@@ -348,6 +359,15 @@
     return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
   }
   function renderActivity(receipt, active, historical) {
+    const openContextRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role[open]')].map(item => item.dataset.role));
+    const openSourceRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role .arena-context-source-details[open]')]
+      .map(item => item.closest('.arena-context-role')?.dataset.role));
+    const openToolRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role .arena-context-tool-details[open]')]
+      .map(item => item.closest('.arena-context-role')?.dataset.role));
+    const openIdRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role .arena-context-reference-ids[open]')]
+      .map(item => item.closest('.arena-context-role')?.dataset.role));
+    const scopeOpen = activityPanel.querySelector('.arena-context-scope')?.open ?? false;
+    const contextHelpOpen = activityPanel.querySelector('.arena-context-help')?.open ?? false;
     activityPanel.replaceChildren();
     activityPanel.append(node('h3', 'Recorded agent activity (short summary, details in the sections below)'));
     if (!current) {
@@ -411,32 +431,125 @@
     }
     table.append(caption, head, body); activityPanel.append(table);
     const skillStrip = node('section', '', 'arena-current-skills');
-    skillStrip.setAttribute('aria-label', 'Recorded skills for active agents');
-    skillStrip.append(node('h4', 'Skills'));
+    skillStrip.setAttribute('aria-label', 'Recorded agent skills');
+    const runList = document.getElementById('runs-list');
+    const latestDisplayed = runList?.dataset.offset === '0'
+      && runList.querySelector('[data-run-id]')?.dataset.runId === current.id;
+    skillStrip.append(node('h4', latestDisplayed ? 'Skills used during latest run' : 'Skills used during selected run'));
+    const skillGrid = node('div', '', 'arena-skills-grid');
+    skillStrip.append(skillGrid);
     const activeRoles = new Set(array(receipt?.active_calls).map(call => call.role).filter(role => roles.includes(role)));
     const skillRows = array(receipt?.skill_stats?.per_role).filter(row => object(row)
       && roles.includes(row.role) && (!active || activeRoles.has(row.role)));
     skillStrip.dataset.active = String(active && skillRows.some(row => activeRoles.has(row.role)));
     let skillCount = 0;
     for (const row of skillRows) {
+      const skillGroup = node('div', '', 'arena-skill-group');
+      skillGroup.setAttribute('role', 'group');
+      skillGroup.setAttribute('aria-label', roleLabels[row.role]);
+      skillGroup.dataset.role = row.role;
       const readCounts = new Map(array(row.tool_reads).map(read => [read.path, read.count]));
-      const paths = new Set([...array(row.loaded).map(skill => skill.path), ...readCounts.keys()]);
+      const loadedPaths = new Set(array(row.loaded).map(skill => skill.path));
+      const paths = new Set([...loadedPaths, ...readCounts.keys()]);
       for (const path of paths) {
         if (typeof path !== 'string' || !/^\/(?:CONTEXT\.md|production-conversion-contract\.md|library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md)$/.test(path)) continue;
         const card = node('article', '', 'arena-current-skill');
         card.dataset.active = String(active && activeRoles.has(row.role));
-        const label = path === '/CONTEXT.md' ? 'Role context' : path === '/production-conversion-contract.md'
-          ? 'Production conversion contract' : path.split('/').slice(2, -1).join(' / ').replaceAll('-', ' ')
-            .replace(/\b[a-z]/g, letter => letter.toUpperCase());
-        const agent = row.role[0].toUpperCase() + row.role.slice(1);
-        card.setAttribute('aria-label', `${agent} agent, ${label} skill`);
-        card.append(node('span', agent, 'arena-current-skill-agent'), node('strong', label));
-        skillStrip.append(card); skillCount++;
+        card.dataset.role = row.role;
+        const label = skillLabel(row.role, path);
+        const access = [];
+        if (loadedPaths.has(path)) access.push('Loaded');
+        if (readCounts.has(path)) {
+          const count = readCounts.get(path);
+          access.push(Number.isSafeInteger(count) && count > 0 ? `Read ${count} ${count === 1 ? 'time' : 'times'}` : 'Read');
+        }
+        card.title = `Recorded file: ${path}`;
+        card.append(node('strong', label), node('span', recordedSkillName(path), 'arena-current-skill-name'),
+          node('span', access.join(' · '), 'arena-current-skill-access'));
+        skillGroup.append(card); skillCount++;
+      }
+      if (skillGroup.children.length) {
+        skillGroup.prepend(node('span', roleLabels[row.role], 'arena-current-skill-agent'));
+        skillGrid.append(skillGroup);
       }
     }
-    if (!skillCount) skillStrip.append(node('p', 'No skills recorded.', 'arena-activity-note'));
-    skillStrip.append(node('p', 'Receipts show context, not execution.', 'arena-activity-note'));
+    if (!skillCount) skillStrip.append(node('p', receipt?.skill_stats?.status === 'unavailable'
+      ? 'Skill information is unavailable for this run.' : 'No skills are recorded for the agents shown.', 'arena-activity-note'));
+    skillStrip.append(node('p', 'Loaded means included in an agent’s instructions; read means the agent retrieved the file. These records show access, not whether a skill influenced the result.', 'arena-activity-note'));
     activityPanel.append(skillStrip);
+    const contextPanel = node('section', '', 'arena-context-panel');
+    contextPanel.setAttribute('aria-label', 'Agent context and evidence');
+    const contextHeading = node('div', '', 'arena-context-heading');
+    const contextHelp = node('details', '', 'arena-context-help'); contextHelp.open = contextHelpOpen;
+    const contextHelpButton = node('summary', '?');
+    contextHelpButton.setAttribute('aria-label', 'About agent context and evidence');
+    contextHelp.append(contextHelpButton, node('p', 'Loaded guidance was included in the agent’s instructions. Reads and completed tool calls show recorded access. Source references were cited in the agent’s findings.', 'arena-context-help-text'));
+    contextHeading.append(node('h4', 'Context and evidence by agent'), contextHelp);
+    contextPanel.append(contextHeading,
+      node('p', 'Open an agent to explore its guidance, tools, and source references.', 'arena-activity-note'));
+    const scope = node('details', '', 'arena-context-scope'); scope.open = scopeOpen;
+    scope.append(node('summary', 'Run details'));
+    const scopeFacts = node('dl', '', 'arena-context-facts');
+    const fact = (name, value) => { scopeFacts.append(node('dt', name), node('dd', value)); };
+    fact('Workflow', current.workflow_name || current.workflow_id || 'Not recorded');
+    fact('Scenario', ({bronze: 'Source data already in Unity Catalog', original: 'Original source systems'})[current.scenario] || current.scenario || 'Not recorded');
+    scope.append(scopeFacts);
+    contextPanel.append(scope);
+    const contextGrid = node('div', '', 'arena-context-grid');
+    const contextRows = array(receipt?.skill_stats?.per_role).filter(object);
+    const findingsSource = current?.output ?? historical;
+    const hasFindings = Array.isArray(findingsSource?.findings);
+    const hasTools = receipt?.tool_activity_status === 'recorded' && Array.isArray(receipt.tool_turns);
+    for (const role of roles) {
+      const matches = contextRows.filter(row => row.role === role);
+      const row = matches.length === 1 ? matches[0] : null;
+      const roleFindings = hasFindings ? findingsSource.findings.filter(item => object(item) && item.role === role) : [];
+      const citations = [...new Set(roleFindings.flatMap(item => array(item.evidence_ids)).filter(id => typeof id === 'string' && /^[a-f0-9]{64}$/.test(id)))];
+      const tools = hasTools ? [...new Set(receipt.tool_turns.filter(turn => object(turn) && turn.role === role && turn.status === 'completed')
+        .map(turn => activityName(turn.tool_name)).filter(Boolean))] : [];
+      const details = node('details', '', 'arena-context-role'); details.dataset.role = role; details.open = openContextRoles.has(role);
+      const summary = node('summary');
+      const loadedCount = array(row?.loaded).length, readCount = array(row?.tool_reads).length;
+      summary.append(node('strong', roleLabels[role]), node('span', row?.status === 'recorded'
+        ? `${loadedCount} guidance ${loadedCount === 1 ? 'file' : 'files'} loaded · ${readCount} ${readCount === 1 ? 'file' : 'files'} read`
+        : 'Guidance records unavailable', 'arena-context-summary'));
+      details.append(summary);
+      const body = node('div', '', 'arena-context-body');
+      if (row?.status === 'recorded') {
+        const describe = path => `${skillLabel(role, path)} · ${recordedSkillName(path)}`;
+        const loaded = array(row.loaded).filter(item => typeof item?.path === 'string').map(item => describe(item.path));
+        const read = array(row.tool_reads).filter(item => typeof item?.path === 'string').map(item => describe(item.path));
+        for (const item of loaded) body.append(node('p', `Instructions: ${item}`));
+        for (const item of read) body.append(node('p', `Also read: ${item}`));
+      } else body.append(node('p', 'Guidance details were not recorded for this agent.'));
+      if (hasTools && tools.length) {
+        const toolDetails = node('details', '', 'arena-context-tool-details');
+        toolDetails.open = openToolRoles.has(role);
+        toolDetails.append(node('summary', `Completed tools (${tools.length})`), node('p', tools.map(name => name.replaceAll('_', ' ')).join(', ')));
+        body.append(toolDetails);
+      } else if (!hasTools) body.append(node('p', 'Tool details are unavailable for this run.'));
+      if (!hasFindings) body.append(node('p', 'Source references will appear when findings are recorded.'));
+      if (citations.length) {
+        const referenceDetails = node('details', '', 'arena-context-source-details');
+        referenceDetails.open = openSourceRoles.has(role);
+        referenceDetails.append(node('summary', `Cited source references (${citations.length})`));
+        const references = new Map(array(current?.evidence_references).filter(object).map(ref => [ref.id, ref]));
+        const refs = node('ul', '', 'arena-context-references');
+        citations.forEach(id => {
+          const ref = references.get(id), item = node('li');
+          item.append(node('span', ref ? `${ref.kind}: ${ref.label}` : 'Captured package record'));
+          refs.append(item);
+        });
+        const ids = node('details', '', 'arena-context-reference-ids');
+        ids.open = openIdRoles.has(role);
+        ids.append(node('summary', 'Technical reference IDs'));
+        citations.forEach(id => ids.append(node('code', id)));
+        referenceDetails.append(refs, ids); body.append(referenceDetails);
+      }
+      details.append(body); contextGrid.append(details);
+    }
+    contextPanel.append(contextGrid);
+    activityPanel.append(contextPanel);
     const latest = object(receipt?.last_event) ? receipt.last_event : null;
     const event = activityStates.includes(latest?.event) ? latest.event : null;
     const role = roles.includes(latest?.role) ? roleLabels[latest.role] : 'Role unknown';
@@ -446,12 +559,8 @@
     activityPanel.append(node('p', latest
       ? `Latest activity: ${role} · ${name ?? 'Name unknown'} · ${event?.replaceAll('_', ' ') ?? 'State unknown'} · ${stamp ?? 'Time unknown'}`
       : 'Latest activity: not recorded.', 'arena-activity-latest'));
-    // The current receipt has a last event, not a full named-tool history.
-    // A named completion is not evidence of how many check calls were started.
-    activityPanel.append(node('p', event?.startsWith('tool_') && name === 'check_generation_code'
-      ? `Artifact sanity tool check_generation_code: ${event.replaceAll('_', ' ')} is the latest recorded event. Total check calls unknown.`
-      : 'Artifact sanity tool check calls: not recorded in the available named-tool events.', 'arena-activity-note'));
-    activityPanel.append(node('p', 'Correction activity not recorded in this receipt. Candidate writer manifest repair evidence and review issues are not included here; repeated calls or findings are not correction loops. ReAct cycles and loop counts: unknown.', 'arena-activity-note'));
+    if (event?.startsWith('tool_') && name === 'check_generation_code')
+      activityPanel.append(node('p', `Latest code check: ${event.replaceAll('_', ' ')}.`, 'arena-activity-note'));
     const turns = array(receipt?.turns).filter(turn => object(turn) && roles.includes(turn.role)
       && ['started', 'completed', 'failed'].includes(turn.status));
     const details = node('details', '', 'arena-activity-turns');

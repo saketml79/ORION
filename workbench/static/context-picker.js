@@ -22,6 +22,12 @@
     returnSelected.addEventListener('click', () => { centerSelected(); list.focus({ preventScroll: true }); });
     footer.append(hint, returnSelected);
     box.append(list, footer); select.after(box);
+    if (id === 'agent-workflow') {
+      const basis = document.createElement('p');
+      basis.className = 'context-workflow-basis';
+      basis.textContent = 'Candidates use workflow calls captured in the XML. Other data, scheduler, and external dependencies are not assessed.';
+      box.append(basis);
+    }
     select.classList.add('context-native-select'); select.tabIndex = -1; select.setAttribute('aria-hidden', 'true');
     const label = document.querySelector(`label[for="${id}"]`);
     if (label) {
@@ -65,6 +71,12 @@
         const shortId = option.value.replace(/\s+/g, ' ').slice(0, 40);
         row.title = shortId ? `${shortName} | ${shortId}` : shortName;
         row.append(dot, name);
+        if (id === 'agent-workflow' && option.dataset.workflowClass) {
+          const classification = document.createElement('span'); classification.className = 'context-workflow-class';
+          classification.textContent = option.dataset.workflowClass;
+          classification.title = 'Candidate based on captured workflow calls only. Other dependencies are not assessed.';
+          row.append(classification);
+        }
         if (id === 'agent-workflow' && option.dataset.invocationLabel) {
           const badge = document.createElement('span'); badge.className = 'context-invocation-badge';
           badge.textContent = `↗ ${option.dataset.invocationLabel}`;
@@ -99,7 +111,7 @@
       }
       if (next !== undefined) { event.preventDefault(); choose(next); }
     });
-    new MutationObserver(render).observe(select, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'selected', 'label', 'value', 'data-empty-message', 'data-invocation-label', 'aria-busy'] });
+    new MutationObserver(render).observe(select, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['disabled', 'selected', 'label', 'value', 'data-empty-message', 'data-invocation-label', 'data-workflow-class', 'aria-busy'] });
     new ResizeObserver(centerSelected).observe(list);
     select.addEventListener('change', render);
     select.addEventListener('input', render);

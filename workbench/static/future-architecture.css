@@ -1,0 +1,45 @@
+/* Future-state architecture is illustrative and never controls a workflow. */
+.future-architecture-icon svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#future-architecture-dialog { width: min(1200px, calc(100vw - 32px)); max-width: none; max-height: min(90vh, 950px); overflow: auto; padding: clamp(20px, 3vw, 34px); border: 0; border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
+#future-architecture-dialog::backdrop { background: rgb(7 12 27 / 65%); }
+.future-architecture-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.future-architecture-header h2 { margin: 0 0 10px; font-size: clamp(22px, 2.5vw, 30px); }
+.future-architecture-close { flex: 0 0 40px; font-size: 28px; }
+#future-architecture-description { color: var(--muted); line-height: 1.6; max-width: 100%; margin: 0 0 20px; }
+.future-architecture-legend { display: flex; gap: 12px 20px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; color: var(--muted); font-size: 12px; }
+.future-architecture-legend > span { display: inline-flex; gap: 7px; align-items: center; }
+.future-architecture-legend i { width: 9px; height: 9px; border-radius: 50%; }
+.future-legend-input { background: #e8879e; }
+.future-legend-process { background: #8d81e7; }
+.future-legend-output { background: #40ae9e; }
+.future-architecture-legend .future-planned { margin-left: auto; border-radius: 999px; padding: 4px 10px; background: var(--indigo-soft); color: var(--indigo); font-weight: 700; }
+.future-architecture-flow { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr) 40px minmax(0, 1fr); align-items: stretch; padding: clamp(14px, 2vw, 24px); border-radius: 16px; background: var(--bg); }
+.future-inputs, .future-processing, .future-outputs { display: grid; gap: 12px; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.future-node { min-width: 0; padding: 17px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+.future-input { box-shadow: inset 0 3px #e8879e, var(--shadow); }
+.future-process { box-shadow: inset 0 3px #8d81e7, var(--shadow); }
+.future-output { box-shadow: inset 0 3px #40ae9e, var(--shadow); }
+.future-step { color: var(--indigo); font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.future-node h3 { margin: 8px 0; font-size: 16px; line-height: 1.3; }
+.future-node p, .future-node small { display: block; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.future-node small { margin-top: 10px; color: var(--ink); }
+.future-arrow { display: flex; align-items: center; justify-content: center; position: relative; }
+.future-arrow::before { content: ''; width: 100%; height: 2px; background: var(--line); }
+.future-arrow::after { content: ''; position: absolute; right: 3px; width: 7px; height: 7px; border-top: 2px solid var(--indigo); border-right: 2px solid var(--indigo); transform: rotate(45deg); }
+.future-arrow span { position: absolute; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 12px var(--teal); animation: future-architecture-travel 2.4s ease-in-out infinite; }
+.future-arrow:nth-of-type(4) span { animation-delay: 1.2s; }
+@keyframes future-architecture-travel { 0% { transform: translateX(0); opacity: 0; } 20% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateX(32px); opacity: 0; } }
+.future-foundation { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-top: 14px; padding: 14px 18px; border-radius: 12px; background: var(--indigo-soft); color: var(--ink); font-size: 12px; }
+.future-foundation strong { color: var(--indigo); }
+.future-boundary { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
+@media (max-width: 760px) {
+  .future-architecture-flow { grid-template-columns: minmax(0, 1fr); }
+  .future-inputs, .future-processing, .future-outputs { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .future-arrow { height: 36px; }
+  .future-arrow::before { width: 2px; height: 100%; }
+  .future-arrow::after { right: auto; bottom: 3px; transform: rotate(135deg); }
+  .future-arrow span { left: auto; top: 0; animation-name: future-architecture-travel-vertical; }
+  @keyframes future-architecture-travel-vertical { 0% { transform: translateY(0); opacity: 0; } 20%, 85% { opacity: 1; } 100% { transform: translateY(28px); opacity: 0; } }
+}
+@media (max-width: 480px) { .future-inputs, .future-processing, .future-outputs { grid-template-columns: minmax(0, 1fr); } .future-architecture-legend .future-planned { margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .future-arrow span { animation: none; opacity: 1; left: auto; } }

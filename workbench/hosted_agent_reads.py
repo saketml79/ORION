@@ -113,13 +113,82 @@ def history_response(runtime, identity, path, project, package, query, progress=
         expected = {name for name in files if name.startswith(prefix + "state/agent-runs/")}
         if seen != expected:
             raise ValueError("Incomplete history documents")
+        writers, writer_ids, job_seen = {}, set(), set()
+        runs_by_id = {record["id"]: record for record in records}
+        if package:
+            # Match both directories consulted by the local status reader. The
+            # inventory and file identities, not a restored directory, are the
+            # authority for every job, including jobs outside the visible page.
+            directories = (prefix + "state/jobs/",
+                           prefix + "package-contexts/" + package + "/state/jobs/")
+            def job_path(name):
+                return any(name.startswith(directory) and "/" not in name[len(directory):]
+                           and name.endswith(".json") for directory in directories)
+
+            for row in rows("jobs"):
+                name = runtime._local_path(row["source_path"])
+                if not job_path(name):
+                    continue
+                identifier = name.rsplit("/", 1)[-1][:-5]
+                if (not re.fullmatch(r"[a-f0-9]{32}", identifier)
+                        or row["source_table"] != "json" or json.loads(row["source_key"]) != name
+                        or name in job_seen or identifier in writer_ids):
+                    raise ValueError("Invalid or ambiguous history job identity")
+                job_seen.add(name)
+                writer_ids.add(identifier)
+                verify_file(name, download=False)
+                payload = json.loads(row["payload"])
+                if isinstance(payload, dict) and "$artifact" in payload:
+                    payload = runtime._decode(payload)
+                if not isinstance(payload, dict):
+                    raise ValueError("Invalid history job document")
+                job = {key: runtime._decode(value) for key, value in payload.items() if key != "output"}
+                if (job.get("id") != identifier or ds._scope(name, job) != scope
+                        or any(row[key] != value for key, value in ds._keys(job).items())):
+                    raise ValueError("History job identity mismatch")
+                if job.get("kind") != "spark_draft":
+                    if not job.get("kind") and "agent_run_id" in job:
+                        raise ValueError("Invalid candidate writer kind")
+                    continue
+                if "agent_run_id" not in job:
+                    continue  # An independently invoked approved-design draft.
+                parent = job["agent_run_id"]
+                if not isinstance(parent, str) or not re.fullmatch(r"[a-f0-9]{32}", parent):
+                    raise ValueError("Invalid candidate writer parent")
+                if (job.get("package_hash") != package or parent not in runs_by_id
+                    or any(key in job and job[key] != runs_by_id[parent].get(key)
+                           for key in ("workflow_id", "scenario"))):
+                    raise ValueError("Missing or mismatched candidate writer parent")
+                writers.setdefault(parent, []).append((job, payload.get("output")))
+            expected_jobs = {name for name in files if job_path(name)}
+            if job_seen != expected_jobs:
+                raise ValueError("Incomplete history job documents")
+
+        active_statuses = {"queued", "running", "cancelling"}
+        known = active_statuses | {"completed", "partial", "complete", "succeeded", "success",
+                                   "failed", "error", "cancelled", "canceled", "rejected"}
+        status_known = lambda value: isinstance(value, str) and value in known
+        active = lambda value: isinstance(value, str) and value in active_statuses
+        writer_jobs = [job for matches in writers.values() for job, _ in matches]
         records.sort(key=lambda r: (r["created_at"], r["id"]), reverse=True)
-        active = any(r.get("status") in {"queued", "running"} for r in records)
-        known = {"queued", "running", "completed", "partial", "complete", "succeeded", "success",
-             "failed", "error", "cancelled", "canceled", "rejected"}
-        return {"items": records[offset:offset + limit], "total": len(records),
+        page = records[offset:offset + limit]
+        for record in page:
+            matches = writers.get(record["id"], [])
+            if matches:
+                job, output = max(matches, key=lambda item: (str(item[0].get("created_at", "")), item[0]["id"]))
+                output = runtime._decode(output)
+                output = output if isinstance(output, dict) else {}
+                record["candidate_writer"] = {key: job.get(key) for key in (
+                    "id", "status", "phase", "created_at", "started_at", "finished_at")}
+                record["candidate_writer"].update(
+                    manifest_status=output.get("manifest_status", output.get("status")),
+                    task_statuses=output.get("task_statuses", []))
+            else:
+                record["candidate_writer"] = None
+        return {"items": page, "total": len(records),
                 "offset": offset, "limit": limit, "truncated": offset + limit < len(records),
-            "active_run_present": active, "run_status_verified": all(r.get("status") in known for r in records),
+            "active_run_present": any(active(r.get("status")) for r in records + writer_jobs),
+            "run_status_verified": all(status_known(r.get("status")) for r in records + writer_jobs),
                 "committed_generation": generation}
     if path != "/api/loops":
         raise HTTPException(404, "Unknown history read")

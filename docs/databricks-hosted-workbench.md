@@ -32,28 +32,22 @@ historical archive. Local mode and its loopback-only boundary are unchanged.
   with the existing explicit obo_identity function. Missing/invalid authorization
   fails closed. No WorkspaceClient() ambient authentication, CLI profile, PAT
   lookup, or service-principal fallback is used by hosted application code.
-- Health probe /healthz is unauthenticated and returns only process liveness.
   UI/assets still require OBO, but do not provision catalogs or restore state.
-- Mutations require X-Workbench-Request: 1 and same-origin policy. Body bounds
   apply even without Content-Length. Forwarded bearer headers are stripped before
   existing application handlers and audit middleware execute.
 - A ContextVar holds the initiating action identity. ActionExecutor copies that
   context into existing package/agent workers. Workers drain before durable
-  commit and response publication. No cached identity/client/runtime survives as
   an application-global last-user credential. A later request always constructs
   a fresh OBO client and fresh model clients from nonsecret stored selections.
 - WORKBENCH_MODEL is forbidden in hosted mode so provider environment credentials
   cannot silently replace user-selected OBO serving routes. Tracing is disabled
-  in the runtime template. Do not enable HTTP/header/model tracing in deployment.
 
 ## User-owned durable storage
 
-[workbench/hosted_storage.py](../workbench/hosted_storage.py) provisions resources
 using the requesting user's client. Catalog/schema/table checks use SDK metadata
 APIs. [workbench/hosted_volumes.py](../workbench/hosted_volumes.py) wraps that same
 OBO client for Volume metadata: SHOW VOLUMES, DESCRIBE VOLUME and CREATE VOLUME
 IF NOT EXISTS run through SQL Statement Execution on the configured warehouse.
-Volume bytes use the Files API. This is not a different identity or a permission
 bypass. Both `unity-catalog` and `catalog.volumes` scopes were rejected by Apps;
 the accepted requested scopes are `catalog.catalogs`, `catalog.schemas`,
 `catalog.tables`, `files`, `model-serving` and `sql`, as in the
@@ -64,19 +58,15 @@ this validated prefix with a bounded safe slug from the resolved username.
 Existing resources are reused only when owner exactly equals the resolved user
 principal. A catalog owned by anyone else causes a deterministic 16-character
 host/user-ID hash suffix. A collision at that second name fails closed. Group
-membership or administrative access never counts as ownership. Schema workbench
 and managed volume artifacts must also be owned by that user.
 
-The source-upload/legacy root is
 /Volumes/{catalog}/workbench/artifacts/users/{host-user-hash}. Content-addressed
 Delta artifacts use the separate delta-state/users namespace described in
 [delta-state-migration.md](delta-state-migration.md#artifacts-and-validation).
 The user hash protects application namespaces, even if a username changes. UC
-grants still control access: this code does not revoke existing grants or claim
 that owners/administrators cannot inspect user-owned storage.
 
 - Browser-uploaded XML is uploaded to a hash-addressed Volume object before
-  staging is committed or the parser starts.
 - An existing Volume XML selection records its exact validated path and checksum.
   A temporary download is permitted for the existing parser. The source bytes
   are not copied into another persistent upload/blob. Changes/deletion/access
@@ -84,18 +74,17 @@ that owners/administrators cannot inspect user-owned storage.
   silently reading a different package. Keep referenced source objects immutable.
 - SQLite files live only in an ephemeral local directory. Connections never open
   /Volumes paths. The runtime rebuilds tables from DDL-only artifacts and exact
-  original columns in Delta payloads, including checkpoint BLOBs without
+  Direct Delta changes made outside this app process are not reflected by warm reads
+  until a cold restore; a later mutation checks its parent generation and fails
+  rather than publishing over a changed parent.
   unpickling. JSON metadata also comes from Delta records. SQLite backup bytes
   and Volume HEAD snapshots are not hosted restore or publication paths.
 - Mutations upload immutable artifacts and a complete active manifest, append
   Delta records, independently verify inventory and parent, then publish and
-  read back the final committed generation receipt before acknowledgement.
   Missing/corrupt state fails closed, never falling back to a local backup.
 - GET/HEAD/OPTIONS reconstruct existing authority but publish only exact new
-  audit tails to the separate Delta HTTP-audit journal. Journal replay and
   independent readback verify persisted audit columns/hash chains before the
   response. They do not upload artifacts or rewrite the whole content generation.
-  Health, status and static dispatcher fast paths do not run that content cycle.
 - The forwarded token is checked against every newly persisted byte stream.
   Identities, client configuration and model credential callbacks are never
   serialized. Raw user evidence remains sensitive and can contain other secrets:
@@ -104,13 +93,11 @@ that owners/administrators cannot inspect user-owned storage.
 ## Explicit operational limits and design deviation
 
 The current implementation uses SQL-backed Delta operational state and Volume
-artifacts, not Lakebase or last-completed-action SQLite snapshots. Its commit-last
 visibility protocol is not a cross-table transaction or durable worker service.
 
 - Exactly one app replica/process is required. The bundle sets min/max instances
   to 1. Rolling deployments must not run overlapping writers. Stop the old writer
   before starting a replacement. No distributed compare-and-swap lease exists.
-- One active stateful API action per host/user is enforced with an asynchronous
   per-user queue. Routine overlapping polls wait, not return a dispatcher 409.
   Domain-level conflicts can still return 409. Two users can execute concurrently
   with the default configuration; capacity excess returns 429. Waiting in the
@@ -119,11 +106,22 @@ visibility protocol is not a cross-table transaction or durable worker service.
   64 MiB, inline metadata payload at most 48 KiB before externalization. Existing
   upload limits remain ten files, 80 MiB/file and 160 MiB/batch. Cached XML may
   appear multiple times locally and counts against this aggregate cap.
-- Stateful requests restore a fresh working cache. Mutations flush a complete
-  generation; observational reads flush only audit tails before acknowledgement.
-  Responses are spooled as needed. Identity/ownership memoization is action-local,
-  never a cross-request or cross-user credential cache. Reconstruction remains
-  expensive: the latest reported full overview took **76.7 seconds**.
+- The first request for a user in a process restores the committed Delta generation
+  into a bounded, process-local session and loads selected package indexes. Later
+  requests for the same OBO-resolved user reuse that session and selected package
+  index; they do not re-provision UC, re-read the full generation manifest, or
+  reload XML-derived package artifacts before each agent action. The user identity
+  and model clients remain request-scoped. Mutations serialize per user, flush a
+  new committed generation, and update the retained session. A process restart,
+  session eviction, cache miss, or storage-root change requires a cold restore.
+  Direct Delta edits made outside this app process are not reflected by warm reads
+  until a cold restore; a later mutation checks its parent generation and fails
+  rather than publishing over a changed parent.
+  Cold restore and fresh project-registry projection can still perform multiple
+  remote calls; neither is a sub-second SLA. Observational reads that use the
+  retained action path no longer publish a Delta audit tail on every request.
+  Responses are spooled as needed. The historical 76.7-second full-overview
+  measurement predates this warm-session path and is not a current latency result.
 - The main UI request helper budgets **110 seconds for GET reads** and **30 seconds
   for mutations**. These are browser budgets, not server execution guarantees;
   other UI helpers can retain their own shorter budgets.
@@ -146,18 +144,15 @@ visibility protocol is not a cross-table transaction or durable worker service.
   receipt publication can have an ambiguous commit outcome:
   inspect restored state before retrying rather than assuming rollback.
 - Existing local payload labels such as local_only, actor_authenticated:false and
-  local-reviewer remain conservative legacy records, not authorization decisions.
   The hosted /api/health and /api/hosted/status report actual hosted authentication.
   Review attribution schema uplift is separate from authentication enforcement.
   Legacy record labels do not change the live request's resolved OBO identity.
-  Do not describe forwarded OAuth authorization as a PAT or infer the credential
   type from a CLI profile label. Model selection alone is not verified inference.
 
 ## Deployment configuration and packaging
 
 Templates: [deployment/hosted/app.yaml](../deployment/hosted/app.yaml) and
 [deployment/hosted/databricks.yml](../deployment/hosted/databricks.yml).
-[deployment/stage_hosted.py](../deployment/stage_hosted.py) stages only top-level
 workbench Python modules, static assets, skill sources, exact-pinned requirements
 and these two configuration templates into a NEW directory outside the checkout.
 It never invokes a deployment command. It rejects symlinks, existing destinations
@@ -184,9 +179,7 @@ CAN_USE and exact UC ownership/permissions in addition to OAuth consent.
 
 Historical external staging validation passed, but was structural validation,
 not evidence of live scope acceptance. That earlier no-deployment review is
-superseded by the deployed status above. This documentation update performs no
 deployment, remote mutation, or fresh live authorization test.
-
 ## Active XML versus historical archive
 
 - Hosted project `84b03a652f5e4371ba1c72d401acba6b` uses a fresh XML upload and
@@ -195,14 +188,10 @@ deployment, remote mutation, or fresh live authorization test.
   edges. Parse completion does not prove semantic parity or release readiness.
 - Historical local-state import is a separately VERIFIED archive, reported as 5,764 metadata
   rows before its receipt, 1,404 objects, 100 files and 300,651,539 object bytes.
-  Receipt `3fbacd46df986b9075212553c3792fe9d059ee98f4522fa5d599d954be3e66c5`
-  is not an active hosted generation and is not automatically merged/promoted.
   The supplied detailed counts have an unresolved two-row discrepancy against
   that overall total, explicitly recorded in
   [the migration inventory](delta-state-migration.md#verified-historical-import-2026-10-30).
-- Source fixtures are separate: `infotodbxmig_src_dev_ssuman` contains the
   reported 583 empty source tables across 136 schemas (27,908 columns), not
-  workbench state, populated source data or demonstrated live source connectivity.
 
 ## Remaining verification and authority boundaries
 

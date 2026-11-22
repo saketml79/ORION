@@ -45,7 +45,7 @@ _NATIVE_BUNDLE_ACTION = re.compile(r"/api/jobs/[a-f0-9]{32}/native-bundles\Z")
 _READ_ACTIONS = {
     "/api/overview", "/api/objects", "/api/package-graph", "/api/proposals",
     "/api/redesigns", "/api/reviews", "/api/impact",
-    "/api/readiness", "/api/architecture-knowledge",
+    "/api/readiness", "/api/architecture-knowledge", "/api/package/warm",
 }
 _OBJECT_READ = re.compile(r"/api/object/[A-Za-z0-9%._~-]{1,512}\Z")
 _CONTEXT_READ = re.compile(r"/api/workflows/[a-f0-9]{64}/migration-context\Z")
@@ -176,6 +176,8 @@ class HostedOperations:
         self._slots = BoundedSemaphore(8)
         self._lifecycle = Lock()
         self._closed = False
+        self._live_lock = Lock()
+        self._live_agents = {}
 
     def close(self, wait=True):
         """Drain accepted work, including queued jobs; never silently cancel it."""
@@ -452,7 +454,15 @@ class HostedOperations:
                 operation = match[1]
                 with _lock(store.workspace_id, store.user_id, operation):
                     history = self._read(store, operation)
-                return (200, self._observed_public(store, history[-1], history)) if history else (404, {"detail": "Operation not found."})
+                if not history:
+                    return 404, {"detail": "Operation not found."}
+                public = self._observed_public(store, history[-1], history)
+                if public["status"] == "running" and public["process_id"] == self.process_id:
+                    with self._live_lock:
+                        live = self._live_agents.get((store.workspace_id, store.user_id, operation))
+                        if live is not None:
+                            public["live_agent"] = dict(live)
+                return 200, public
             if query:
                 return 400, {"detail": "Operation endpoint does not accept query arguments."}
             forbidden, clean = [], {}
@@ -793,6 +803,22 @@ class HostedOperations:
                 if bucket is not None:
                     last_bucket = bucket
 
+            def accepted_agent(record):
+                project = headers.get("x-workbench-project", "")
+                package = headers.get("x-workbench-package", "")
+                workflow = request["body"].get("workflow_id")
+                if (request["path"] != "/api/agents/run" or not isinstance(record, dict)
+                        or not _ID.fullmatch(str(record.get("id", "")))
+                        or not _ID.fullmatch(project) or not _HASH.fullmatch(package)
+                        or not _HASH.fullmatch(str(workflow or ""))
+                        or record.get("package_hash") != package or record.get("workflow_id") != workflow):
+                    return
+                live = {"run_id": record["id"], "project_id": project, "package_hash": package,
+                        "workflow_id": workflow, "state": "accepted_in_process_not_committed"}
+                with self._live_lock:
+                    self._live_agents[(store.workspace_id, store.user_id, operation)] = live
+
+            report_progress.accepted_agent = accepted_agent
             progress_token = _CURRENT_PROGRESS.set(report_progress)
             failure_phase = "action_execution"
             try:
@@ -862,3 +888,6 @@ class HostedOperations:
             # A failed/unverified journal write MUST NOT authorize execution or
             # report completion. GET reads durable evidence only. No raw logging.
             return
+        finally:
+            with self._live_lock:
+                self._live_agents.pop((identity.host, identity.user_id, operation), None)

@@ -8,6 +8,7 @@
   const button = (text, fn) => { const n = node('button', text); n.type = 'button'; n.addEventListener('click', fn); return n; };
   let context = null, epoch = 0, selection = 0, listController, detailController, opener, kind, version, records = [], total = null;
   let section = 'overview', selected = null, detailOffset = 0, detailTotal = 0, allMode = true, listOffset = 0;
+  let preloadController, preloadFlight = null, preloadCache = null, preloadMessage = '';
   const dialog = node('dialog', '', 'inventory-dialog'); dialog.id = 'inventory-dialog';
   dialog.setAttribute('aria-labelledby', 'inventory-dialog-title');
   const header = node('header'), title = node('h2'); title.id = 'inventory-dialog-title';
@@ -27,6 +28,14 @@
   body.append(list, detail); dialog.append(header, form, status, body); document.body.append(dialog);
   const current = (ticket, captured) => dialog.open && ticket === epoch && captured === context;
   function invalidate() { ++epoch; ++selection; listController?.abort(); detailController?.abort(); records = []; selected = null; version = null; }
+  function reportPreload(message) {
+    preloadMessage = message;
+    document.dispatchEvent(new CustomEvent('orion:inventory-preload', {detail: {message}}));
+  }
+  function clearPreload() {
+    preloadController?.abort(); preloadController = null; preloadFlight = null; preloadCache = null;
+    reportPreload('');
+  }
   function clearDetail() { ++selection; detailController?.abort(); selected = null; detail.replaceChildren(node('p', 'Select a record to load its canonical details.')); }
   dialog.addEventListener('close', () => {
     invalidate(); list.replaceChildren(); detail.replaceChildren(); document.documentElement.classList.remove('inventory-modal-open');
@@ -34,7 +43,8 @@
   });
   function setContext(value) {
     const key = JSON.stringify(value);
-    if (key !== context) { context = key; if (dialog.open) dialog.close(); else invalidate(); }
+    if (key !== context) { clearPreload(); context = key; if (dialog.open) dialog.close(); else invalidate(); }
+    if (value.ready && !preloadCache && !preloadFlight) startPreload(key);
   }
   async function read(path, signal, captured) {
     const scope = JSON.parse(captured), headers = {'Accept': 'application/json'};
@@ -42,6 +52,46 @@
     const response = await fetch(path, {headers, signal, credentials: 'same-origin', cache: 'no-store'});
     if (!response.ok) throw new Error(`Inventory read failed (HTTP ${response.status}). No absence or conversion inferred. Close and reopen to retry.`);
     return response.json();
+  }
+  function startPreload(captured) {
+    const controller = new AbortController(); preloadController = controller;
+    const flight = (async () => {
+      let offset = 0, expectedTotal = null, expectedVersion = null;
+      const byKind = Object.fromEntries(Object.keys(kinds).map(key => [key, []]));
+      const ids = new Set();
+      reportPreload('Loading package inventory lists...');
+      try {
+        do {
+          const query = new URLSearchParams({offset: String(offset)});
+          if (expectedVersion) query.set('input_version', expectedVersion);
+          const page = await read(`/api/inventory-preload?${query}`, controller.signal, captured);
+          if (context !== captured || controller.signal.aborted) return;
+          if (!Number.isSafeInteger(page.total) || page.total < 0 || page.total > 20000
+              || page.offset !== offset || !Array.isArray(page.items) || page.items.length > 1000
+              || !page.input_version || (expectedVersion && page.input_version !== expectedVersion)
+              || (expectedTotal !== null && page.total !== expectedTotal)
+              || offset + page.items.length > page.total || (offset < page.total && !page.items.length))
+            throw new Error('Inventory changed or a page was incomplete.');
+          expectedTotal = page.total; expectedVersion = page.input_version;
+          for (const row of page.items) {
+            if (!row || !Object.prototype.hasOwnProperty.call(kinds, row.kind) || typeof row.id !== 'string' || !row.id
+                || typeof row.name !== 'string' || ids.has(row.id)) throw new Error('Inventory contains an invalid or duplicate record.');
+            ids.add(row.id); byKind[row.kind].push(row);
+          }
+          offset += page.items.length;
+          reportPreload(`Loading package inventory lists: ${offset} of ${expectedTotal} records.`);
+        } while (offset < expectedTotal);
+        if (context === captured && !controller.signal.aborted) {
+          preloadCache = {context: captured, version: expectedVersion, byKind};
+          reportPreload(`Package inventory lists ready: ${offset} records.`);
+        }
+      } catch (error) {
+        if (context === captured && !controller.signal.aborted)
+          reportPreload('Inventory lists could not be preloaded. Open a category to load its pages.');
+      }
+    })();
+    preloadFlight = flight;
+    flight.finally(() => { if (preloadFlight === flight) preloadFlight = null; });
   }
   function json(container, label, value) {
     const disclosure = node('details'), summary = node('summary', label), pre = node('pre', JSON.stringify(value, null, 2));
@@ -69,6 +119,19 @@
     title.textContent = `${kinds[kind]} · Loading`; status.textContent = 'Loading metadata in pages of at most 100. Details load only after selection.';
     prev.disabled = next.disabled = showAll.disabled = true;
     try {
+      if (preloadFlight) await preloadFlight;
+      if (!current(ticket, captured) || signal.aborted) return;
+      if (!term && preloadCache?.context === captured) {
+        const filtered = preloadCache.byKind[kind].filter(row => row.name.toLowerCase().includes(term.toLowerCase()));
+        version = preloadCache.version; total = filtered.length;
+        records = allMode ? filtered : filtered.slice(offset, offset + 100);
+        const cursor = offset + records.length;
+        title.textContent = `${kinds[kind]} ${total}`;
+        status.textContent = `${records.length} of ${total} metadata records loaded from the selected package${allMode ? '' : `, offset ${offset}`}.`;
+        renderRows(); prev.disabled = offset === 0; next.disabled = cursor >= total;
+        showAll.disabled = allMode && records.length === total;
+        return;
+      }
       let cursor = offset;
       do {
         const query = new URLSearchParams({kind, inventory: 'true', q: term, offset: String(cursor), limit: '100'});
@@ -174,14 +237,18 @@
     } catch (error) { if (valid()) { progress.textContent = error.message; const retry = button('Retry this section', () => loadDetail()); content.append(retry); } }
   }
   form.addEventListener('submit', event => { event.preventDefault(); allMode = true; loadList(0); });
-  window.orionInventory = Object.freeze({setContext, open(value, count, trigger) {
+  window.orionInventory = Object.freeze({setContext, preloadStatus: () => preloadMessage,
+    waitForPreload: () => preloadFlight || Promise.resolve(), open(value, count, trigger) {
     if (!kinds[value] || !context || !JSON.parse(context).ready) return;
     if (dialog.open) dialog.close();
     kind = value; opener = trigger; allMode = true; search.value = ''; title.textContent = `${kinds[kind]} ${count}`;
     dialog.showModal(); document.documentElement.classList.add('inventory-modal-open'); search.focus(); loadList(0);
   }});
   document.addEventListener('change', event => {
-    if (['project-select', 'project-package', 'estate-package-select'].includes(event.target.id) && dialog.open) dialog.close();
+    if (['project-select', 'project-package', 'estate-package-select'].includes(event.target.id)) {
+      clearPreload(); if (dialog.open) dialog.close();
+    }
   }, true);
-  document.getElementById('refresh')?.addEventListener('click', () => { if (dialog.open) dialog.close(); }, true);
+  document.addEventListener('orion:workspace-changed', () => { clearPreload(); if (dialog.open) dialog.close(); });
+  document.getElementById('refresh')?.addEventListener('click', () => { clearPreload(); if (dialog.open) dialog.close(); }, true);
 })();

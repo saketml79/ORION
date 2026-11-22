@@ -4,7 +4,18 @@
   const fetch = window.orionScopedReads?.fetch || window.fetch.bind(window);
   const el = id => document.getElementById(id), page = el('page-readiness');
   if (!page) return;
-  let ticket = 0, offset = 0, data = null, busy = false;
+  let ticket = 0, offset = 0, data = null, busy = false, loadingPreload = false;
+  let preloadRequested = false, owner = null, preloadFlight = null;
+  let preloadStatus = Object.freeze({status: 'idle', scope: null, epoch: null, message: '', observedAt: null});
+  const subscribers = new Set();
+  function report(status, message, observedAt = null) {
+    preloadStatus = Object.freeze({status, scope: owner ? Object.freeze({...owner.scope}) : null,
+      epoch: owner?.epoch ?? null, message, observedAt});
+    for (const listener of subscribers) {
+      try { listener(preloadStatus); } catch (error) { console.error('Readiness status listener failed', error); }
+    }
+    return preloadStatus;
+  }
   const scope = () => {
     const project = el('project-select')?.value || '';
     return JSON.stringify([project, project ? (el('estate-package-select')?.value ?? el('project-package')?.value ?? '') : '', el('readiness-scenario').value]);
@@ -38,8 +49,11 @@
     syncSourceLinks();
   }
   function invalidate(message = 'Selection changed. Refresh readiness for the current package version.') {
-    ++ticket; selected = scope(); data = null; busy = false; offset = 0;
+    // A later same-scope observation must not join an invalidated shared flight.
+    if (busy) window.orionScopedReads?.invalidate();
+    ++ticket; selected = scope(); data = null; busy = false; loadingPreload = false; preloadFlight = null; offset = 0;
     el('readiness-content').replaceChildren(); el('readiness-status').textContent = message; controls();
+    if (owner) report('invalidated', message);
   }
   function panel(title) { const n = node('article'); n.className = 'panel'; n.append(node('h2', title)); return n; }
   function chart(title, entries, basis, empty, icon) {
@@ -235,14 +249,16 @@
   }
   const lineageSelect = el('lineage-workflow');
   if (lineageSelect) new MutationObserver(syncSourceLinks).observe(lineageSelect, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'value'] });
-  async function load() {
-    if (page.hidden || busy) return;
+  async function load({preload = false} = {}) {
+    if ((!preload && page.hidden) || busy) return;
     const captured = scope(), serial = ++ticket, [project, packageHash, scenario] = JSON.parse(captured);
     if (project && !packageHash) { invalidate('Select a completed XML package first.'); return; }
-    busy = true; data = null; el('readiness-content').replaceChildren(); controls();
+    busy = true; loadingPreload = preload; data = null; el('readiness-content').replaceChildren(); controls();
     el('readiness-status').textContent = 'Reading authoritative selected-package evidence. No assessment jobs or models are running.';
-    const current = () => captured === scope() && ticket === serial && !page.hidden;
+    const current = () => captured === scope() && ticket === serial && (preload || !page.hidden);
+    if (owner && owner.key === captured) report('loading', el('readiness-status').textContent);
     try {
+      if (!current()) return;
       const headers = { Accept: 'application/json' };
       if (project) { headers['X-Workbench-Project'] = project; headers['X-Workbench-Package'] = packageHash; }
       const response = await fetch(`/api/readiness?offset=${offset}&limit=25&scenario=${scenario}`, { headers, credentials: 'same-origin', cache: 'no-store' });
@@ -252,20 +268,80 @@
       if (result.scope.project_id !== (project || '__legacy__') || project && result.scope.pins.package_hash !== packageHash || result.scope.scenario !== scenario)
         throw new Error('Readiness response does not match the selected project/package/scenario. No evidence displayed.');
       data = result; render(); el('readiness-status').textContent = `Saved evidence observed ${result.observed_at}. Runtime and output parity remain not assessed.`;
-    } catch (error) { if (current()) { data = null; el('readiness-content').replaceChildren(); el('readiness-status').textContent = error.message; } }
-    finally { if (serial === ticket) { busy = false; controls(); } }
+      if (owner && owner.key === captured) report('ready', el('readiness-status').textContent, result.observed_at ?? null);
+    } catch (error) { if (current()) {
+      data = null; el('readiness-content').replaceChildren(); el('readiness-status').textContent = error.message;
+      if (owner && owner.key === captured) report('failed', error.message);
+    } }
+    finally {
+      if (serial === ticket && captured !== scope()) invalidate();
+      else if (serial === ticket) { busy = false; loadingPreload = false; controls(); }
+    }
   }
+  // The parent supplies its selected scope and monotonically increasing epoch.
+  // A preload is an observation, not an execution or freshness guarantee.
+  function preload(request) {
+    const {projectId, packageHash, scenario, epoch} = request || {};
+    if (typeof projectId !== 'string' || typeof packageHash !== 'string'
+      || !['original', 'bronze'].includes(scenario) || !Number.isSafeInteger(epoch) || epoch < 0
+      || (projectId ? !packageHash : !!packageHash)) {
+      return Promise.reject(new TypeError('Readiness preload requires an explicit valid projectId, packageHash, scenario and nonnegative integer epoch.'));
+    }
+    const requestedScope = {projectId, packageHash, scenario};
+    const key = JSON.stringify([projectId, packageHash, scenario]);
+    if (key !== scope()) return Promise.reject(new Error('Readiness preload scope does not match the current selection.'));
+    if (owner && (epoch < owner.epoch || (epoch === owner.epoch && key !== owner.key)))
+      return Promise.reject(new Error('Readiness preload epoch is stale or already belongs to another scope.'));
+    preloadRequested = true;
+    if (owner && epoch === owner.epoch && key === owner.key) {
+      if (preloadFlight) return preloadFlight;
+      if (data && offset === 0 && selected === key && preloadStatus.status === 'ready') return Promise.resolve(preloadStatus);
+    }
+    if (busy || data || selected !== key || !owner || epoch !== owner.epoch) invalidate('Preparing readiness for the selected package.');
+    owner = {scope: requestedScope, key, epoch};
+    offset = 0;
+    const capturedOwner = owner, capturedTicket = ticket;
+    const superseded = () => Object.freeze({status: 'invalidated', scope: Object.freeze({...requestedScope}),
+      epoch, message: 'Readiness preload was superseded or invalidated.', observedAt: null});
+    const flight = Promise.resolve().then(async () => {
+      if (owner === capturedOwner && ticket === capturedTicket && scope() !== key) invalidate();
+      if (owner !== capturedOwner || ticket !== capturedTicket || scope() !== key) return superseded();
+      await load({preload: true});
+      return owner === capturedOwner && ticket === capturedTicket + 1 && scope() === key ? preloadStatus : superseded();
+    });
+    preloadFlight = flight;
+    flight.finally(() => { if (preloadFlight === flight) preloadFlight = null; });
+    return flight;
+  }
+  window.orionReadiness = Object.freeze({
+    preload,
+    getStatus: () => preloadStatus,
+    subscribe(listener) {
+      if (typeof listener !== 'function') throw new TypeError('Readiness status listener must be a function.');
+      subscribers.add(listener);
+      return () => subscribers.delete(listener);
+    }
+  });
   el('readiness-refresh').addEventListener('click', load);
   el('refresh')?.addEventListener('click', () => { if (!page.hidden) { invalidate('Refreshing saved evidence.'); load(); } });
   el('readiness-prev').addEventListener('click', () => { offset = Math.max(0, offset - 25); load(); });
   el('readiness-next').addEventListener('click', () => { offset += 25; load(); });
-  document.addEventListener('orion:navigate', event => { if (event.detail?.page === 'readiness') load(); });
+  document.addEventListener('orion:navigate', event => { if (event.detail?.page === 'readiness' && !preloadRequested) load(); });
   document.addEventListener('change', event => {
     if (['project-select', 'project-package', 'estate-package-select', 'readiness-scenario'].includes(event.target.id)) {
       invalidate(); if (event.target.id === 'readiness-scenario') load();
     }
   });
-  new MutationObserver(() => { if (selected !== scope() || page.hidden) invalidate(); }).observe(page, { attributes: true, attributeFilter: ['hidden'] });
+  new MutationObserver(() => {
+    if (selected !== scope() || (page.hidden && (!preloadRequested || (busy && !loadingPreload)))) invalidate();
+  }).observe(page, { attributes: true, attributeFilter: ['hidden'] });
+  for (const name of ['orion:agent-run', 'orion:loop-run']) document.addEventListener(name, event => {
+    if (event.detail && !['queued', 'running'].includes(event.detail.status)) invalidate('Saved evidence may have changed. Refresh readiness to review it.');
+  });
+  document.addEventListener('orion:workspace-changed', () => {
+    invalidate('Saved package information changed. Refresh readiness to review it.');
+    if (!page.hidden) load();
+  });
   const ready = el('package-ready');
   if (ready) new MutationObserver(() => {
     if (ready.dataset.understanding !== 'loaded' || selected !== scope()) invalidate('Package understanding changed. Refresh exact readiness evidence once loading finishes.');

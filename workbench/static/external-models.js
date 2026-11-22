@@ -104,7 +104,7 @@
     const active = state.status;
     const text = !state.scopeReady ? 'Select an explicit project and ready package to configure an external API.' :
       !state.known ? 'Selected provider mode is not confirmed. Refresh provider status before invoking.' :
-      active?.mode === 'external' ? `Selected: ${providerName(active.provider)} / ${active.model || 'model unavailable'}. ${availability({...state, busy: false}) === true ? 'Configured in session memory only. Authentication, tool compatibility and inference are unverified.' : 'External session expired or inactive for the chosen mode. Reconnect or explicitly select Databricks.'}` :
+      active?.mode === 'external' ? `Selected: ${providerName(active.provider)} / ${active.model || 'model unavailable'}. ${availability({...state, busy: false}) === true ? 'Saved for this session. The connection and model tool support have not been tested.' : 'External session expired or inactive for the chosen mode. Reconnect or explicitly select Databricks.'}` :
       modeStatus[state.desired];
     const message = `${text}${notice ? ' ' + notice : ''}${!editable && !state.busy && state.scopeReady ? ' Provider changes require confirmed idle run status and no pending workspace save.' : ''}`;
     if (statusMessage.textContent !== message) statusMessage.textContent = message;
@@ -112,7 +112,7 @@
       availabilityOwned = true;
       const target = $('agent-availability'); if (target.textContent !== text) target.textContent = text;
     } else if (availabilityOwned) {
-      $('agent-availability').textContent = 'Selected: Databricks. Confirm readiness with the workspace endpoint controls. No inference has been verified.';
+      $('agent-availability').textContent = 'Selected: Databricks. Choose a workspace model and apply your selection.';
       availabilityOwned = false;
     }
   }
@@ -154,7 +154,7 @@
     const ticket = scopeKey(), generation = ++revision;
     const previousMode = state.status?.mode;
     let restoredDatabricks = false;
-    state.busy = true; notice = action === 'status' ? 'Reading configuration only.' : 'Updating session configuration only. No inference.'; publish();
+    state.busy = true; notice = action === 'status' ? 'Reading model settings.' : 'Updating model settings for this session. This does not start a conversion.'; publish();
     try {
       const data = await request(action, action === 'status' ? 'GET' : 'POST', body);
       if (ticket !== scopeKey() || generation !== revision) return;

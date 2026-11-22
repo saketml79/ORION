@@ -68,7 +68,13 @@
       }
       const mutation = url.origin === location.origin && !['GET', 'HEAD', 'OPTIONS'].includes(method) && !observation;
       if (mutation) invalidate();
-      try { return await nativeFetch(path, options); }
+      try {
+        const response = await nativeFetch(path, options);
+        if (mutation && response.ok) document.dispatchEvent(new CustomEvent('orion:workspace-changed', {
+          detail: {path: url.pathname, method}
+        }));
+        return response;
+      }
       finally { if (mutation) invalidate(); }
     }
     const captured = {...options, headers: new Headers(options.headers)};

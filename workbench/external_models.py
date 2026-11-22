@@ -318,6 +318,12 @@ class Runtime:
     def run(self, *args, **kwargs):
         return self._resolve().run(*args, **kwargs)
 
+    def close(self):
+        runtime, self._runtime = self._runtime, None
+        close = getattr(runtime, "close", None)
+        if callable(close):
+            close()
+
     def __getattr__(self, name):
         return getattr(self._resolve(), name)
 

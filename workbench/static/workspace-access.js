@@ -74,6 +74,7 @@
           /^https:\/\/[A-Za-z0-9.-]+(?::443)?\/?$/.test(data.workspace)) origin = url.origin;
     } catch { /* Unknown is safer than exposing an invalid target. */ }
     workspaceURL = origin; workspaceMode = data.mode ?? workspaceMode;
+    $('workspace-model-panel').dataset.workspaceMode = workspaceMode;
     const mode = workspaceMode === 'obo' ? 'Hosted signed-in user (OBO)' :
       workspaceMode === 'local_user_profile' ? 'Local labs profile' : 'Authentication mode not confirmed';
     workspaceLine.textContent = `Workspace ${origin || 'URL unavailable'} · ${mode}`;
@@ -132,7 +133,7 @@
     selectionSummary.append(node('p', recorded ? `Operation ${recorded.id}: completion is not confirmed here. Reconnect to its receipt. The previously saved route does not confirm this save.` :
       pending ? 'Pending changes: confirm tool compatibility and Apply endpoint selection. The active runtime has not changed.' :
       runLocked() ? 'Model selection is locked until the active run finishes. Reloading does not change its route.' :
-      activeEndpoint ? 'Active configuration shown. No live tool-call verification is implied.' : 'Connect to retrieve the active configuration.',
+      activeEndpoint ? 'Saved configuration shown. Model tool support has not been tested here.' : 'Connect to retrieve the saved configuration.',
       pending ? 'endpoint-pending' : 'small muted'));
   }
   function modelContext() {
@@ -195,7 +196,7 @@
     const revision = modelGeneration;
     try {
       const scope = modelContext();
-      modelStatus.textContent = 'Authenticating and listing workspace model endpoints. Metadata only; no package evidence or model inference.';
+      modelStatus.textContent = 'Connecting and listing workspace models. Your package is not sent to a model during this step.';
       const data = await request('/api/models/connect', 'POST', {}, scope);
       if (ticket !== key() || revision !== modelGeneration) return;
       if (data.connected !== true || !Array.isArray(data.endpoints)) throw new Error('Workspace endpoint discovery was not confirmed. Reconnect to retry.');
@@ -210,7 +211,7 @@
       endpoint.value = ''; endpoint.disabled = !first; modelScope = ticket;
       renderSelection();
       modelStatus.textContent = first
-        ? 'Connected: authenticated endpoint metadata is ready. Choose a READY chat endpoint, confirm tool compatibility, then Apply. No selection or inference runs automatically.'
+        ? 'Connected. Choose a READY chat model, confirm it supports the tools agents use, then apply your selection. This does not start a conversion.'
         : 'Connected, but no endpoint explicitly reports both READY and chat. No selection applied.';
       const measurements = data.timings;
       if (measurements && ['authentication_seconds', 'endpoint_list_seconds'].every(name =>
@@ -243,7 +244,7 @@
     saveSteps.hidden = workspaceMode !== 'obo';
     for (const step of saveSteps.children) { step.dataset.state = 'waiting'; step.removeAttribute('aria-current'); }
     try {
-      modelStatus.textContent = 'Saving the selected endpoint in this user and package context. No inference will run.';
+      modelStatus.textContent = 'Saving the selected model for this project and package. This does not start a conversion.';
       const body = {
         endpoint: endpoint.value, tool_support_confirmed: confirmation.checked === true,
       };
@@ -271,8 +272,8 @@
       routeVersion = data.route_version ?? routeVersion;
       savedStatus.textContent = `Saved route: ${activeEndpoint || 'not confirmed'}.`; renderSelection();
       modelStatus.textContent = savedReady
-        ? `Saved endpoint: ${data.selected_endpoint}. Agent runtime is configured; inference has not been run or verified.`
-        : `Saved endpoint: ${data.selected_endpoint}. The service has not confirmed agent runtime readiness; inference has not been run.`;
+        ? `Saved model: ${data.selected_endpoint}. The agents are configured; the model has not been tested by this step.`
+        : `Saved model: ${data.selected_endpoint}. The service has not confirmed that the agents are ready.`;
       if (typeof window.orionModelRouteConfigured === 'function') window.orionModelRouteConfigured(data);
     } catch (error) { if (ticket === key() && revision === modelGeneration) modelStatus.textContent = error.message; }
     finally {
@@ -289,7 +290,7 @@
       if (ticket !== key() || revision !== settingsGeneration) return;
       activeEndpoint = data.active_endpoint ?? ''; savedReady = data.inference_ready === true;
       routeVersion = data.route_version ?? null;
-      savedStatus.textContent = `Saved route: ${activeEndpoint || 'none confirmed'}. No live inference verified.`;
+      savedStatus.textContent = `Saved model: ${activeEndpoint || 'none confirmed'}. This check does not test the model.`;
       syncApply(); renderSelection();
     } catch (error) {
       if (ticket === key() && revision === settingsGeneration) {

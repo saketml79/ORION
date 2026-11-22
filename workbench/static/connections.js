@@ -11,7 +11,7 @@
     return { project, package: project ? ($('estate-package-select')?.value ?? $('project-package')?.value ?? '') : '' };
   };
   const key = () => JSON.stringify(scope());
-  let context = key(), offset = 0, total = 0, serial = 0, controller = null, loading = false;
+  let context = key(), offset = 0, total = 0, serial = 0, controller = null, loading = false, loaded = false, preloading = false;
   const element = (tag, text) => { const el = document.createElement(tag); el.textContent = text; return el; };
   function controls() {
     previous.disabled = loading || offset === 0;
@@ -19,7 +19,7 @@
   }
   function clear(message) {
     ++serial; controller?.abort(); controller = null; context = key();
-    offset = 0; total = 0; loading = false; list.replaceChildren(); status.textContent = message; controls();
+    offset = 0; total = 0; loading = false; loaded = false; preloading = false; list.replaceChildren(); status.textContent = message; controls();
   }
   function row(parent, label, value) {
     const line = element('p', ''); line.append(element('strong', `${label}: `), document.createTextNode(value)); parent.append(line);
@@ -42,17 +42,17 @@
     if (record.metadata_truncated || record.component_metadata_truncated) details.append(element('p', 'Metadata display limited to 100 fields per object.'));
     row(details, 'XML locator', record.evidence?.locator || 'Unknown'); article.append(details); list.append(article);
   }
-  async function load() {
-    if (page.hidden) return;
+  async function load({preload = false} = {}) {
+    if (page.hidden && !preload) return false;
     if (context !== key()) clear('Context changed. Refresh to read this package.');
     const selected = scope(), captured = key(), ticket = ++serial;
     controller?.abort(); controller = new AbortController();
     const activeController = controller;
     if (selected.project && !selected.package) { clear('Select a ready project package first.'); return; }
-    const current = () => ticket === serial && captured === key() && !page.hidden;
+    const current = () => ticket === serial && captured === key() && (preload || !page.hidden);
     const headers = { Accept: 'application/json' };
     if (selected.project) { headers['X-Workbench-Project'] = selected.project; headers['X-Workbench-Package'] = selected.package; }
-    loading = true; total = 0; list.replaceChildren(); controls(); status.textContent = 'Reading captured XML connection configuration...';
+    loading = true; preloading = preload; loaded = false; total = 0; list.replaceChildren(); controls(); status.textContent = 'Reading captured XML connection configuration...';
     try {
       const response = await fetch(`/api/connections?offset=${offset}&limit=100`, { method: 'GET', headers,
         credentials: 'same-origin', cache: 'no-store', signal: activeController.signal });
@@ -60,14 +60,19 @@
       if (!response.ok) throw new Error(`Connection inventory unavailable (HTTP ${response.status}). Refresh to retry.`);
       const data = await response.json();
       if (!current()) return;
-      const records = (Array.isArray(data.items) ? data.items : []).slice(0, 100);
-      total = Number.isInteger(data.total) ? data.total : records.length;
+      if (!Array.isArray(data.items) || !Number.isSafeInteger(data.total) || data.total < 0)
+        throw new Error('Connection inventory response is invalid. Refresh to retry.');
+      const records = data.items.slice(0, 100);
+      total = data.total;
       records.forEach(render);
+      loaded = true;
       status.textContent = records.length ? `${offset + 1}-${offset + records.length} of ${total} captured connection records. No live verification.` : 'No connection references, components, or declarations captured in this package. No live discovery performed.';
+      return true;
     } catch (error) {
       if (current()) status.textContent = error.name === 'AbortError' ? 'Inventory read interrupted or timed out. Refresh to retry.' : error.message;
-    } finally { if (current()) { loading = false; controls(); } }
+    } finally { if (current()) { loading = false; preloading = false; controls(); } }
   }
+  window.orionConnections = Object.freeze({preload: () => load({preload: true})});
   $('connections-refresh').addEventListener('click', () => { clear('Refreshing captured configuration.'); load(); });
   previous.addEventListener('click', () => { offset = Math.max(0, offset - 100); load(); });
   next.addEventListener('click', () => { offset += 100; load(); });
@@ -76,7 +81,7 @@
   });
   $('refresh')?.addEventListener('click', () => { clear('Refreshing captured configuration.'); load(); });
   new MutationObserver(() => {
-    clear('Page changed. Reopen to read captured configuration.'); if (!page.hidden) load();
+    if (context !== key() || (page.hidden && loading && !preloading)) clear('Page changed. Refresh to read captured configuration.');
   }).observe(page, { attributes: true, attributeFilter: ['hidden'] });
-  // No startup fetch. Only navigation, explicit refresh, and pagination read XML evidence.
+  // Initial scoped preload is coordinated by the parent; refresh and pagination are explicit.
 })();

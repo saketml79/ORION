@@ -400,18 +400,23 @@ def test_close_active_notification_does_not_cancel_poll_or_reopen_on_completion(
     state["hold"] = "/api/hosted/operations/"
     page.evaluate("""method => {
       window.notificationDone = false;
+            window.operationStates = [];
+            document.addEventListener('orion:hosted-operation-state', event => window.operationStates.push(event.detail.busy));
       orionHostedIntake[method](method === 'read' ? '/api/overview' : '/api/generic-action')
         .then(result => { window.notificationResult = result; window.notificationDone = true; });
     }""", method)
     panel = page.locator("#orion-hosted-intake-activity")
     expect(panel).to_have_attribute("aria-busy", "true")
+    expect(panel).to_contain_text('DEBUG ONLY · TO BE REMOVED IN PROD')
+    expect(panel.locator('.hosted-activity-content')).to_be_hidden()
+    assert page.evaluate('orionHostedIntake.hasActiveOperation()') is True
+    assert page.evaluate('window.operationStates') == [True]
     page.wait_for_function("window.pollDelays.length === 1")
     page.wait_for_timeout(30)
     assert len(state["held"]) == 1
     stored = page.evaluate("key => sessionStorage.getItem(key)", STORE)
     count = len(state["requests"])
-    panel.get_by_role("button", name="Minimize operation progress", exact=True).click()
-    expect(panel).to_be_visible()
+    expect(panel.get_by_role("button", name="Expand operation progress", exact=True)).to_be_visible()
     expect(panel.locator('.hosted-activity-content')).to_be_hidden()
     assert len(state["requests"]) == count
     route = state["held"].pop()
@@ -428,6 +433,8 @@ def test_close_active_notification_does_not_cancel_poll_or_reopen_on_completion(
     expect(panel).to_be_visible()
     expect(panel.locator('.hosted-activity-content')).to_be_hidden()
     expect(panel).to_have_attribute("aria-busy", "false")
+    assert page.evaluate('orionHostedIntake.hasActiveOperation()') is False
+    assert page.evaluate('window.operationStates') == [True, False]
     assert page.evaluate("window.notificationResult") == {"status": "completed"}
     assert page.evaluate("key => sessionStorage.getItem(key)", STORE) == stored
     assert len(posts(state)) == 1
@@ -435,6 +442,47 @@ def test_close_active_notification_does_not_cancel_poll_or_reopen_on_completion(
     page.evaluate("orionHostedIntake.submit('/api/generic-action')")
     expect(panel).to_be_visible()
     assert len(posts(state)) == 2
+
+
+def test_parent_can_keep_invoke_locked_until_operation_completes(ui):
+    page, state = ui
+    state['hold'] = '/api/hosted/operations/'
+    page.evaluate('''() => {
+      window.operationStates = [];
+      document.addEventListener('orion:hosted-operation-state', event => window.operationStates.push(event.detail.busy));
+      window.pendingMutation = orionHostedIntake.submit('/api/generic-action').catch(() => {});
+    }''')
+    expect(page.locator('#orion-hosted-intake-activity')).to_have_attribute('aria-busy', 'true')
+    assert page.evaluate('orionHostedIntake.hasActiveOperation()') is True
+    assert page.evaluate('window.operationStates') == [True]
+    page.wait_for_function('window.pollDelays.length === 1')
+    page.wait_for_timeout(30)
+    route = state['held'].pop()
+    identifier = route.request.url.rsplit('/', 1)[-1]
+    route.fulfill(json={'operation_id': identifier, 'status': 'completed', 'result': {'status': 'completed'}})
+    page.wait_for_function("orionHostedIntake.hasActiveOperation() === false")
+    assert page.evaluate('window.operationStates') == [True, False]
+
+
+def test_debug_panel_minimized_by_default_and_preference_survives_reload(ui):
+    page, state = ui
+    page.evaluate("orionHostedIntake.submit('/api/generic-action')")
+    panel = page.locator('#orion-hosted-intake-activity')
+    content = panel.locator('.hosted-activity-content')
+    expect(content).to_be_hidden()
+    panel.get_by_role('button', name='Expand operation progress').click()
+    expect(content).to_be_visible()
+    count = len(state['requests'])
+    page.reload()
+    page.add_script_tag(content=SCRIPT)
+    expect(content).to_be_visible()
+    assert len(state['requests']) == count
+    panel.get_by_role('button', name='Minimize operation progress').click()
+    page.reload()
+    page.add_script_tag(content=SCRIPT)
+    expect(content).to_be_hidden()
+    expect(panel.get_by_role('button', name='Expand operation progress')).to_be_visible()
+    assert len(state['requests']) == count
 
 
 def test_analysis_running_has_no_percent_and_polls_never_overlap(ui):
@@ -452,7 +500,7 @@ def test_analysis_running_has_no_percent_and_polls_never_overlap(ui):
         assert page.evaluate("window.done") is False
 
 
-def test_chunk_timeout_is_110_seconds_and_recovers_without_resending(ui):
+def test_chunk_transport_has_no_deadline_and_recovers_from_timeout_without_resending(ui):
         page, state = ui
         page.evaluate("""() => {
             window.XMLHttpRequest = class {
@@ -468,8 +516,8 @@ def test_chunk_timeout_is_110_seconds_and_recovers_without_resending(ui):
         }""")
         start(page, [["source.xml", 3]])
         finished(page)
-        assert page.evaluate("window.chunkTimeout") == 110000
-        expect(page.locator(".hosted-intake-status")).to_contain_text("timed out after 110 seconds")
+        assert page.evaluate("window.chunkTimeout") == 0
+        expect(page.locator(".hosted-intake-status")).to_contain_text("transport timed out")
         expect(page.get_by_label("Transfer: durable server-acknowledged bytes", exact=True)).to_have_attribute("value", "0")
         assert not posts(state, "/api/hosted/operations")
         assert len([r for r in state["requests"] if r["method"] == "GET" and "/uploads/" in r["path"]]) == 1
@@ -583,9 +631,10 @@ def test_generic_submit_has_standalone_activity_project_header_and_committed_que
     assert stored[0]["project_id"] == PROJECT
     identifier = stored[0]["stage_operation_id"]
     expect(panel.locator('#hosted-activity-message')).not_to_contain_text(identifier)
-    expect(panel.locator('details p')).to_contain_text(identifier)
-    expect(panel.locator('details p')).to_be_hidden()
+    expect(panel.locator('details p').nth(1)).to_contain_text(identifier)
+    expect(panel.locator('details p').nth(1)).to_be_hidden()
     assert "never-record" not in page.evaluate("key => sessionStorage.getItem(key)", STORE)
+    panel.get_by_role("button", name="Expand operation progress").click()
     expect(panel.get_by_role("button", name="Reconnect to last recorded operation")).to_be_disabled()
     page.wait_for_function("window.pollDelays.length === 1")
     page.wait_for_timeout(30)
@@ -612,11 +661,12 @@ def test_generic_lost_response_and_reload_reconnect_last_record_without_resubmit
     page.reload()
     page.add_script_tag(content=SCRIPT)
     expect(panel.locator('#hosted-activity-message')).not_to_contain_text(identifier)
-    expect(panel.locator('details p')).to_contain_text(identifier)
+    expect(panel.locator('details p').nth(1)).to_contain_text(identifier)
     expect(panel).to_contain_text("Recorded operation available")
     # Loading the script renders reconnect metadata only, not a GET or POST.
     assert len(state["requests"]) == count
     state["hold"] = "/api/hosted/operations/"
+    panel.get_by_role("button", name="Expand operation progress").click()
     page.get_by_role("button", name="Reconnect to last recorded operation").click()
     expect(panel).to_contain_text("Connecting. Operation: reconnecting to recorded state.")
     expect(panel).not_to_contain_text("Running.")
@@ -661,6 +711,7 @@ def test_generic_terminal_failure_reconnect_is_observational(ui, status):
         panel = page.locator("#orion-hosted-intake-activity")
         expect(panel).to_contain_text(status)
         expect(panel).to_have_attribute("aria-busy", "false")
+        panel.get_by_role("button", name="Expand operation progress").click()
         page.get_by_role("button", name="Reconnect to last recorded operation").click()
         expect(panel).to_contain_text("No operation was replayed")
         assert len(posts(state)) == 1
@@ -680,6 +731,9 @@ def test_inline_activity_keyboard_collapse_and_terminal_cleanup(ui, status):
     expect(page.locator(".topbar")).not_to_have_attribute("inert", "")
     assert page.locator(".app-shell").evaluate("node => getComputedStyle(node).filter") == "none"
     expect(page.get_by_role("button", name="Navigate", exact=True)).to_be_focused()
+    expect(page.get_by_role("button", name="Expand operation progress")).to_be_visible()
+    page.get_by_role("button", name="Expand operation progress").press("Enter")
+    expect(panel.locator('.hosted-activity-content')).to_be_visible()
     page.get_by_role("button", name="Minimize operation progress").press("Enter")
     expect(panel).to_be_visible()
     expect(panel.locator('.hosted-activity-content')).to_be_hidden()
@@ -714,7 +768,7 @@ def test_overlapping_mutation_is_rejected_without_overwriting_activity_or_prior_
     assert 'already active' in page.evaluate('window.overlapFailure')
     route = state["held"].pop()
     identifier = route.request.url.rsplit("/", 1)[-1]
-    expect(page.locator('#orion-hosted-intake-activity details p')).to_contain_text(identifier)
+    expect(page.locator('#orion-hosted-intake-activity details p').nth(1)).to_contain_text(identifier)
     route.fulfill(json={"operation_id": identifier, "status": "completed", "result": {}})
     expect(page.locator(".app-shell")).not_to_have_attribute("inert", "")
     expect(page.locator(".topbar")).to_have_attribute("inert", "")
@@ -735,7 +789,7 @@ def test_inline_progress_geometry_details_and_untrapped_navigation(ui, width):
             const box = element.getBoundingClientRect();
             return {left: box.left, right: box.right, width: box.width,
                 overflow: element.scrollWidth > element.clientWidth,
-                buttonsInside: Array.from(element.querySelectorAll('button')).every(button => {
+                buttonsInside: Array.from(element.querySelectorAll('button')).filter(button => button.getClientRects().length).every(button => {
                     const b = button.getBoundingClientRect(); return b.left >= box.left && b.right <= box.right;
                 })};
         }''')
@@ -743,6 +797,12 @@ def test_inline_progress_geometry_details_and_untrapped_navigation(ui, width):
         assert not geometry['overflow'] and geometry['buttonsInside']
         if width == 1440:
                 assert geometry['width'] >= 600
+        expect(panel.locator('.hosted-activity-content')).to_be_hidden()
+        expect(panel.get_by_role('button', name='Expand operation progress')).to_be_visible()
+        panel.get_by_role('button', name='Expand operation progress').click()
+        expect(panel.locator('.hosted-activity-content')).to_be_visible()
+        expect(panel.locator('details summary')).to_have_text('Debug details')
+        expect(panel.locator('details p').first).to_contain_text('Debug only')
         expect(panel.locator('details')).not_to_have_attribute('open', '')
         close = panel.get_by_role('button', name='Minimize operation progress')
         expect(close).to_have_text('−')
@@ -754,7 +814,9 @@ def test_inline_progress_geometry_details_and_untrapped_navigation(ui, width):
         summary = details.locator('summary')
         summary.click()
         expect(details).to_have_attribute('open', '')
-        expect(details.locator('p')).to_be_visible()
+        assert details.locator('p').count() == 5
+        for paragraph in details.locator('p').all():
+            expect(paragraph).to_be_visible()
         summary.click()
         expect(details).not_to_have_attribute('open', '')
         page.get_by_role('button', name='Navigate', exact=True).focus()
@@ -791,8 +853,12 @@ def test_inline_icons_real_css_long_messages_and_terminal(ui, theme, viewport, t
             .catch(() => {}).finally(() => { window.windowDone = true; });
     }''')
     panel = page.locator('#orion-hosted-intake-activity')
-    control = panel.get_by_role('button', name='Minimize operation progress', exact=True)
+    expect(panel.locator('.hosted-activity-content')).to_be_hidden()
+    expect(panel.get_by_role('button', name='Expand operation progress')).to_be_visible()
     expect(page.get_by_role('button', name='Navigate', exact=True)).to_be_focused()
+    panel.get_by_role('button', name='Expand operation progress').click()
+    control = panel.get_by_role('button', name='Minimize operation progress', exact=True)
+    expect(control).to_be_focused()
     expect(control).to_have_text('−')
     expect(control.locator('span')).to_have_attribute('aria-hidden', 'true')
     expect(panel.get_by_role('button', name=re.compile('Collapse|Expand'))).to_have_count(0)
@@ -914,15 +980,15 @@ def test_activity_labels_follow_submission_queue_and_reported_phase_counts(ui, m
 
     phases = [
         ({'stage': 'artifact_files', 'completed': 0, 'total': 16, 'unit': 'files'},
-         'Verifying committed package files · 0 of 16 files (current phase only)', '0'),
+         'Preparing saved workspace files · 0 of 16 files (current phase only)', '0'),
         ({'stage': 'artifact_files', 'completed': 7, 'total': 16, 'unit': 'files'},
-         'Verifying committed package files · 7 of 16 files (current phase only)', '7'),
+         'Preparing saved workspace files · 7 of 16 files (current phase only)', '7'),
         ({'stage': 'metadata_restore'},
-         'Restoring committed package metadata (current phase only; count not reported)', None),
+         'Preparing saved workspace state (current phase only; count not reported)', None),
         ({'stage': 'artifact_files', 'completed': -1, 'total': 16, 'unit': 'files'},
-         'Verifying committed package files (current phase only; count not reported)', None),
+         'Preparing saved workspace files (current phase only; count not reported)', None),
         ({'stage': 'artifact_files', 'completed': 17, 'total': 16, 'unit': 'files'},
-         'Verifying committed package files (current phase only; count not reported)', None),
+         'Preparing saved workspace files (current phase only; count not reported)', None),
     ]
     for index, (progress, caption, value) in enumerate(phases):
         page.wait_for_function('count => window.pollDelays.length === count', arg=index + 1)
@@ -985,9 +1051,8 @@ def test_read_updates_never_own_or_expand_active_inline_mutation(ui, read_status
     page.wait_for_function('window.pollDelays.length === 3')
     page.wait_for_timeout(30)
     panel = page.locator('#orion-hosted-intake-activity')
-    owner = page.evaluate("document.querySelector('#orion-hosted-intake-activity details p').textContent")
+    owner = page.evaluate("document.querySelectorAll('#orion-hosted-intake-activity details p')[1].textContent")
     message = page.locator('#hosted-activity-message').inner_text()
-    page.get_by_role('button', name='Minimize operation progress').click()
     reads = [route for route in state['held'] if state['operations'][route.request.url.rsplit('/', 1)[-1]]['method'] == 'GET']
     assert len(reads) == 2
     for route in reads:
@@ -1003,8 +1068,8 @@ def test_read_updates_never_own_or_expand_active_inline_mutation(ui, read_status
     expect(panel.locator('.hosted-activity-content')).to_be_hidden()
     expect(page.locator('.app-shell')).not_to_have_attribute('inert', '')
     expect(page.locator('#hosted-activity-message')).to_have_text(message)
-    expect(panel.locator('details p')).to_have_text(owner)
-    expect(page.get_by_role('button', name='Expand operation progress')).to_be_focused()
+    expect(panel.locator('details p').nth(1)).to_have_text(owner)
+    expect(page.get_by_role('button', name='Expand operation progress')).to_be_visible()
     assert len(posts(state)) == 3
 
 
@@ -1018,6 +1083,8 @@ def test_close_details_keeps_compact_real_progress_polling_and_explicit_restore(
     compact = page.locator('#orion-hosted-intake-summary')
     close = panel.get_by_role('button', name='Close operation notification', exact=True)
     expect(close).to_have_text('×')
+    expect(panel.get_by_role('button', name='Expand operation progress')).to_have_text('+')
+    panel.get_by_role('button', name='Expand operation progress').click()
     expect(panel.get_by_role('button', name='Minimize operation progress')).to_have_text('−')
     page.wait_for_function('window.pollDelays.length === 1')
     page.wait_for_timeout(30)
@@ -1043,7 +1110,7 @@ def test_close_details_keeps_compact_real_progress_polling_and_explicit_restore(
     route.fulfill(json={'operation_id': identifier, 'status': 'running',
                         'progress': {'stage': 'artifact_files', 'completed': 7, 'total': 16, 'unit': 'files'}})
     expect(compact).to_contain_text('7 of 16 files')
-    expect(compact).to_contain_text('Verifying committed package files')
+    expect(compact).to_contain_text('Preparing saved workspace files')
     expect(panel).to_be_hidden()
     expect(restore).to_be_focused()
     page.wait_for_function('window.pollDelays.length === 2')

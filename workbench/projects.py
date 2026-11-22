@@ -177,6 +177,25 @@ class ProjectManager:
                 entry["app"].state.service.active = None
             self.contexts.clear()
 
+    def drain(self):
+        """Wait for project and child-package jobs without closing their executors."""
+        self.slot.acquire()
+        self.slot.release()
+        with self.lock:
+            entries = tuple(self.contexts.values())
+        for entry in entries:
+            entry["app"].state.service.drain()
+
+    def idle(self):
+        if not self.slot.acquire(blocking=False):
+            return False
+        self.slot.release()
+        with self.lock:
+            entries = tuple(self.contexts.values())
+            if any(entry["leases"] for entry in entries):
+                return False
+        return all(entry["app"].state.service.idle() for entry in entries)
+
     def context_root(self, project_id, package_hash):
         # Both values are registry-validated before reaching this function.
         return self.root / project_id / "package-contexts" / package_hash

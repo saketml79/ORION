@@ -265,11 +265,19 @@ def test_projection_exact_response_parity_no_full_restore_or_unrelated_artifacts
     import workbench.hosted_object_reads as reads
     cached = next(iter(reads._REVIEW_INDEX_CACHE.values()))
     artifacts = cached.hosted_session_artifacts
-    assert {"source.xml", "english.md", "understanding.json.gz"} <= set(artifacts)
+    assert {"manifest.json", "state/active.json", "source.xml", "english.md", "understanding.json.gz"} <= set(artifacts)
     assert cached.hosted_session_artifact_bytes == sum(map(len, artifacts.values()))
-    identities = {name: digest for name, _, digest, _ in cached.hosted_session_identity}
-    assert all(sha256(artifacts[name]).hexdigest() == identities[name]
-               for name in artifacts if name in identities)
+    prefix = f"projects/{project}/package-contexts/{package}/packages/{package}/"
+    active = f"projects/{project}/package-contexts/{package}/state/active.json"
+    identities = {("state/active.json" if name == active else name[len(prefix):]): digest
+                  for name, _, digest, _ in cached.hosted_session_identity}
+    assert set(artifacts) == set(identities)
+    # These two files are reconstructed from verified Delta JSON rows and may
+    # have different whitespace from their originally published bytes.
+    assert json.loads(artifacts["manifest.json"]) == json.loads((index.directory / "manifest.json").read_bytes())
+    assert json.loads(artifacts["state/active.json"])["sha256"] == package
+    assert all(sha256(raw).hexdigest() == identities[name] for name, raw in artifacts.items()
+               if name not in {"manifest.json", "state/active.json"})
     assert backend.objects[xml_downloads[0]] == artifacts["source.xml"]
 
 

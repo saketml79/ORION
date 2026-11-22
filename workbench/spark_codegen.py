@@ -2407,8 +2407,9 @@ class SparkCodegen:
 
         self_outer = self
         backend = _readonly_backend(SKILLS)
+        # Rollback: the writer previously injected library/implementation/SKILL.md.
         prompt = ((SKILLS / 'CONTEXT.md').read_text(encoding='utf-8') + '\n'
-                  + (SKILLS / 'library' / 'implementation' / 'SKILL.md').read_text(encoding='utf-8')
+                  + (SKILLS / 'library' / 'spark-code-writer' / 'SKILL.md').read_text(encoding='utf-8')
                   + '\n' + (SKILLS.parent / 'production-conversion-contract.md').read_text(encoding='utf-8')
                   + '\nPer-row schemas for incremental task/obligation staging, and per-page translation groups:\n'
                   + _json({'task': TaskDraft.model_json_schema(), 'obligation': Obligation.model_json_schema(),

@@ -1,5 +1,27 @@
 # Cohort scope UI verification, 2026-11-17
 
+## Workflow classification, 2026-11-22
+
+The workflow picker now shows `Composite candidate` when the selected package's
+literal workflow-call summary contains an outgoing call or a possible incoming
+call, and `Standalone candidate` when no such calls are captured. Unavailable
+or invalid summaries are shown as `Not assessed`, not as standalone. These
+labels describe captured workflow-call evidence only: shared-data, scheduler,
+dynamic, external and runtime dependencies are not independently assessed, and
+an incoming call is not a proven execution dependency. Existing call labels
+remain visible beside the classification.
+
+Actual shared localhost app verification with the already saved Lumen XML:
+243 workflow options had classification and call labels, including 86 composite
+candidates and 157 standalone candidates. The WIL dummy wrapper appeared as a
+composite candidate and `wkf_Load_tblcircuits_temp` as a standalone candidate.
+The picker itself had no horizontal overflow at the observed viewport. No agent
+or model was invoked. JavaScript syntax checks passed; no `test_*.py` files were
+edited or run. The hosted app was redeployed with this change as deployment
+`01f1e614055a1cbd994f87869edd664d`, from 2026-11-22T01:28:28Z to 01:31:46Z.
+Post-deployment health returned HTTP 200 and the three classification assets
+matched the staged files. The hosted workflow picker was not browser-tested.
+
 ## Requested correction
 
 The two visible Design scope dropdowns were synchronized copies, not two decisions.

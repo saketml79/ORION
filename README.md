@@ -39,7 +39,7 @@ The workbench requirements are separate from the root compiler requirements. The
 - General conversion of arbitrary workflows, Java and stored-procedure behavior, external side effects, and full production promotion remain incomplete. Some deterministic compiler paths cover only explicitly reviewed scopes; other candidates require independent review.
 - Source and target bindings, permissions, dependencies, control flow, disabled tasks, operational behavior, and test data must be checked for each migration. A logical design review is not permission to execute or deploy.
 - Validation and quality indicators reflect available evidence. Unmeasured results, failed checks, and unresolved blockers must not be interpreted as passing. Historical demonstrations and test results are not current release certification.
-- The repository also contains a legacy compiler path. Its draft artifacts are separate from the workbench review flow and must not be treated as approved or production-ready migrations.
+- The repository also retains a [legacy compiler](archived/legacy-compiler/README.md), separate from the workbench review flow.
 
 ## Security and privacy
 

@@ -10,6 +10,7 @@
   const canExplore = () => ready() && document.querySelector('.navigation [data-page="explorer"]')?.disabled === false;
   const routeReady = () => byId('agent-availability')?.classList.contains('success');
   const pickerReady = () => byId('workspace-model-panel')?.dataset.modelReady === 'true';
+  const hostedModel = () => byId('workspace-model-panel')?.dataset.workspaceMode === 'obo';
   const runnable = () => routeReady() && pickerReady() && !byId('agent-submit')?.disabled
     && byId('agent-workflow')?.value && !byId('agent-workflow').disabled
     && [...byId('agent-workflow').selectedOptions].some(option => option.value && !option.disabled)
@@ -61,7 +62,7 @@
       candidate('#saved-design-tab-1', 'Inspect saved notebook artifacts and native bundle options for this exact design. Reading never generates code.', () => canExplore() && byId('saved-design-tab-1')?.getAttribute('aria-selected') === 'false'),
       candidate('#source-target-read', 'Inspect the selected workflow or invocation cohort’s source targets before reviewing destinations.', () => canExplore() && !!value('redesign-workflow')),
       candidate('#cohort-review-read', 'Read the exact saved cohort review. Reading does not queue agents or draft artifacts.', () => canExplore() && /^[a-f0-9]{32}$/.test(value('cohort-review-id'))),
-      candidate('#spark-draft-submit', 'Generate a draft for the approved exact design. It is not parity evidence or release approval.', () => canExplore() && routeReady() && !byId('spark-draft-submit')?.disabled),
+      candidate('#spark-draft-submit', 'Generate code for the selected design. Deployment is a separate action.', () => canExplore() && routeReady() && !byId('spark-draft-submit')?.disabled),
       candidate('#sql-draft-submit', 'Draft captured SQL only. No execution or deployment.', () => canExplore() && !byId('sql-draft-submit')?.disabled),
       candidate('#workflow-artifact-submit', 'Generate only the supported deterministic example artifacts.', () => canExplore() && !byId('workflow-artifact-submit')?.disabled),
       candidate('#proposal-list button[data-proposal-id][aria-pressed="false"]', 'Review a current workflow candidate and its evidence. This does not approve or generate artifacts.', canExplore),
@@ -72,10 +73,18 @@
       candidate('#refresh-documents', 'Review stored supporting documents. Owner statements do not clear gates.', canExplore),
     ],
     agents: [
-      candidate('#apply-workspace-model', 'Save the explicitly selected endpoint. This does not invoke inference.', () => !!value('agent-endpoint') && checked('endpoint-tool-support') && !pickerReady()),
-      candidate('#connect-workspace-models', 'Discover endpoints first. No inference runs.', () => !pickerReady()),
-      candidate('#agent-submit', 'Invoke agents for the selected workflow on the configured endpoint.', () => canExplore() && runnable()),
-      candidate('#refresh-runs', 'Review persisted run status. A new run starts only when Invoke agents is clicked.', () => canExplore() && routeReady() && pickerReady()),
+      candidate('#connect-workspace-models', 'Find available Databricks models. This does not start a conversion.',
+        () => hostedModel() && byId('agent-endpoint')?.disabled && !value('agent-endpoint')),
+      candidate('#agent-endpoint', 'Choose a ready Databricks chat endpoint.',
+        () => hostedModel() && !value('agent-endpoint')),
+      candidate('label[for="endpoint-tool-support"]', 'Confirm that the model supports chat and the tools agents use.',
+        () => hostedModel() && !!value('agent-endpoint') && !checked('endpoint-tool-support')),
+      candidate('#apply-workspace-model', 'Save the selected model. This does not start a conversion.',
+        () => hostedModel() && !!value('agent-endpoint') && checked('endpoint-tool-support')),
+      candidate('#apply-workspace-model', 'Save the selected model. This does not start a conversion.', () => !!value('agent-endpoint') && checked('endpoint-tool-support') && !pickerReady()),
+      candidate('#connect-workspace-models', 'Find available models. This does not start a conversion.', () => !pickerReady()),
+      candidate('#agent-submit', 'Start the agents to generate code for the selected workflow.', () => canExplore() && runnable()),
+      candidate('#refresh-runs', 'Review saved run status. A new conversion starts only when you start the agents.', () => canExplore() && routeReady() && pickerReady()),
     ],
     validate: [
       candidate('#validation-context', 'Load the exact selected analysis fingerprints first. No campaign, Job or model is started.', () => canExplore() && byId('validation-create')?.disabled !== false),
@@ -141,7 +150,8 @@
     for (const hint of hints.values()) if (!hint.hidden) hint.hidden = true;
   }
   function available(control, section) {
-    if (!control || !section.contains(control) || !control.matches('button, a.button')) return false;
+    if (!control || !section.contains(control) || !control.matches('button, a.button, select, label[for="endpoint-tool-support"]')) return false;
+    if (control.matches('label[for="endpoint-tool-support"]') && byId('endpoint-tool-support')?.disabled !== false) return false;
     if (control.matches(':disabled') || control.closest('[hidden], [inert], [aria-disabled="true"], [aria-busy="true"]')) return false;
     if (!control.getClientRects().length) return false;
     // checkVisibility also rejects visibility/opacity on ancestor containers.
@@ -171,7 +181,8 @@
     if (!next) return;
     target = next;
     const hint = hints.get(page);
-    hint.textContent = `Suggested next step: ${target.textContent.trim().replace(/\s+/g, ' ')}. ${reason}`;
+    const targetLabel = target.matches('select') ? target.labels?.[0]?.textContent : target.textContent;
+    hint.textContent = `Suggested next step: ${(targetLabel || '').trim().replace(/\s+/g, ' ')}. ${reason}`;
     hint.hidden = false;
     const tokens = new Set((target.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
     tokens.add(hint.id); target.setAttribute('aria-describedby', [...tokens].join(' '));
@@ -224,7 +235,7 @@
       && (record.attributeName !== 'class' || ['package-ready', 'agent-availability'].includes(record.target.id)))) schedule();
   }).observe(main, {
     subtree: true, childList: true, attributes: true,
-    attributeFilter: ['class', 'hidden', 'disabled', 'inert', 'aria-disabled', 'aria-busy', 'aria-selected', 'aria-pressed', 'data-understanding', 'data-model-ready', 'style'],
+    attributeFilter: ['class', 'hidden', 'disabled', 'inert', 'aria-disabled', 'aria-busy', 'aria-selected', 'aria-pressed', 'data-understanding', 'data-model-ready', 'data-workspace-mode', 'style'],
   });
   const locks = new MutationObserver(schedule);
   locks.observe(document.querySelector('.app-shell'), { attributes: true, attributeFilter: ['inert'] });

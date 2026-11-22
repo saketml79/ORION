@@ -102,6 +102,7 @@ class RedesignAnimationSourceTests(unittest.TestCase):
             self.assertIn(f'[data-phase="{phase}"]', CSS)
         self.assertIn("transform .8s", CSS)
         self.assertIn("perspective: 1600px", CSS)
+        self.assertRegex(CSS, r"\.orion-redesign-animation \.ora-viewport[\s\S]*?box-shadow: 0 14px 34px")
         self.assertIn("border: 0", CSS)
         self.assertIn("stroke: none", CSS)
         self.assertIn("overflow: auto", CSS)

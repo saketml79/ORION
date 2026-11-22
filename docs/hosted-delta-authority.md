@@ -11,6 +11,32 @@ and do not establish production readiness or general artifact/deployment authori
 
 ## Authority and action lifecycle
 
+### Committed source cache (current source, not verified or deployed)
+
+After a committed generation and its inventory are verified, restore can retain
+scanned source copies in a private process-local cache. Reuse is scoped to the
+workspace, user, runtime and exact selected Volume path, checksum and size. Each
+reuse calls the Files metadata API with the current identity before and after
+copying and rechecks the cached bytes against the committed checksum. Flush uses
+the same path only for sources already in the current committed generation.
+Newly selected sources retain the existing import and verification behavior.
+
+If usable size or last-modified metadata is unavailable, the original source
+download and checksum verification is used instead. Missing or denied metadata
+never authorizes a cache hit. The preparation response separately reports
+`source_cache_ready` and `source_cache_reason`; working-snapshot readiness is
+unchanged. The cache holds at most 32 source entries and may evict them, be lost
+on process restart, or fail disk admission. It does not impose an XML byte limit
+smaller than the existing `max_xml_bytes` limit. These conditions can cause
+subsequent downloads, so uninterrupted no-download behavior is not guaranteed.
+
+Files metadata is not a content hash or immutable version. An external change
+that preserves both length and the reported last-modified value can go undetected,
+including changes within the timestamp's resolution. The checksum validates the
+cached bytes, not the current remote bytes. Pre/post checks reject observable
+metadata changes during verification but cannot close the race after the final
+metadata check. Initial import is not bracketed by this cache mechanism.
+
 ### Scoped endpoint-settings exception (current source, not deployed)
 
 Endpoint Apply now appends one bounded, immutable revision to the existing

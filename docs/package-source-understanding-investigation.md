@@ -262,9 +262,9 @@ requires evidence-driven, scoped unknowns and separate approval gates.
   page-scoped, or unknown outside the page, not proof of an estate-wide DAG.
 - [cycle_report](../workbench/understanding.py#L81) measures SCCs of captured
   data_flow/workflow_control edges only. A Java loop is not a WORKFLOWLINK cycle.
-- The separate legacy [build_cross_workflow_dependencies](../orchestration/run.py#L150)
+- The separate legacy [build_cross_workflow_dependencies](../archived/legacy-compiler/orchestration/run.py#L150)
   scans command labels/attribute strings for case-insensitive wkf_ names with a
-  global name map. Its [master generator](../orchestration/run.py#L187) turns called
+  global name map. Its [master generator](../archived/legacy-compiler/orchestration/run.py#L187) turns called
   names into caller depends_on entries. This is inference, not exact pmcmd parsing,
   qualified repository resolution, or preservation of asynchronous launch semantics.
   Legacy estate diagrams also show shared-session relations. Do not equate those

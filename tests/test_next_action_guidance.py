@@ -58,6 +58,48 @@ def suggested(page, selector):
     assert page.locator(selector).evaluate('el => getComputedStyle(el).filter !== "none"')
 
 
+@pytest.mark.parametrize('local_mode', [True, False], ids=['local', 'hosted'])
+def test_selected_package_has_identical_guidance_and_navigation_without_reloading_xml(navigation, local_mode):
+    page, state, _ = navigation(fragment='projects', legacy=local_mode, parity=True)
+    state['objects'] = [{'id': 'wf/selected', 'name': 'Selected workflow', 'kind': 'workflow'}]
+    choose_project(page)
+    expect(tab(page, 'explorer')).to_be_enabled(timeout=20000)
+    tab(page, 'estate').click()
+    shown(page, 'estate')
+    suggested(page, '[data-go="explorer"]')
+    before = len([request for request in state['requests'] if request['path'] == '/api/overview'])
+    tab(page, 'explorer').click()
+    shown(page, 'explorer')
+    suggested(page, '#object-list button[data-object-id="wf/selected"]')
+    tab(page, 'estate').click()
+    shown(page, 'estate')
+    suggested(page, '[data-go="explorer"]')
+    assert len([request for request in state['requests'] if request['path'] == '/api/overview']) == before
+
+
+def test_hosted_and_local_suggest_the_same_control_on_every_main_page(navigation):
+    observations = []
+    for local_mode in (True, False):
+        page, state, _ = navigation(fragment='projects', legacy=local_mode, parity=True)
+        state['objects'] = [{'id': 'wf/selected', 'name': 'Selected workflow', 'kind': 'workflow'}]
+        choose_project(page)
+        expect(tab(page, 'explorer')).to_be_enabled(timeout=20000)
+        observed = {}
+        for name in ('estate', 'explorer', 'readiness', 'proposals', 'evidence', 'agents', 'validate', 'release', 'logs', 'evolution'):
+            tab(page, name).click()
+            shown(page, name)
+            expect(page.locator(PULSE)).to_have_count(1)
+            observed[name] = page.locator(PULSE).evaluate(
+                "el => ({id: el.id, text: el.textContent.trim(), filter: getComputedStyle(el).filter})")
+        observations.append(observed)
+        page.context.close()
+    for name in observations[0]:
+        local, hosted = observations[0][name], observations[1][name]
+        assert local['id'] == hosted['id'], (name, local, hosted)
+        assert local['text'] == hosted['text'], (name, local, hosted)
+        assert local['filter'] != 'none' and hosted['filter'] != 'none', (name, local, hosted)
+
+
 @pytest.mark.parametrize('name,label,selector', CASES)
 def test_real_page_entry_has_one_safe_suggestion_with_actual_navigation_label(navigation, name, label, selector):
     page, state, _ = workspace(navigation)

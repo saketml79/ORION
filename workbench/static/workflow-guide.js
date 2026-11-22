@@ -28,7 +28,7 @@
     ['Legacy Data Integration Artifacts', 'Informatica packages + design documents + owner knowledge', 'M4 3h11l5 5v13H4z M14 3v6h6 M8 13h8 M8 17h6'],
     ['Understand', 'Sources, rules, dependencies, and gaps', 'M4 4h6v6H4z M14 14h6v6h-6z M10 7h7v7'],
     ['Propose', 'Lakeflow options with cited rationale', 'M4 20l4-1L20 7l-4-4L4 15z M13 6l4 4'],
-    ['Human review & deployment', 'Review now; approved Lakeflow implementation and controlled release are future stages', 'M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0 M4 21v-3a8 8 0 0 1 16 0v3'],
+    ['Human review & deployment', 'Review the design and candidate code; approve implementation and release separately', 'M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0 M4 21v-3a8 8 0 0 1 16 0v3'],
   ];
   const flow = make('ol', 'approach-stages');
   for (const [name, description, pathData] of stages) {
@@ -39,8 +39,8 @@
     item.append(svg, make('strong', '', name), make('p', '', description)); flow.append(item);
   }
   const boundary = make('div', 'approach-boundary');
-  boundary.append(make('strong', '', 'Approval is a boundary, not a shortcut.'), make('p', '', 'Future path: approve the design → implement using Databricks Lakeflow and shared reusable libraries → validate coverage and equivalence → separately approve controlled deployment. These later stages are not implemented in the current local app.'));
-  approach.append(flow, boundary, make('p', 'small muted', 'Approach overview, not execution progress. Actual running work is shown in the activity banner and package workflow below.'));
+  boundary.append(make('strong', '', 'From design to deployment'), make('p', '', 'Review the proposed design and candidate artifacts, then validate them against your business requirements. Implementation and deployment require their own review and approval.'));
+  approach.append(flow, boundary, make('p', 'small muted', 'Follow current activity in the status banner and package workflow below.'));
   document.querySelector('.hero > div:not(.hero-aside)').append(approach);
 
   const guide = make('section', 'intake-guide');
@@ -53,7 +53,7 @@
     ['Analyze package', 'Read objects and field flows, resolve references, and record diagnostics.'],
     ['Inspect & assess', 'Explore the graph, sources, transformations, and evidence-linked summaries.'],
     ['Agent design & review', 'Explicitly invoke configured agents; review rationale, open questions, and proposed changes.'],
-    ['Approve & implement using Databricks Lakeflow', 'Future stage: approve design, implement Lakeflow pipelines and shared reusable logic, validate coverage and equivalence, then separately approve deployment. This local app does not implement these release stages.'],
+    ['Review & prepare for deployment', 'Review the design and generated drafts. Validate coverage and business behavior, then approve any implementation and deployment separately.'],
   ];
   const list = make('ol', 'intake-steps');
   const rows = steps.map(([name, description], index) => {
@@ -81,7 +81,7 @@
     const name = selected ? selected.textContent.replace(/\s*\([\d,]+ ready\)$/, '') : packageSelector?.dataset.projectName || (projectSelected ? packageSelector.dataset.projectId : 'Standalone package');
     projectName.textContent = name;
     projectName.title = name;
-    projectHelp.textContent = projectSelected ? 'Package views belong to this selected project.' : 'No project selected. This package is not yet under a project umbrella.';
+    projectHelp.textContent = projectSelected ? 'Package views belong to this selected project.' : 'Choose or create a project to organize your packages.';
     projectAction.textContent = projectSelected ? 'Manage project & packages' : 'Choose or create project';
     const ready = byId('package-ready').textContent === 'Package ready';
     const understanding = byId('package-ready').dataset.understanding;
@@ -106,7 +106,7 @@
     });
     current.textContent = loadingExisting ? `Loading existing package understanding: ${selectedPackage.dataset.packageName}. No new upload is required.` : loadingFailed ? `${byId('package-ready').textContent}. Existing XML remains selected. Use Refresh data to retry; no new upload is required.` : analyzing || agentRunning ? `Currently running: ${activityText}` : failed ? 'Analysis needs attention. Inspect the job status and Logs before retrying.' : ready ? 'Current stage: inspect package understanding and resolve evidence gaps.' : completedSelected ? 'Load the existing selected package understanding. No new upload is required.' : `Current stage: ${steps[active][0]}.`;
     current.classList.toggle('is-running', loadingExisting || analyzing || agentRunning);
-    details.textContent = busy ? `Service activity: ${activityText}. No unreported stage completion or progress percentage is inferred.` : 'No work is currently reported running. Upload/analysis does not invoke agents, verify business semantics, or approve migration automatically.';
+    details.textContent = busy ? `Current activity: ${activityText}.` : 'Choose a package to explore its structure. Agent analysis and migration approval are separate steps.';
   }
   const observer = new MutationObserver(refresh);
   for (const id of ['project-select', 'estate-package-select', 'package-ready', 'ingest-status', 'activity-status']) {

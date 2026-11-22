@@ -51,6 +51,34 @@ def inventory_response(index, kind, q="", offset=0, limit=100, input_version=Non
             "truncated": offset + limit < len(nodes), "pins": pins, "input_version": version}
 
 
+def inventory_preload(index, offset=0, input_version=None):
+    """Return bounded, version-pinned inventory metadata for initial loading."""
+    if offset < 0:
+        raise HTTPException(422, "Invalid inventory offset")
+    pins, version = _version(index, input_version)
+    ordered = [node for kind in sorted(KINDS) for node in sorted(
+        index.kinds.get(kind, ()), key=lambda n: (n["name"].casefold(), n["id"]))]
+    total = len(ordered)
+    if total > 20000:
+        raise HTTPException(413, "Inventory exceeds the initial loading limit; open a category to load its pages.")
+    if offset > total:
+        raise HTTPException(422, "Inventory offset exceeds the total")
+    items, size = [], 0
+    for node in ordered[offset:offset + 1000]:
+        row = brief(index, node)
+        # ASCII escaping is a conservative bound for transports that encode
+        # non-ASCII characters before applying their own response-size limit.
+        row_size = len(json.dumps(row, ensure_ascii=True, separators=(",", ":")).encode("utf-8")) + 1
+        if size + row_size > 320 * 1024:
+            if not items:
+                raise HTTPException(413, "An inventory item exceeds the initial loading limit.")
+            break
+        items.append(row)
+        size += row_size
+    return {"items": items, "offset": offset, "total": total,
+            "input_version": version, "pins": pins}
+
+
 def suggested_equivalent(node):
     kind, attrs = node["kind"], node.get("attributes", {})
     database = str(attrs.get("DATABASETYPE", "")).casefold()
@@ -118,6 +146,10 @@ def inventory_detail(index, kind, object_id, section="overview", offset=0, limit
 
 
 def install_inventory_browser(app, service):
+    @app.get("/api/inventory-preload")
+    def preload(offset: int = Query(default=0, ge=0), input_version: str | None = None):
+        return inventory_preload(service.require(), offset, input_version)
+
     @app.get("/api/inventory/{kind}/{object_id}")
     def detail(kind: str, object_id: str, section: str = "overview",
                offset: int = Query(default=0, ge=0), limit: int = Query(default=100, ge=1, le=100),

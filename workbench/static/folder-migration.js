@@ -58,8 +58,8 @@
       headers: { ...op.headers, ...(mutation ? { 'Content-Type': 'application/json', 'X-Workbench-Request': '1' } : {}) },
       ...(mutation ? { body: JSON.stringify({ consent: true }) } : {}) });
     if (!response.ok) {
-      if (response.status === 404) throw new Error('Folder migration API is unavailable (HTTP 404). If the parent process predates the new backend routes, a parent-managed restart is needed. No restart or fallback was attempted.');
-      throw new Error(`Folder migration request failed (HTTP ${response.status}). No fallback, models or execution requested.`);
+      if (response.status === 404) throw new Error('Folder migration is unavailable. Refresh the page or contact your administrator if the problem continues.');
+      throw new Error(`Folder migration request could not be completed (HTTP ${response.status}). Check the selected package and try again.`);
     }
     const data = await response.json();
     if (data.package_hash !== op.hash) throw new Error('Response package does not match the selected package. No evidence displayed.');
@@ -71,7 +71,7 @@
   async function loadFolders() {
     if (page.hidden || busy || folderInventoryLoaded || !JSON.parse(scope())[2]) return;
     const op = begin(); let loaded = [], offset = 0, total = null;
-    clearReport(); status('Reading all folder pages for the exact selected package. No models requested.');
+    clearReport(); status('Loading folders from the selected package.');
     try {
       while (true) {
         const data = await request(`/api/folder-migration/folders?offset=${offset}&limit=50`, op);
@@ -107,12 +107,12 @@
   }
   async function loadPlan() {
     if (page.hidden || busy || !folderId) return;
-    const op = begin(); clearReport(); status('Reading verified saved XML for the selected folder. No inference or execution.');
+    const op = begin(); clearReport(); status('Reading the saved XML for the selected folder. This does not run agents or jobs.');
     try {
       const result = await request(endpoint(), op);
       if (!op.current()) return;
       plan = result; renderReport(); $('fm-generation').hidden = false;
-      status(`${plan.folder.name}: exact folder report loaded. ${folders.length} folders available in this package. No models or execution requested.`);
+      status(`${plan.folder.name}: folder report loaded. ${folders.length} folders available in this package.`);
     } catch (error) { if (op.current() && error.name !== 'AbortError') status(error.message); }
     finally { finish(op); }
   }

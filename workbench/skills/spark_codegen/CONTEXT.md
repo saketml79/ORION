@@ -6,6 +6,7 @@ explicit Agent activity run authorizes an unapproved candidate draft; it does no
 authorize execution, deployment or parity claims. The host reuses the configured
 artifact-role chat model. Never choose a provider. Exact current design and input
 version checks are enforced by the host.
+Read /library/spark-code-writer/SKILL.md for the current writer procedure.
 
 Implement the frozen proposed design, not one notebook per original XML mapping.
 The design is the scope boundary: a single-workflow design remains single-workflow,

@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import HTTPException, Query, Request
 
-from workbench.agents import ROLES
+from workbench.agents import ROLES, _ROLE_SKILL_PATHS
 
 WORKBENCH = Path(__file__).resolve().parent
 SKILLS_ROOT = WORKBENCH / "skills"
@@ -246,9 +246,11 @@ def _skill_sources() -> list[tuple[Path, list[str]]]:
         if role in ROLES:
             candidates = [root / "CONTEXT.md"]
             candidates.extend(sorted(root.glob("library/**/SKILL.md")))
-            required = [root / "CONTEXT.md", root / "library" / "review" / "SKILL.md"]
+            required = [root / "CONTEXT.md", root / "library" / "review" / "SKILL.md",
+                        root / _ROLE_SKILL_PATHS[role].lstrip("/")]
         else:
-            candidates = [root / "CONTEXT.md", root / "library" / "implementation" / "SKILL.md"]
+            candidates = [root / "CONTEXT.md", root / "library" / "implementation" / "SKILL.md",
+                          root / "library" / "spark-code-writer" / "SKILL.md"]
             required = list(candidates)
         if any(not path.is_file() or path.is_symlink() for path in required):
             raise ValueError("A required compiled skill source is missing or unsafe")

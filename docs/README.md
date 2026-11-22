@@ -1,6 +1,11 @@
 # ORION documentation
 
-Updated: **2026-10-30**.
+Updated: **2026-11-22**.
+
+Start with the [open work checklist](ORION-TODO.md) and the
+[current release ledger](current-release-verification-ledger.md). The documents
+below preserve design, operational guidance, and dated investigation evidence;
+older release dates describe their historical state, not the current release.
 
 ## Reading order
 

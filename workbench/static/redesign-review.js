@@ -130,7 +130,7 @@
   const actionHelp = node('p', 'Open Agent activity to start or revise a conversion. Reload saved designs checks for completed results without running agents.', 'small muted review-action-help');
   actions.after(actionHelp);
   const sqlPanel = node('section', '', 'section-gap'); sqlPanel.id = 'sql-drafts';
-  sqlPanel.append(node('h3', 'Captured SQL artifact drafts'), node('p', 'SQL only: syntax drafts, not semantic or data parity, not a complete workflow. Non-SQL transformations are unsupported. No stored agent redesign is required. Unknown references block only affected tasks, not the entire design. This action does not invoke a model.', 'muted'));
+  sqlPanel.append(node('h3', 'Captured SQL artifact drafts'), node('p', 'Create SQL syntax drafts from the selected workflow without an agent design or model call. Non-SQL transformations require separate work, and unresolved references affect their related tasks. Review business behavior and data results before use.', 'muted'));
   sqlPanel.append(node('p', 'Clicking Draft captured SQL artifacts creates a syntax-only draft. It does not execute or deploy it.', 'small muted'));
   const sqlDraft = button('sql-draft-submit', 'Draft captured SQL artifacts', sqlPanel);
   const sqlStatus = node('p', 'Choose a workflow and explicitly approve SQL-only drafting.', 'small muted');
@@ -164,7 +164,7 @@
   const reconnectControls = node('div'); reconnectControls.append(cohortId.previousElementSibling, cohortId, cohortRead);
   const scopeReconnect = disclosure('Advanced: reconnect a saved cohort review', reconnectControls);
   scopeReconnect.id = 'proposal-scope-reconnect'; scopeReconnect.hidden = true;
-  const scopeStatus = node('p', 'Review scope here before explicitly saving or starting a worker.', 'small muted');
+  const scopeStatus = node('p', 'Review the workflow scope before saving it or starting an agent run.', 'small muted');
   scopeStatus.setAttribute('role', 'status'); scopeStatus.setAttribute('aria-live', 'polite');
   scopePanel.append(scopeHint, scopeStatus, scopeActions, scopeReconnect, cohortOutput, targetStatus, targetOutput);
   const memberPanel = node('section', '', 'proposal-review-card'); memberPanel.id = 'cohort-member-plan'; memberPanel.hidden = true;
@@ -564,7 +564,7 @@
     const ticket = capture(), serial = ++targetTicket, selectedScope = targetScope.value;
     if (!valid() || !workflowKnown(ticket.scope.workflow) || !scopeActive()) return;
     targetLoading = true; controls(); targets.setAttribute('aria-busy', 'true');
-    targetOutput.replaceChildren(); targetStatus.textContent = 'Reading source target definitions. No inference or catalog changes.';
+    targetOutput.replaceChildren(); targetStatus.textContent = 'Reading the original workflow’s target definitions. This does not run agents or change the catalog.';
     try {
       const query = new URLSearchParams({ scope: selectedScope, offset: String(start), limit: '20' });
       if (expected) query.set('input_version', expected);
@@ -3256,7 +3256,7 @@
     }
   });
   versions.addEventListener('change', () => { submittedLink = null; selectVersion(); });
-  refresh.addEventListener('click', () => { invalidate('Refreshing actual records, no inference.', true); load(); });
+  refresh.addEventListener('click', () => { invalidate('Refreshing saved records. This does not start the agents.', true); load(); });
   previous.addEventListener('click', () => { offset = Math.max(0, offset - 50); load(true); });
   next.addEventListener('click', () => { offset += 50; load(true); });
   document.addEventListener('change', event => {
@@ -3272,7 +3272,7 @@
       restoreScope(); invalidate(); scheduleLoad();
     }
   });
-  $('refresh')?.addEventListener('click', () => { invalidate('Refreshing actual records, no inference.', true); if (!page.hidden) load(); });
+  $('refresh')?.addEventListener('click', () => { invalidate('Refreshing saved records. This does not start the agents.', true); if (!page.hidden) load(); });
   new MutationObserver(() => {
     const before = workflow.value;
     syncWorkflows();

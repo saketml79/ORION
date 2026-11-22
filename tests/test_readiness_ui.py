@@ -42,8 +42,248 @@ def start(navigation, *, hold=False, wrong=False):
     page.route('**/api/readiness?*', read)
     choose_project(page)
     expect(page.locator('#package-ready')).to_have_text('Package ready')
+    # These legacy fixture payloads explicitly represent original sources.
+    page.locator('#readiness-scenario').select_option('original', force=True)
     tab(page, 'readiness').click(); shown(page, 'readiness')
     return page, state, pending
+
+
+def preload_setup(navigation, *, hold=False, status=200):
+        page, state, _ = navigation(fragment='projects')
+        choose_project(page)
+        expect(page.locator('#package-ready')).to_have_text('Package ready')
+        settle(page)
+        requests, pending = [], []
+
+        def read(route):
+                requests.append({'url': route.request.url, 'method': route.request.method,
+                                                 'headers': route.request.all_headers()})
+                if hold:
+                        pending.append(route)
+                elif status != 200:
+                        route.fulfill(status=status, body='{}')
+                else:
+                        result = payload()
+                        result['scope']['scenario'] = 'bronze' if 'scenario=bronze' in route.request.url else 'original'
+                        route.fulfill(content_type='application/json', body=json.dumps(result))
+
+        page.route('**/api/readiness?*', read)
+        page.evaluate('''() => {
+            window.readinessEvents = [];
+            window.stopReadinessEvents = window.orionReadiness.subscribe(event => window.readinessEvents.push(event));
+            window.readinessScope = epoch => ({projectId: document.getElementById('project-select').value,
+                packageHash: document.getElementById('estate-package-select').value,
+                scenario: document.getElementById('readiness-scenario').value, epoch});
+        }''')
+        return page, state, requests, pending
+
+
+def test_hidden_startup_preload_navigation_reuses_inflight_and_completed_evidence(navigation):
+        page, state, requests, pending = preload_setup(navigation, hold=True)
+        assert page.locator('#page-readiness').is_hidden()
+        page.evaluate('''() => {
+            window.firstPreload = window.orionReadiness.preload(window.readinessScope(10));
+            window.samePreload = window.orionReadiness.preload(window.readinessScope(10));
+        }''')
+        page.wait_for_function("window.readinessEvents.some(event => event.status === 'loading')")
+        settle(page)
+        assert len(pending) == 1
+        assert page.evaluate('window.firstPreload === window.samePreload')
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        assert len(requests) == 1
+        tab(page, 'estate').click(); shown(page, 'estate')
+        result = payload()
+        result['scope']['scenario'] = page.locator('#readiness-scenario').input_value()
+        pending[0].fulfill(content_type='application/json', body=json.dumps(result))
+        assert page.evaluate('window.firstPreload.then(result => result.status)') == 'ready'
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        expect(page.locator('#readiness-status')).to_contain_text('Saved evidence observed')
+        snapshot = page.evaluate('window.orionReadiness.getStatus()')
+        assert snapshot == {'status': 'ready', 'scope': {'projectId': PROJECT_A, 'packageHash': PACKAGE_A,
+                                             'scenario': result['scope']['scenario']}, 'epoch': 10,
+                                             'message': page.locator('#readiness-status').text_content(),
+                                             'observedAt': result['observed_at']}
+        assert [r['status'] for r in page.evaluate('window.readinessEvents')] == ['loading', 'ready']
+        tab(page, 'estate').click(); tab(page, 'readiness').click(); shown(page, 'readiness')
+        settle(page)
+        assert len(requests) == 1
+        assert requests[0]['method'] == 'GET'
+        assert requests[0]['headers']['x-workbench-project'] == PROJECT_A
+        assert requests[0]['headers']['x-workbench-package'] == PACKAGE_A
+        assert not [r for r in state['requests'] if r['method'] != 'GET' and r['path'] != '/api/hosted/heartbeat']
+
+
+def test_completed_hidden_preload_opens_without_a_navigation_read(navigation):
+        page, _, requests, _ = preload_setup(navigation)
+        result = page.evaluate('window.orionReadiness.preload(window.readinessScope(1))')
+        assert result['status'] == 'ready'
+        assert page.locator('#page-readiness').is_hidden()
+        assert len(requests) == 1
+        assert page.evaluate('window.orionReadiness.preload(window.readinessScope(1))')['status'] == 'ready'
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        expect(page.locator('#readiness-content')).to_contain_text('Friendly workflow')
+        settle(page)
+        assert len(requests) == 1
+
+
+def test_legacy_navigation_reloads_without_preload(navigation):
+    page, state, _ = start(navigation)
+    expect(page.locator('#readiness-status')).to_contain_text('Saved evidence observed')
+    assert len(state['readiness_requests']) == 1
+    tab(page, 'estate').click(); shown(page, 'estate')
+    expect(page.locator('#readiness-content')).to_be_empty()
+    tab(page, 'readiness').click(); shown(page, 'readiness')
+    expect(page.locator('#readiness-status')).to_contain_text('Saved evidence observed')
+    assert len(state['readiness_requests']) == 2
+
+
+def test_rejected_preload_does_not_disable_legacy_navigation_read(navigation):
+    page, _, requests, _ = preload_setup(navigation)
+    assert page.evaluate('''async () => {
+        const request = window.readinessScope(1); request.packageHash = 'wrong';
+        try { await window.orionReadiness.preload(request); return false; }
+        catch (error) { return error.message.includes('current selection'); }
+    }''')
+    assert not requests
+    tab(page, 'readiness').click(); shown(page, 'readiness')
+    expect(page.locator('#readiness-status')).to_contain_text('Saved evidence observed')
+    assert len(requests) == 1
+
+
+def test_preload_selection_change_discards_old_result_and_navigation_never_retries(navigation):
+        page, _, requests, pending = preload_setup(navigation, hold=True)
+        original = page.locator('#readiness-scenario').input_value()
+        changed = 'original' if original == 'bronze' else 'bronze'
+        page.evaluate('''() => { window.oldPreload = window.orionReadiness.preload(window.readinessScope(1)); }''')
+        page.wait_for_function("window.readinessEvents.some(event => event.status === 'loading')")
+        settle(page)
+        assert len(pending) == 1
+        page.locator('#readiness-scenario').evaluate('''(select, value) => {
+            select.value = value; select.dispatchEvent(new Event('change', {bubbles: true}));
+        }''', changed)
+        assert page.evaluate('window.orionReadiness.getStatus().status') == 'invalidated'
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        assert len(requests) == 1
+        expect(page.locator('#readiness-content')).to_be_empty()
+        assert page.evaluate('''async () => {
+            try { await window.orionReadiness.preload(window.readinessScope(1)); return false; }
+            catch (error) { return error.message.includes('epoch'); }
+        }''')
+        page.evaluate('''() => { window.newPreload = window.orionReadiness.preload(window.readinessScope(2)); }''')
+        page.wait_for_function("window.orionReadiness.getStatus().status === 'loading'")
+        settle(page)
+        assert len(pending) == 2
+        result = payload()
+        result['scope']['scenario'] = changed
+        pending[1].fulfill(content_type='application/json', body=json.dumps(result))
+        assert page.evaluate('window.newPreload.then(result => result.status)') == 'ready'
+        result['scope']['scenario'] = original
+        pending[0].fulfill(content_type='application/json', body=json.dumps(result))
+        assert page.evaluate('window.oldPreload.then(result => result.status)') == 'invalidated'
+        assert json.loads(page.locator('.readiness-technical pre').text_content())['scope']['scenario'] == changed
+        assert page.evaluate('window.orionReadiness.getStatus().epoch') == 2
+        assert len(requests) == 2
+
+
+def test_new_epoch_same_scope_starts_fresh_read_and_old_result_cannot_win(navigation):
+        page, _, requests, pending = preload_setup(navigation, hold=True)
+        page.evaluate('''() => { window.oldPreload = window.orionReadiness.preload(window.readinessScope(10)); }''')
+        page.wait_for_function("window.orionReadiness.getStatus().status === 'loading'")
+        settle(page)
+        page.evaluate('''() => { window.newPreload = window.orionReadiness.preload(window.readinessScope(11)); }''')
+        page.wait_for_function("window.orionReadiness.getStatus().epoch === 11")
+        settle(page)
+        assert len(pending) == 2
+        newest = payload(); newest['scope']['scenario'] = page.locator('#readiness-scenario').input_value()
+        newest['observed_at'] = '2026-11-19T12:00:00Z'
+        pending[1].fulfill(content_type='application/json', body=json.dumps(newest))
+        assert page.evaluate('window.newPreload.then(result => result.status)') == 'ready'
+        older = payload(); older['scope']['scenario'] = newest['scope']['scenario']
+        pending[0].fulfill(content_type='application/json', body=json.dumps(older))
+        old = page.evaluate('window.oldPreload')
+        assert old['status'] == 'invalidated' and old['epoch'] == 10
+        assert page.evaluate('window.orionReadiness.getStatus().observedAt') == newest['observed_at']
+        assert len(requests) == 2
+
+
+def test_hidden_preload_rejects_mismatched_response_without_navigation_retry(navigation):
+        page, _, requests, _ = preload_setup(navigation)
+        wrong = payload('c' * 64)
+        wrong['scope']['scenario'] = page.locator('#readiness-scenario').input_value()
+        def read_wrong(route):
+            requests.append({'method': route.request.method})
+            route.fulfill(content_type='application/json', body=json.dumps(wrong))
+        page.route('**/api/readiness?*', read_wrong)
+        result = page.evaluate('window.orionReadiness.preload(window.readinessScope(1))')
+        assert result['status'] == 'failed' and 'does not match' in result['message']
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        expect(page.locator('#readiness-content')).to_be_empty()
+        settle(page)
+        assert len(requests) == 1
+
+
+def test_preload_failure_and_workspace_invalidation_require_explicit_refresh(navigation):
+        page, _, requests, _ = preload_setup(navigation, status=503)
+        outcome = page.evaluate('window.orionReadiness.preload(window.readinessScope(3))')
+        assert outcome['status'] == 'failed' and 'HTTP 503' in outcome['message']
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        settle(page)
+        assert len(requests) == 1
+        expect(page.locator('#readiness-content')).to_be_empty()
+        expect(page.locator('#readiness-status')).to_contain_text('HTTP 503')
+        result = payload(); result['scope']['scenario'] = page.locator('#readiness-scenario').input_value()
+        page.route('**/api/readiness?*', lambda route: (requests.append({'method': route.request.method}),
+                route.fulfill(content_type='application/json', body=json.dumps(result))))
+        page.locator('#readiness-refresh').click()
+        expect(page.locator('#readiness-status')).to_contain_text('Saved evidence observed')
+        assert len(requests) == 2
+        tab(page, 'estate').click()
+        page.evaluate("document.dispatchEvent(new CustomEvent('orion:workspace-changed'))")
+        assert page.evaluate('window.orionReadiness.getStatus().status') == 'invalidated'
+        tab(page, 'readiness').click(); shown(page, 'readiness')
+        settle(page)
+        assert len(requests) == 2
+        expect(page.locator('#readiness-content')).to_be_empty()
+        page.locator('#readiness-refresh').click()
+        expect(page.locator('#readiness-status')).to_contain_text('Saved evidence observed')
+        assert len(requests) == 3
+
+
+def test_preload_rejects_mismatched_selection_and_old_epoch_without_network(navigation):
+        page, _, requests, _ = preload_setup(navigation)
+        assert page.evaluate('''async () => {
+            const request = window.readinessScope(7); request.packageHash = 'wrong';
+            try { await window.orionReadiness.preload(request); return false; }
+            catch (error) { return error.message.includes('current selection'); }
+        }''')
+        assert not requests
+        assert page.evaluate('window.orionReadiness.preload(window.readinessScope(7))')['status'] == 'ready'
+        assert page.evaluate('''async () => {
+            try { await window.orionReadiness.preload(window.readinessScope(6)); return false; }
+            catch (error) { return error.message.includes('epoch'); }
+        }''')
+        assert len(requests) == 1
+        page.evaluate('window.stopReadinessEvents()')
+        count = page.evaluate('window.readinessEvents.length')
+        page.evaluate("document.dispatchEvent(new CustomEvent('orion:agent-run', {detail: {status: 'completed'}}))")
+        assert page.evaluate('window.orionReadiness.getStatus().status') == 'invalidated'
+        assert page.evaluate('window.readinessEvents.length') == count
+
+
+def test_project_change_invalidates_hidden_preload_and_rejects_late_evidence(navigation):
+    page, _, requests, pending = preload_setup(navigation, hold=True)
+    page.evaluate('''() => { window.oldPreload = window.orionReadiness.preload(window.readinessScope(4)); }''')
+    page.wait_for_function("window.orionReadiness.getStatus().status === 'loading'")
+    settle(page)
+    assert len(pending) == 1
+    tab(page, 'projects').click()
+    page.locator('#project-select').select_option(PROJECT_B)
+    assert page.evaluate('window.orionReadiness.getStatus().status') == 'invalidated'
+    old = payload(); old['scope']['scenario'] = page.locator('#readiness-scenario').input_value()
+    pending[0].fulfill(content_type='application/json', body=json.dumps(old))
+    assert page.evaluate('window.oldPreload')['status'] == 'invalidated'
+    expect(page.locator('#readiness-content')).to_be_empty()
+    assert len(requests) == 1
 
 
 @pytest.mark.parametrize('theme', ['light', 'dark'])
@@ -268,10 +508,10 @@ def test_old_scenario_response_cannot_overwrite_new_selected_scenario(navigation
     result = payload()
     result['scope']['scenario'] = 'bronze'
     pending[1].fulfill(content_type='application/json', body=json.dumps(result))
-    expect(page.locator('.readiness-context')).to_contain_text('Already landed in bronze')
+    expect(page.locator('.readiness-context')).to_contain_text('Source data already in Unity Catalog')
     pending[0].fulfill(content_type='application/json', body=json.dumps(payload()))
     settle(page)
-    expect(page.locator('.readiness-context')).to_contain_text('Already landed in bronze')
+    expect(page.locator('.readiness-context')).to_contain_text('Source data already in Unity Catalog')
     assert json.loads(page.locator('.readiness-technical pre').text_content())['scope']['scenario'] == 'bronze'
 
 
@@ -288,11 +528,13 @@ def test_refresh_authorization_or_service_failure_never_reuses_previous_evidence
 
 def test_next_step_clicks_real_navigation_without_invoking_review(navigation):
     page, state, _ = start(navigation)
-    consent = page.locator('#agent-consent').is_checked()
+    prompt = page.locator('#agent-prompt').input_value()
+    workflow = page.locator('#agent-workflow').input_value()
     expect(page.locator('.readiness-actions button')).to_have_text('Review a workflow')
     page.locator('.readiness-actions button').click()
     shown(page, 'agents')
-    assert page.locator('#agent-consent').is_checked() == consent
+    assert page.locator('#agent-prompt').input_value() == prompt
+    assert page.locator('#agent-workflow').input_value() == workflow
     assert not [r for r in state['requests'] if r['method'] != 'GET' and r['path'] != '/api/hosted/heartbeat']
 
 
@@ -324,7 +566,7 @@ def test_next_step_preserves_selected_bronze_scenario(navigation, has_design):
         result['stage_counts'] = {'structural_only': 0, 'logical_draft': 1}
     page.route('**/api/readiness?*', lambda route: route.fulfill(content_type='application/json', body=json.dumps(result)))
     page.locator('#readiness-scenario').select_option('bronze')
-    expect(page.locator('.readiness-context')).to_contain_text('Already landed in bronze')
+    expect(page.locator('.readiness-context')).to_contain_text('Source data already in Unity Catalog')
     page.locator('.readiness-actions button').click()
     shown(page, 'proposals' if has_design else 'agents')
     expect(page.locator('#scenario' if has_design else '#agent-scenario')).to_have_value('bronze')
@@ -345,6 +587,7 @@ def test_delayed_response_after_project_change_is_discarded(navigation):
 
 def test_real_lineage_source_control_and_readiness_refresh_preserve_external_dom(lineage_ui):
     page, _, requests, _, ids = lineage_ui
+    page.locator('#readiness-scenario').select_option('original')
     page.locator('#lineage-load').click()
     expect(page.locator('#lineage-status')).to_contain_text('Captured XML lineage')
     result = payload()

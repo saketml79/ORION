@@ -20,6 +20,53 @@ from workbench.tests.delta_runtime_fakes import RuntimeStatementClient
 from workbench.tests.test_delta_state import estate, write_json
 
 
+def test_container_memory_state_discovers_nested_cgroup_limits(tmp_path):
+    import workbench.delta_runtime as runtime
+
+    v2 = tmp_path / "cgroup-v2"
+    nested = v2 / "system.slice" / "app.scope"
+    nested.mkdir(parents=True)
+    (v2 / "memory.current").write_text("1200", encoding="ascii")
+    (v2 / "memory.max").write_text("max", encoding="ascii")
+    (v2 / "system.slice" / "memory.current").write_text("900", encoding="ascii")
+    (v2 / "system.slice" / "memory.max").write_text("2000", encoding="ascii")
+    (nested / "memory.current").write_text("700", encoding="ascii")
+    (nested / "memory.max").write_text("max", encoding="ascii")
+    cgroup_v2 = tmp_path / "proc-v2"
+    cgroup_v2.write_text("0::/system.slice/app.scope\n", encoding="ascii")
+    assert runtime._container_memory_state(cgroup_file=cgroup_v2, cgroup_v2_root=v2,
+                                          cgroup_v1_root=tmp_path / "missing-v1") == (900, 2000)
+
+    v1 = tmp_path / "cgroup-v1"
+    nested_v1 = v1 / "batch.slice" / "app.scope"
+    nested_v1.mkdir(parents=True)
+    (v1 / "memory.usage_in_bytes").write_text("1800", encoding="ascii")
+    (v1 / "memory.limit_in_bytes").write_text("4000", encoding="ascii")
+    (v1 / "batch.slice" / "memory.usage_in_bytes").write_text("1500", encoding="ascii")
+    (v1 / "batch.slice" / "memory.limit_in_bytes").write_text("3000", encoding="ascii")
+    (nested_v1 / "memory.usage_in_bytes").write_text("900", encoding="ascii")
+    (nested_v1 / "memory.limit_in_bytes").write_text(str(1 << 62), encoding="ascii")
+    cgroup_v1 = tmp_path / "proc-v1"
+    cgroup_v1.write_text("5:memory:/batch.slice/app.scope\n", encoding="ascii")
+    assert runtime._container_memory_state(cgroup_file=cgroup_v1, cgroup_v2_root=tmp_path / "missing-v2",
+                                          cgroup_v1_root=v1) == (1500, 3000)
+
+    mounted = tmp_path / "mounted-cgroup"
+    mounted_child = mounted / "app"
+    mounted_child.mkdir(parents=True)
+    (mounted / "memory.current").write_text("1400", encoding="ascii")
+    (mounted / "memory.max").write_text("2500", encoding="ascii")
+    (mounted_child / "memory.current").write_text("1200", encoding="ascii")
+    (mounted_child / "memory.max").write_text("max", encoding="ascii")
+    mounted_cgroup = tmp_path / "proc-mounted-cgroup"
+    mounted_cgroup.write_text("0::/tenant/container/app\n", encoding="ascii")
+    mountinfo = tmp_path / "mountinfo"
+    mountinfo.write_text(f"29 23 0:26 /tenant/container {mounted} rw - cgroup2 cgroup rw\n", encoding="ascii")
+    assert runtime._container_memory_state(cgroup_file=mounted_cgroup, mountinfo_file=mountinfo,
+                                          cgroup_v2_root=tmp_path / "missing-v2",
+                                          cgroup_v1_root=tmp_path / "missing-v1") == (1400, 2500)
+
+
 @pytest.fixture
 def authority():
     client = RuntimeStatementClient()

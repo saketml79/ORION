@@ -485,8 +485,12 @@ def test_existing_volume_reference_not_persistently_copied(backend, source_failu
         assert not any(action == "download" and path == original for _, action, path in backend.calls)
         selection = headers(**{"X-Workbench-Project": project, "X-Workbench-Package": sha256(XML).hexdigest()})
         result = client.get("/api/overview", headers=selection)
-        assert result.status_code == 503
-        assert any(action == "download" and path == original for _, action, path in backend.calls)
+        assert result.status_code == 200
+        assert result.json()["ready"] is True
+        assert result.json()["package"]["sha256"] == sha256(XML).hexdigest()
+        # A selected overview uses the immutable saved package analysis; it is
+        # not a request to read, reparse or copy the raw XML from its source.
+        assert not any(action == "download" and path == original for _, action, path in backend.calls)
         assert "unique-mutated-raw-source-content" not in result.text
         assert TOKEN_A not in result.text
 
