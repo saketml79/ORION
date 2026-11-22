@@ -107,7 +107,7 @@
       const b = button('', () => select(row)); b.className = 'inventory-record'; b.dataset.inventoryId = row.id;
       b.setAttribute('aria-pressed', String(row.id === selected?.id));
       b.append(node('strong', row.name), node('span', qualified(row)),
-        node('span', Object.entries(row.counts || {}).map(([key, value]) => `${value} ${key}`).join(' · ')), node('small', row.id));
+        node('span', Object.entries(row.counts || {}).map(([key, value]) => `${value} ${key}`).join(' · ')));
       list.append(b);
     }
     if (!records.length) list.append(node('p', total === 0 ? 'No matching records.' : 'No records confirmed.'));

@@ -180,11 +180,21 @@
         ...(body === undefined ? {} : {body: JSON.stringify(body)}),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(`${method} ${path}: HTTP ${response.status}. ${detail(data)}`);
+      if (!response.ok) {
+        const error = new Error(`${method} ${path}: HTTP ${response.status}. ${detail(data)}`);
+        error.status = response.status;
+        error.failureId = typeof data.failure_id === 'string' && ID.test(data.failure_id) ? data.failure_id : null;
+        error.phase = typeof data.failure_phase === 'string' ? data.failure_phase : null;
+        throw error;
+      }
       return data;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error(`${method} ${path}: interrupted. Completion is unconfirmed; reconnect before retrying.`);
-      throw new Error(`${method} ${path}: ${error.message}`);
+      const wrapped = new Error(`${method} ${path}: ${error.message}`);
+      if (Number.isInteger(error.status)) wrapped.status = error.status;
+      if (typeof error.failureId === 'string' && ID.test(error.failureId)) wrapped.failureId = error.failureId;
+      if (typeof error.phase === 'string') wrapped.phase = error.phase;
+      throw wrapped;
     }
   }
   async function probe() {
@@ -459,7 +469,11 @@
       onStatus?.(data);
       if (data.status === 'completed') return data.result;
       if (['failed', 'authentication_required', 'interrupted'].includes(data.status)) {
-        throw new Error(`Operation ${id}: ${data.status}. ${data.recovery || detail(data)} No automatic replay.`);
+        const message = data.recovery || detail(data);
+        const error = new Error(`Operation ${id}: ${data.status}. ${message} No automatic replay.`);
+        const diagnostic = /\bdiagnostic ([a-f0-9]{32})(?: phase ([A-Za-z][A-Za-z0-9_:.-]{0,80}))?/i.exec(message);
+        if (diagnostic) { error.failureId = diagnostic[1].toLowerCase(); error.phase = diagnostic[2] || null; }
+        throw error;
       }
       if (!['queued', 'running'].includes(data.status)) throw new Error(`Operation ${id}: unknown status; completion is unconfirmed.`);
       await new Promise(resolve => setTimeout(resolve, POLL_MS));

@@ -73,9 +73,9 @@
     base = [0, 0, 1500, height]; fit();
     const title = example ? example.title : data.selected.name;
     svg.append(svgNode('title', {}, `${title}: source to Databricks transformation trace, not execution`),
-      svgNode('desc', {}, example ? `${example.status}. ${example.execution_note}` : `Source package ${trace.source_package_hash}. One row per actual task. Unmapped tasks have no invented destination. Execution result unknown.`));
+      svgNode('desc', {}, example ? `${example.status}. ${example.execution_note}` : 'One row per task in the selected XML. Tasks without a saved match are marked not mapped.'));
     for (const [x, text] of [[30, 'SOURCE PACKAGE / WORKFLOW / TASK'], [635, 'EXPLICIT CORRESPONDENCE'], [930, 'LAKEFLOW JOB / TASK / ARTIFACTS']]) svg.append(svgNode('text', {x, y: 26, class: 'lineage-column'}, text));
-    svg.append(svgNode('text', {x: 30, y: 55}, example ? `Reference XML ${example.source_input_hash.slice(0, 12)}…` : `Selected XML ${trace.source_package_hash.slice(0, 12)}…`),
+    svg.append(svgNode('text', {x: 30, y: 55}, example ? 'Reference XML' : 'Selected XML'),
       svgNode('text', {x: 30, y: 80}, title), svgNode('text', {x: 930, y: 55}, example ? example.job.name : trace.job.design_title ? `Design: ${trace.job.design_title}` : 'Not generated'),
       svgNode('text', {x: 930, y: 80, class: 'lineage-kind'}, example ? 'Generated MOCK / historical success, not live status' : 'Proposed or recorded draft / runtime unknown'));
     const alternative = $('lineage-trace-text'); alternative.replaceChildren();
@@ -128,7 +128,7 @@
     const height = Math.max(640, 100 + Math.max(left.length, right.length) * 76);
     base = [0, 0, 1500, height]; fit();
     svg.append(svgNode('title', {}, 'Exact canonical lineage. Click a node to expand one source hop. Not execution.'),
-      svgNode('desc', {}, `Source: ${data.scope.pins.package_hash}. Root ${rootNode?.name || data.focus.id}. Only returned canonical edges animate. Missing references are red. Proposed Lakeflow outline is not generated and has no invented correspondence.`));
+      svgNode('desc', {}, `Selected source: ${rootNode?.name || 'source object'}. Only returned connections animate. Missing references are red. The Lakeflow outline has not been generated.`));
     const defs = svgNode('defs'), marker = svgNode('marker', { id: 'lineage-arrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' });
     marker.append(svgNode('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: 'currentColor' })); defs.append(marker); svg.append(defs);
     for (const [x, title] of [[32, 'UPSTREAM / CANONICAL OWNERS'], [450, 'SELECTED SOURCE OBJECT'], [840, 'CHILDREN / DOWNSTREAM'], [1230, 'LAKEFLOW OUTLINE']])
@@ -160,7 +160,7 @@
     const proposed = svgNode('g', { transform: 'translate(1230,70)', class: 'lineage-node stage-proposed' });
     proposed.append(svgNode('rect', { width: 245, height: 90, rx: 12 }), svgNode('text', { x: 14, y: 24 }, 'Proposed Lakeflow Job'),
       svgNode('text', { x: 14, y: 50, class: 'lineage-kind' }, 'Not generated'), svgNode('text', { x: 14, y: 72, class: 'lineage-kind' }, 'No verified correspondence')); svg.append(proposed);
-    $('lineage-graph-caption').textContent = `${nodes.length}/${data.focus.nodes.total} one-hop objects drawn. ${data.focus.edges.items.length}/${data.focus.edges.total} edges returned. Expand nodes for session, mapping, table and field lineage. Full inventories remain paged below. XML ${data.scope.pins.package_hash.slice(0, 12)}... is the provenance pin, not a fabricated data-flow edge.`;
+    $('lineage-graph-caption').textContent = `${nodes.length} of ${data.focus.nodes.total} nearby objects shown. ${data.focus.edges.items.length} of ${data.focus.edges.total} connections shown. Expand a node to explore its sessions, mappings, tables and fields. More records are available below.`;
     animation();
   }
   function render() {
@@ -177,7 +177,7 @@
     technical(summary, 'XML provenance, exact IDs, version and capability limits', { scope: data.scope, input_version: data.input_version, coverage: data.coverage, totals: data.totals });
     const tree = $('lineage-hierarchy'); tree.replaceChildren();
     const sourceFacts = $('lineage-workflow-facts'); sourceFacts.replaceChildren();
-    sourceFacts.append(html('p', `Package ${data.scope.pins.package_hash}. ${data.selected?.name || 'No workflow'}. Source derived, not converted.`));
+    sourceFacts.append(html('p', `Selected workflow: ${data.selected?.name || 'None'}. The source view shows the original XML.`));
     for (const n of data.focus?.nodes.items || []) {
       const b = html('button', `${n.kind}: ${n.name}`); b.type = 'button'; b.addEventListener('click', () => inspect(n.id)); tree.append(b);
     }

@@ -75,13 +75,13 @@
     semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
     validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[value] || human(value);
   const roleSkillDescription = value => ({
-    supervisor: 'Coordinates specialist findings and can submit or correct the logical migration design. Candidate code is drafted separately by the Spark and SQL code writer.',
+    supervisor: 'Brings together the other AI agents’ analysis and can submit or correct the migration design. A separate Spark and SQL code writer generates the code.',
     discovery: 'Inspects scoped Informatica objects, source contracts, and discovery gaps.',
     semantics: 'Reviews captured mapping, write, transaction, and control semantics.',
     architecture: 'Proposes evidence-qualified Lakeflow boundaries, reuse, and medallion placement.',
     validation: 'Independently challenges coverage, evidence ownership, and parity claims.',
-    artifact: 'Reviews artifact readiness and release contracts; this role does not produce executable artifacts.'
-  })[value] || 'Role description is not available.';
+    artifact: 'Reviews notebook, testing and delivery requirements; a separate code writer generates the migration code.'
+  })[value] || 'AI agent description is not available.';
   const scenarioLabel = value => value === 'bronze' ? 'Source data already in Unity Catalog' : 'Original source systems';
   const json = (value) => JSON.stringify(value, null, 2);
   const numberFormat = new Intl.NumberFormat('en-US');
@@ -109,6 +109,7 @@
     graphOffset: 0, graphTicket: 0, graphOpen: false, graphBusy: false, graphHasMore: false, graphRenderedKey: '',
     logsOffset: 0, logsTicket: 0, logsTimer: null,
     hostedLogsTicket: 0, hostedLogsTimer: null,
+    logsRenderSignature: null, hostedLogsRenderSignature: null,
   };
   // Presentation metadata only. Request accounting, polling, and workflow state stay authoritative.
   const requestActivity = new Map();
@@ -275,11 +276,11 @@
     if (assessment !== summary) card.append(el('p', 'agent-finding-context', `Diagnostic scope context (separate from original wording): ${assessment}`));
     card.append(el('h5', '', 'Recorded summary'));
     findingText(card, summary);
-    if (repeats > 1) card.append(el('p', 'small muted', `Identical submission recorded ${repeats} times for this role. Display collapsed only, not additional independent reviews.`));
+    if (repeats > 1) card.append(el('p', 'small muted', `Identical submission recorded ${repeats} times for this AI agent. Display collapsed only, not additional independent reviews.`));
     for (const [key, label, empty] of [
       ['assumptions', 'Assumptions', 'No assumptions recorded.'],
-      ['blockers', 'Recorded blockers', 'No role-specific blockers recorded.'],
-      ['proposed_changes', 'Agent-proposed design changes', 'No design changes proposed by this role.'],
+      ['blockers', 'Recorded blockers', 'No blockers recorded for this AI agent.'],
+      ['proposed_changes', 'Agent-proposed design changes', 'No design changes proposed by this AI agent.'],
       ['alternatives', 'Recorded alternatives', 'No alternatives recorded.'],
     ]) {
       const section = el('section', 'agent-finding-field');
@@ -422,7 +423,7 @@
     const warehouseLabel = warehouse?.availability === 'available' && warehouse.state
       ? `Warehouse: ${warehouse.state}` : 'Warehouse state unknown (unavailable)';
     const elapsed = typeof data.elapsed_seconds === 'number' && Number.isFinite(data.elapsed_seconds)
-      ? `Elapsed: ${data.elapsed_seconds}s` : 'Elapsed: not reported';
+      ? `Elapsed: ${formatClockDuration(data.elapsed_seconds)}` : 'Elapsed: not reported';
     const exception = data.exception_class || warehouse?.exception_class;
     const stage = loadingPhases[data.phase] ?? 'Backend stage not yet available';
     const activity = data.status === 'queued'
@@ -653,7 +654,14 @@
       let payload;
       try { payload = await response.json(); } catch { throw new Error(`Service returned an unreadable response (HTTP ${response.status}).`); }
       if (epoch !== state.epoch) throw new Error('Selection changed; stale response ignored.');
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${text(payload.detail ?? payload.error ?? payload)}`);
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status}: ${text(payload.detail ?? payload.error ?? payload)}`);
+        error.status = response.status;
+        error.failureId = typeof payload.failure_id === 'string' && /^[a-f0-9]{32}$/.test(payload.failure_id)
+          ? payload.failure_id : null;
+        error.phase = typeof payload.failure_phase === 'string' ? payload.failure_phase : null;
+        throw error;
+      }
       return payload;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('Request cancelled because the selected context changed. No service completion is inferred.');
@@ -672,6 +680,10 @@
   function selectedCompletedPackage() {
     return state.projectId ? array(state.project?.packages).find((member) => member.sha256 === state.memberHash && member.status === 'completed') : null;
   }
+  function packageLabel(member, members) {
+    const sameName = members.filter(item => item.name === member.name);
+    return sameName.length > 1 ? `${member.name} · copy ${sameName.indexOf(member) + 1}` : member.name;
+  }
   function syncPackagePicker() {
     const members = array(state.project?.packages);
     packagePicker.dataset.projectId = state.projectId;
@@ -685,11 +697,11 @@
     }
     if (!members.length) packagePicker.append(new Option('No packages added yet', ''));
     for (const member of members) {
-      const option = new Option(`${member.name} · ${human(member.status)}`, member.sha256);
+      const option = new Option(`${packageLabel(member, members)} · ${human(member.status)}`, member.sha256);
       option.disabled = member.status !== 'completed';
       option.dataset.completed = String(member.status === 'completed');
       option.dataset.packageName = member.name;
-      option.title = `${member.name} | ${member.sha256} | ${member.status}`;
+      option.title = `${option.textContent}`;
       packagePicker.append(option);
     }
     packagePicker.value = state.memberHash;
@@ -711,7 +723,7 @@
     $('object-search').value = ''; clearTimeout(searchTimer);
     renderOverview({ ready: false, status: state.projectId ? 'package_selection_required' : state.legacyWorkspaceSelected ? 'loading' : 'selection_required' });
     $('workspace-scope').textContent = state.projectId
-      ? `Project: ${state.project?.name ?? state.projectId} · ${state.memberHash ? `package ${state.memberHash.slice(0, 12)}` : 'select a ready member'}. No cross-package binding.`
+      ? `Project: ${state.project?.name || 'Selected project'} · ${selectedCompletedPackage() ? `XML: ${packageLabel(selectedCompletedPackage(), array(state.project?.packages))}` : 'Select an analyzed XML package'}`
       : state.legacyWorkspaceSelected ? 'Legacy package workspace' : 'No project or XML package selected.';
     updateControls();
   }
@@ -799,8 +811,7 @@
       const record = el('article', 'record job-card');
       record.dataset.jobStatus = String(job.status ?? 'unknown').toLowerCase();
       record.append(el('span', 'job-stage-label', 'XML package ingestion'));
-      recordHeader(record, `Job ${String(job.id).slice(0, 12)}`, job.status, job.created_at ?? job.updated_at);
-      record.querySelector('.record-title').title = text(job.id);
+      recordHeader(record, 'XML analysis', job.status, job.created_at ?? job.updated_at);
       if (Number.isSafeInteger(job.processed) && job.processed >= 0 && Number.isSafeInteger(job.total) && job.total >= job.processed) {
         const progressLine = el('div', 'job-progress-label');
         progressLine.append(el('span', 'small muted', 'Files analyzed'), el('strong', 'stat-emphasis', `${count(job.processed)} / ${count(job.total)}`));
@@ -824,7 +835,7 @@
         if (item.error) paragraph(detail, item.error, 'small error-copy');
         if (item.error_diagnostic) paragraph(detail, `Failure stage: ${human(item.error_diagnostic.stage)}. Error type: ${text(item.error_diagnostic.error_type)}.${item.error_diagnostic.winerror != null ? ` Windows error: ${item.error_diagnostic.winerror}.` : item.error_diagnostic.errno != null ? ` OS error: ${item.error_diagnostic.errno}.` : ''}`, 'small error-copy');
         if (item.audit_status === 'write_failed') paragraph(detail, 'The failure was saved in this job record, but the audit log could not be written.', 'small error-copy');
-        if (item.reason) paragraph(detail, item.reason, 'small muted');
+        if (item.reason) paragraph(detail, item.reason === 'duplicate_sha256' ? 'This XML was already added to the project.' : item.reason, 'small muted');
         row.append(icon('file'), detail, semanticStatus(item.status)); tasks.append(row);
       }
       record.append(tasks);
@@ -860,7 +871,7 @@
       const members = array(data.packages).filter((member) => member.status === 'completed' && /^[a-f0-9]{64}$/.test(member.sha256));
       if (array(data.packages).length && !members.length) paragraph($('project-members'), 'XML packages exist, but none has completed analysis. Check package job status before selecting a ready package.', 'notice');
       clear($('project-package')).append(new Option('Select a package explicitly', ''));
-      members.forEach((member) => $('project-package').append(new Option(`${member.name} · ${member.sha256.slice(0, 12)}`, member.sha256)));
+      members.forEach((member) => $('project-package').append(new Option(packageLabel(member, array(data.packages)), member.sha256)));
       $('project-package').disabled = !members.length;
       $('project-package').dataset.emptyMessage = array(data.packages).length
         ? members.length ? 'Select a completed XML package to load its analysis.' : 'Packages found. Analysis must complete before they can be selected.'
@@ -997,85 +1008,149 @@
   async function loadHostedDiagnostics() {
     clearTimeout(state.hostedLogsTimer);
     const ticket = ++state.hostedLogsTicket, epoch = state.epoch;
-    const host = clear($('hosted-diagnostics-list'));
+    const host = $('hosted-diagnostics-list');
     if (!state.hosted) { $('hosted-diagnostics-summary').textContent = 'Databricks app diagnostics are available only in the hosted app.'; return; }
-    $('hosted-diagnostics-summary').textContent = 'Loading live app diagnostics…';
+    if (state.hostedLogsRenderSignature === null) $('hosted-diagnostics-summary').textContent = 'Loading live app diagnostics…';
     try {
       const data = await api('/api/hosted/logs?limit=100');
       if (ticket !== state.hostedLogsTicket || epoch !== state.epoch || state.page !== 'logs') return;
       const items = array(data.items);
-      $('hosted-diagnostics-summary').textContent = `${count(items.length)} recent diagnostic events · ${text(data.storage)} · SQL text and credentials excluded.`;
-      if (!items.length) paragraph(host, 'No hosted request failures have been recorded by this app instance.', 'small muted');
-      for (const item of items) {
-        const row = el('article', 'record event-card'); row.dataset.severity = item.level === 'ERROR' ? 'error' : 'warning';
-        const headingNode = el('div', 'record-heading');
-        headingNode.append(el('strong', 'record-title', `${text(item.method)} ${text(item.path)} · HTTP ${text(item.status_code)}`),
-          el('span', 'event-severity error', text(item.error_type)), logCopyButton(item));
-        row.append(headingNode, el('small', 'record-time', text(item.timestamp)));
-        const error = item.error && typeof item.error === 'object' ? item.error : {};
-        const summary = [error.error_code && `Databricks error: ${error.error_code}`,
-          error.sql_state && `SQL state: ${error.sql_state}`,
-          error.statement_id && `Statement ID: ${error.statement_id}`].filter(Boolean).join(' · ');
-        if (summary) paragraph(row, summary, 'small');
-        if (error.provider_message) paragraph(row, error.provider_message, 'prose');
-        const frames = array(item.frames);
-        if (frames.length) {
-          const list = el('ol', 'diagnostic-frames');
-          frames.forEach((frame) => list.append(el('li', '', `${text(frame.file)} · ${text(frame.function)} · ${text(frame.line)}`)));
-          row.append(list);
+      host.querySelector(':scope > .hosted-diagnostics-unavailable')?.remove();
+      const signature = JSON.stringify([items, data.storage]);
+      if (signature !== state.hostedLogsRenderSignature) {
+        state.hostedLogsRenderSignature = signature;
+        const existing = new Map([...host.querySelectorAll(':scope > [data-hosted-diagnostic-id]')]
+          .map(row => [row.dataset.hostedDiagnosticId, row]));
+        const desired = [];
+        for (const item of items) {
+          const key = String(item.id || '');
+          const itemSignature = JSON.stringify(item);
+          let row = existing.get(key);
+          if (!row || row.dataset.renderSignature !== itemSignature) {
+            row = el('article', 'record event-card'); row.dataset.severity = item.level === 'ERROR' ? 'error' : 'warning';
+            row.dataset.hostedDiagnosticId = key; row.dataset.renderSignature = itemSignature;
+            const headingNode = el('div', 'record-heading');
+            headingNode.append(el('strong', 'record-title', `${text(item.method)} ${text(item.path)} · HTTP ${text(item.status_code)}`),
+              el('span', 'event-severity error', text(item.error_type)), logCopyButton(item));
+            row.append(headingNode, el('small', 'record-time', text(item.timestamp)));
+            const error = item.error && typeof item.error === 'object' ? item.error : {};
+            const summary = [item.phase && `Phase: ${human(item.phase)}`,
+              error.resource_type && error.resource_name && `Resource: ${error.resource_name}`,
+              error.error_code && `Databricks error: ${error.error_code}`,
+              error.sql_state && `SQL state: ${error.sql_state}`,
+              error.statement_id && `Statement ID: ${error.statement_id}`].filter(Boolean).join(' · ');
+            if (summary) paragraph(row, summary, 'small');
+            if (error.provider_message) paragraph(row, error.provider_message, 'prose');
+            const frames = array(item.frames);
+            if (frames.length) {
+              const list = el('ol', 'diagnostic-frames');
+              frames.forEach(frame => list.append(el('li', '', `${text(frame.file)} · ${text(frame.function)} · ${text(frame.line)}`)));
+              row.append(list);
+            }
+            jsonDetails(row, 'Complete safe diagnostic record', item);
+          }
+          desired.push(row);
         }
-        jsonDetails(row, 'Complete safe diagnostic record', item);
-        host.append(row);
+        if (!items.length) {
+          let empty = host.querySelector(':scope > .hosted-diagnostics-empty');
+          if (!empty) { empty = el('p', 'No hosted request failures have been recorded by this app instance.', 'small muted hosted-diagnostics-empty'); host.append(empty); }
+          for (const row of host.querySelectorAll(':scope > [data-hosted-diagnostic-id]')) row.remove();
+        } else {
+          host.querySelector(':scope > .hosted-diagnostics-empty')?.remove();
+          for (const row of host.querySelectorAll(':scope > [data-hosted-diagnostic-id]'))
+            if (!desired.includes(row)) row.remove();
+          let cursor = host.firstElementChild;
+          for (const row of desired) {
+            if (row === cursor) cursor = cursor.nextElementSibling;
+            else host.insertBefore(row, cursor);
+          }
+        }
       }
-      if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 4000);
+      const summary = `${count(items.length)} recent diagnostic events · ${text(data.storage)} · SQL text and credentials excluded.`;
+      if ($('hosted-diagnostics-summary').textContent !== summary) $('hosted-diagnostics-summary').textContent = summary;
+      if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 10000);
     } catch (error) {
       if (ticket !== state.hostedLogsTicket || epoch !== state.epoch) return;
-      $('hosted-diagnostics-summary').textContent = `Live diagnostics unavailable. ${error.message}`;
-      paragraph(host, 'Databricks app platform logs remain available separately in the workspace.', 'small muted');
-      if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 10000);
+      const message = `Live diagnostics unavailable. ${error.message}`;
+      if ($('hosted-diagnostics-summary').textContent !== message) $('hosted-diagnostics-summary').textContent = message;
+      let note = host.querySelector(':scope > .hosted-diagnostics-unavailable');
+      if (!note) { note = el('p', '', 'small muted hosted-diagnostics-unavailable'); host.prepend(note); }
+      note.textContent = 'Databricks app platform logs remain available separately in the workspace. Last successful events are retained below.';
+      if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 15000);
     }
   }
-  async function loadLogs() {
+  async function loadLogs(background = false) {
     clearTimeout(state.logsTimer);
     const ticket = ++state.logsTicket, epoch = state.epoch;
-    $('logs-prev').disabled = true; $('logs-next').disabled = true;
-    $('logs-summary').textContent = 'Loading service-recorded logs…';
+    if (!background) {
+      $('logs-prev').disabled = true; $('logs-next').disabled = true;
+      if (state.logsRenderSignature === null) $('logs-summary').textContent = 'Loading service-recorded logs…';
+    }
     try {
       const jobId = $('logs-run').value.trim();
       const projectJob = state.projectId && state.projectJobs.some(job => job.id === jobId && job.kind === 'package_batch');
       const path = projectJob ? `/api/projects/${encodeURIComponent(state.projectId)}/jobs/${encodeURIComponent(jobId)}/logs` : '/api/logs';
       const data = await api(`${path}?${logParams()}`);
       if (ticket !== state.logsTicket || epoch !== state.epoch || state.page !== 'logs') return;
-      clear($('logs-list'));
-      $('logs-summary').textContent = `${count(data.total)} events · chain ${data.chain_valid === true ? 'valid' : data.chain_valid === false ? 'INVALID' : 'unknown'} · storage: ${text(data.storage)} · ${state.projectId ? `selected project ${state.projectId}, package ${state.memberHash || 'not selected'}` : 'legacy / root events'}`;
+      $('logs-list').querySelector(':scope > .logs-unavailable')?.remove();
       const items = array(data.items);
-      if (!items.length) paragraph($('logs-list'), 'No matching events recorded.');
+      const signature = JSON.stringify([path, logParams().toString(), data.total, data.chain_valid, items]);
+      if (signature !== state.logsRenderSignature) {
+        state.logsRenderSignature = signature;
+        const list = $('logs-list');
+        const existing = new Map([...list.querySelectorAll(':scope > [data-log-key]')]
+          .map(row => [row.dataset.logKey, row]));
+        const desired = [];
       for (const item of items) {
-        const record = el('article', 'record event-card');
-        const severity = ['error', 'warning', 'info', 'debug'].includes(item.level) ? item.level : 'unknown';
-        record.dataset.severity = severity;
-        const header = el('div', 'record-heading');
-        const badge = el('span', `event-severity ${severity}`);
-        badge.append(icon(severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'), el('span', '', human(item.level ?? 'Unknown level')));
-        header.append(el('strong', 'record-title', text(item.event)), badge, logCopyButton(item));
-        record.append(header, el('small', 'record-time', text(item.timestamp)));
-        paragraph(record, text(item.message), 'prose');
-        const metadata = el('details', 'event-metadata');
-        metadata.append(el('summary', '', 'Correlation, role & token usage'));
-        rows(metadata, { sequence: item.sequence, level: item.level, role: item.role, run_id: item.run_id, package_hash: item.package_hash, correlation_id: item.correlation_id,
-          input_tokens: item.input_tokens ?? 'Unknown', output_tokens: item.output_tokens ?? 'Unknown', total_tokens: item.total_tokens ?? 'Unknown', usage_status: item.usage_status ?? 'Unknown' });
-        record.append(metadata);
-        jsonDetails(record, 'Event integrity hashes', { previous_hash: item.previous_hash, event_hash: item.event_hash });
-        jsonDetails(record, 'Complete service event', item);
-        $('logs-list').append(record);
+          const key = String(item.event_hash || item.sequence || item.id || `${item.timestamp}:${item.event}`);
+          const itemSignature = JSON.stringify(item);
+          let record = existing.get(key);
+          if (!record || record.dataset.renderSignature !== itemSignature) {
+            record = el('article', 'record event-card');
+            record.dataset.severity = ['error', 'warning', 'info', 'debug'].includes(item.level) ? item.level : 'unknown';
+            record.dataset.logKey = key; record.dataset.renderSignature = itemSignature;
+            const header = el('div', 'record-heading');
+            const severity = record.dataset.severity;
+            const badge = el('span', `event-severity ${severity}`);
+            badge.append(icon(severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'), el('span', '', human(item.level ?? 'Unknown level')));
+            header.append(el('strong', 'record-title', text(item.event)), badge, logCopyButton(item));
+            record.append(header, el('small', 'record-time', text(item.timestamp)));
+            paragraph(record, text(item.message), 'prose');
+            const metadata = el('details', 'event-metadata');
+            metadata.append(el('summary', '', 'Event reference, AI agent & token usage'));
+            rows(metadata, { sequence: item.sequence, level: item.level, role: item.role, run_id: item.run_id, package_hash: item.package_hash, correlation_id: item.correlation_id,
+              input_tokens: item.input_tokens ?? 'Unknown', output_tokens: item.output_tokens ?? 'Unknown', total_tokens: item.total_tokens ?? 'Unknown', usage_status: item.usage_status ?? 'Unknown' });
+            record.append(metadata);
+            jsonDetails(record, 'Event integrity hashes', { previous_hash: item.previous_hash, event_hash: item.event_hash });
+            jsonDetails(record, 'Complete service event', item);
+          }
+          desired.push(record);
+        }
+        if (!items.length) {
+          let empty = list.querySelector(':scope > .logs-empty');
+          if (!empty) { empty = el('p', 'No matching events recorded.', 'logs-empty'); list.append(empty); }
+          for (const row of list.querySelectorAll(':scope > [data-log-key]')) row.remove();
+        } else {
+          list.querySelector(':scope > .logs-empty')?.remove();
+          for (const row of list.querySelectorAll(':scope > [data-log-key]')) if (!desired.includes(row)) row.remove();
+          let cursor = list.firstElementChild;
+          for (const row of desired) {
+            if (row === cursor) cursor = cursor.nextElementSibling;
+            else list.insertBefore(row, cursor);
+          }
+        }
       }
+      const summary = `${count(data.total)} events · Log integrity: ${data.chain_valid === true ? 'valid' : data.chain_valid === false ? 'invalid' : 'unknown'} · ${state.projectId ? `Project: ${state.project?.name || 'Selected project'} · XML: ${selectedCompletedPackage()?.name || 'Not selected'}` : 'Legacy workspace events'}`;
+      if ($('logs-summary').textContent !== summary) $('logs-summary').textContent = summary;
       $('logs-prev').disabled = state.logsOffset === 0;
       $('logs-next').disabled = state.logsOffset + items.length >= data.total;
-      if (state.page === 'logs') state.logsTimer = setTimeout(loadLogs, 4000);
+      if (state.page === 'logs') state.logsTimer = setTimeout(() => loadLogs(true), 10000);
     } catch (error) {
       if (ticket !== state.logsTicket || epoch !== state.epoch) return;
-      message($('logs-list'), `Logs unavailable. ${error.message} No events or usage have been fabricated.`);
-      $('logs-summary').textContent = 'Log service unavailable. Refresh to retry.';
+      let note = $('logs-list').querySelector(':scope > .logs-unavailable');
+      if (!note) { note = el('p', '', 'small caution logs-unavailable'); $('logs-list').prepend(note); }
+      note.textContent = `Refresh unavailable. ${error.message} Existing recorded rows are retained; no events or usage are fabricated.`;
+      if (state.page === 'logs') state.logsTimer = setTimeout(loadLogs, 15000);
     }
   }
   $('logs-form').addEventListener('submit', (event) => { event.preventDefault(); state.logsOffset = 0; loadHostedDiagnostics(); loadLogs(); });
@@ -1458,8 +1533,15 @@
       state.overview.capabilities.agents = { ...state.overview.capabilities.agents, available: true,
         status: 'model_route_configured', inference_verified: false };
     }
-    $('agent-availability').textContent = 'The selected workspace model is configured for the agents. It has not been tested by this step.';
-    $('agent-availability').className = 'notice';
+    const availability = $('agent-availability');
+    availability.replaceChildren(document.createTextNode(
+      `Saved agent model route: ${typeof result?.selected_endpoint === 'string' ? result.selected_endpoint : 'configuration confirmed'}. No inference or tool execution was tested.`));
+    const observabilityLink = document.createElement('a');
+    observabilityLink.href = '#agent-observability';
+    observabilityLink.className = 'agent-observability-link';
+    observabilityLink.textContent = 'View routing and tracing status';
+    availability.append(document.createTextNode(' '), observabilityLink);
+    availability.className = 'notice notice-model-route';
     updateControls();
     renderCapabilities(state.overview.capabilities);
   };
@@ -1507,7 +1589,7 @@
       inventoryControl(metric, key, value, label);
       $('metrics').append(metric);
     }
-    if (!counts.length) message($('metrics'), ready ? 'The API did not supply estate counts.' : 'Estate counts are unavailable until parsing is complete.', 'panel empty');
+    if (!counts.length) message($('metrics'), ready ? 'Package counts were not available. Refresh to try again.' : selected ? 'Loading the selected package. Its counts will appear here when available.' : 'Select an analyzed XML package to see its counts.', 'panel empty');
     const summary = clear($('overview-summary'));
     heading(summary, 'Package inventory');
     if (ready) {
@@ -1607,7 +1689,7 @@
     const agent = data.agent ?? {};
     $('agent-availability').textContent = agent.available === true ? 'Ready. Invoke agents submits the workflow, saves its design and drafts candidate notebook/SQL artifacts in one run.' : `Agent execution unavailable. ${text(agent.reason ?? 'The API has not confirmed a configured model and runnable adapter.')}`;
     $('agent-availability').className = `notice ${agent.available === true ? 'success' : ''}`;
-    $('agent-roles').textContent = array(agent.roles).length ? `Configured roles: ${agent.roles.map(text).join(', ')}` : 'No configured agent roles reported.';
+    $('agent-roles').textContent = array(agent.roles).length ? `Configured AI agents: ${agent.roles.map(roleLabel).join(', ')}` : 'No configured AI agents reported.';
     setPackageReady(ready);
   }
 
@@ -2261,13 +2343,13 @@
           && scopes.every(scope => scope.impact === 'non_blocking_context');
         if (onlyHistoricalConnection) return 'Historical Oracle connection metadata is informational only for source data already in Unity Catalog.';
         return scopes.length && namesMatch && !(finding.status === 'unsupported' && scopes.every(scope => scope.impact === 'human_review'))
-          ? summary : 'No verified reference or field issue recorded for this role.';
+          ? summary : 'No verified reference or field issue recorded for this AI agent.';
       };
       paragraph(target, run.output?.summary ?? 'No agent summary recorded.');
       for (const finding of array(run.output?.findings)) {
         heading(target, `${roleLabel(finding.role)}: ${human(finding.status)}`, 'h4');
         paragraph(target, verifiedSummary(finding));
-        list(target, array(finding.proposed_changes), 'No design changes recorded by this role.');
+        list(target, array(finding.proposed_changes), 'No design changes recorded by this AI agent.');
         if (array(finding.blockers).length) list(target, finding.blockers);
       }
       target.append(action('Open this agent run', () => { navigate('agents', true); selectRun(run.id); }));
@@ -2358,7 +2440,8 @@
       paragraph(parent, 'No direct caller or child is shown on this page. Other invocation forms and external schedulers may not be captured.', 'small muted');
     }
     if (contract.invocations.truncated) paragraph(parent, 'The call list is paged; review the other pages before treating it as complete.', 'small muted');
-    paragraph(parent, `Source: selected saved canonical package ${contract.package_hash || 'not supplied'}; ${contract.version || 'context version not supplied'}. This is captured package information, not live execution.`, 'small muted');
+    paragraph(parent, 'This information comes from the selected saved XML package.', 'small muted');
+    jsonDetails(parent, 'Technical package reference', {package_hash: contract.package_hash, version: contract.version});
     paragraph(parent, `Package risk not assessed. ${contract.selected.direct_sources} direct sources and ${contract.selected.direct_targets} direct targets in the selected workflow. Child counts below are XML metadata, not UC observations or readiness.`, 'small muted');
     if (contract.selected.source_explanation) paragraph(parent, contract.selected.source_explanation);
     paragraph(parent, 'Definition counts do not resolve embedded SQL, Java or procedure side effects. Source connectivity and output parity remain unverified.', 'small muted');
@@ -3154,6 +3237,7 @@
     state.agentRunning = true;
     updateControls();
     formStatus(form, 'Submitting the explicitly requested agent run…');
+    let responseFailure = null;
     try {
       const run = await post('/api/agents/run', { workflow_id: $('agent-workflow').value, scenario: $('agent-scenario').value, prompt: $('agent-prompt').value, consent: true, generate_code: true });
       if (epoch !== state.epoch) return;
@@ -3168,12 +3252,38 @@
       updateControls();
       selectRun(run.id);
     } catch (error) {
+      responseFailure = error;
       if (epoch === state.epoch) {
         formStatus(form, `Run submission not confirmed. ${error.message} Checking persisted run status before enabling another invocation.`, 'error');
         await loadRuns();
       }
     }
-    finally { if (epoch === state.epoch) { state.agentSubmitting = false; updateControls(); } }
+    finally {
+      if (epoch === state.epoch) { state.agentSubmitting = false; updateControls(); }
+        if (responseFailure && epoch === state.epoch && state.hosted && responseFailure.failureId
+          && (!responseFailure.status || ['503','502','504'].includes(String(responseFailure.status)))) {
+        const failure = responseFailure;
+        void (async () => {
+          try {
+            const result = await api(`/api/hosted/logs/${encodeURIComponent(failure.failureId)}`);
+            if (epoch !== state.epoch) return;
+            const event = result.item;
+            if (!event || event.id !== failure.failureId) return;
+            formStatus(form, `Run submission failed during ${human(event.phase || failure.phase || 'hosted request')}. `
+              + `${event.error?.resource_name ? `Databricks denied metadata access to ${event.error.resource_name}. ` : ''}`
+              + 'The worker/result may have completed without a confirmed saved run. Inspect Logs and committed run status before retrying.', 'error');
+            const runPanel = $('run-detail');
+            const note = el('section', 'hosted-run-failure', 'hosted-run-failure');
+            note.setAttribute('role','alert');
+            heading(note, 'Hosted run response failed', 'h3');
+            paragraph(note, `Phase: ${human(event.phase || failure.phase || 'unknown')}. HTTP ${text(event.status_code)} · ${text(event.error_type)}.`, 'small');
+            if (event.error?.resource_name) paragraph(note, `Unity Catalog object denied: ${text(event.error.resource_name)}.`, 'small');
+            paragraph(note, 'Because the run endpoint did not return an accepted run ID, do not invoke again until the saved run list and committed result have been checked.', 'small muted');
+            runPanel.prepend(note);
+          } catch { /* The failure receipt can expire with this app instance. */ }
+        })();
+      }
+    }
   });
   let runsPending = null;
   function loadRuns(offset = 0) {
@@ -3472,10 +3582,10 @@
     const panel = el('section', 'agent-skill-stats');
     panel.dataset.runId = run.id;
     heading(panel, 'PER-AGENT SKILLS', 'h3');
-    paragraph(panel, 'Loaded means explicitly injected into the compiled role system prompt. Tool reads count successful read_file calls, including partial reads. Neither proves use in reasoning. CONTEXT.md reads are identified separately by name.', 'small muted');
+    paragraph(panel, 'Loaded means included in the AI agent’s instructions. Tool reads count successful file reads, including partial reads. Context files are listed separately.', 'small muted');
     const skillGuide = el('details', 'agent-skill-guide');
     skillGuide.append(el('summary', '', 'BROAD SKILL DESCRIPTIONS'));
-    paragraph(skillGuide, 'These are general role responsibilities, not proof that a skill was loaded or used in this run.', 'small muted');
+    paragraph(skillGuide, 'These are the AI agents’ general responsibilities. The recorded skills for this run appear below.', 'small muted');
     for (const role of ['supervisor', 'discovery', 'semantics', 'architecture', 'validation', 'artifact']) {
       const description = el('p', 'small');
       description.append(el('strong', '', `${roleLabel(role)}: `), document.createTextNode(roleSkillDescription(role)));
@@ -3488,7 +3598,7 @@
     }
     const table = el('table');
     const header = el('tr');
-    for (const label of ['ROLE', 'LOADED COUNT', 'TOOL-READ COUNT']) {
+    for (const label of ['AI AGENT', 'LOADED COUNT', 'TOOL-READ COUNT']) {
       const cell = el('th', '', label); cell.scope = 'col'; header.append(cell);
     }
     const head = el('thead'); head.append(header); table.append(head);
@@ -3506,13 +3616,14 @@
       paragraph(details, roleLabel(role.role), 'small');
       for (const item of array(role.loaded)) paragraph(details, `Loaded: ${text(item.path)}`, 'small muted');
       for (const item of array(role.tool_reads)) paragraph(details, `Tool read: ${text(item.path)} · ${text(item.count)} successful call(s)`, 'small muted');
-      if (role.status === 'unavailable') paragraph(details, 'No load/read receipts available for this role.', 'small muted');
+      if (role.status === 'unavailable') paragraph(details, 'No loaded or read records are available for this AI agent.', 'small muted');
     }
     panel.append(details);
     return panel;
   }
   let liveRunClock = null;
   let liveRunObservation = null;
+  let renderedRunId = null, renderedRunSignature = null;
   const agentEvaluationSnapshots = new Map();
   function recordedFailureCount(kind, counts, live, completed) {
     const explicit = counts?.[`${kind}_failed`];
@@ -3553,14 +3664,14 @@
     const signature = JSON.stringify(values);
     const points = agentEvaluationSnapshots.get(run.id) || [];
     const prior = points.at(-1);
-    if (prior?.signature === signature && captured - prior.captured_at < 10000) return;
+    if (prior?.signature === signature) return;
     points.push({elapsed_seconds: Math.max(0, (captured - started) / 1000), captured_at: captured,
       signature, values});
     if (points.length > 600) points.splice(1, points.length - 600);
     agentEvaluationSnapshots.set(run.id, points);
     while (agentEvaluationSnapshots.size > 10) agentEvaluationSnapshots.delete(agentEvaluationSnapshots.keys().next().value);
   }
-  function renderAgentEvaluationTrend(run, completed) {
+  function renderOperationalKpiTrend(run, completed) {
     const panel = el('section', 'agent-evaluation-trend');
     panel.setAttribute('aria-label', 'Evaluation KPI trends over elapsed run time');
     heading(panel, 'Operational KPI trend over run time', 'h3');
@@ -3628,16 +3739,124 @@
     axis.textContent = 'Elapsed seconds from run start'; chart.append(axis); panel.append(chart);
     const legend = el('div', 'agent-evaluation-trend-legend');
     for (const name of available) {
-      const item = el('span', 'small', name); item.style.setProperty('--trend-color', colors[name]); legend.append(item);
+      const item = el('span', 'small', name === 'Role output completion' ? 'AI agent output completion' : name); item.style.setProperty('--trend-color', colors[name]); legend.append(item);
     }
     panel.append(legend, el('p', 'small muted', `${sourceLabel}. Model and tool percentages exclude pending calls. Reference-based correctness is not inferred from these trends.`));
     return panel;
   }
+  function renderAgentEvaluationTrend(run, completed) {
+    const panel = el('section', 'agent-evaluation-trend agentic-evaluation-panel');
+    panel.setAttribute('aria-label', 'Advanced agentic evaluation for the selected run');
+    heading(panel, 'ADVANCED AGENTIC EVALS', 'h3');
+    paragraph(panel, 'Evaluate the complete run trajectory: the selected case, evidence retrieval, agent outputs, tool decisions, generated drafts and human review. Operational counters are supporting trace data, not quality scores.', 'small muted');
+
+    const receipt = agentObservationReceipt(run);
+    const verified = receipt?.status === 'verified';
+    const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    const counts = verified && isRecord(receipt.counts) ? receipt.counts : {};
+    const count = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
+    const display = value => count(value) === null ? 'Not recorded' : count(value).toLocaleString();
+    const roles = ['supervisor', 'discovery', 'semantics', 'architecture', 'validation', 'artifact'];
+    const roleRows = array(run.output?.role_completion).filter(item => isRecord(item) && roles.includes(item.role));
+    const completedRoles = new Set(roleRows.filter(item => item.status === 'completed').map(item => item.role));
+    const findings = array(run.output?.findings).filter(isRecord);
+    const citedIds = new Set(findings.flatMap(item => array(item.evidence_ids).filter(id => typeof id === 'string')));
+    const sourceReferences = array(run.evidence_references).filter(item => isRecord(item) && typeof item.id === 'string');
+    const sourceReferenceIds = new Set(sourceReferences.map(item => item.id));
+    const resolvedCitationCount = [...citedIds].filter(id => sourceReferenceIds.has(id)).length;
+    const unresolvedCitationCount = sourceReferences.length ? Math.max(0, citedIds.size - resolvedCitationCount) : null;
+    const toolsStarted = count(counts.tool_started), toolsFinished = count(counts.tool_completed);
+    const toolsRejected = count(counts.tool_rejected), toolsFailed = count(recordedFailureCount('tool', counts, receipt, completed));
+    const modelsFailed = count(recordedFailureCount('model', counts, receipt, completed));
+    const writer = isRecord(run.candidate_writer) ? run.candidate_writer : null;
+    const tasks = array(writer?.task_statuses);
+    const draftedTasks = tasks.filter(task => isRecord(task) && task.status === 'drafted').length;
+    const workflow = run.workflow_name || run.name || run.workflow_id || 'Workflow not recorded';
+    const scenario = ({bronze: 'Source data already in Unity Catalog', original: 'Original source systems'})[run.scenario]
+      || (typeof run.scenario === 'string' ? human(run.scenario) : 'Scenario not recorded');
+    const scopePinned = Boolean(run.workflow_id && run.scenario && run.package_hash);
+    const caseBar = el('div', 'agentic-eval-case');
+    const caseIdentity = el('div', 'agentic-eval-case-identity');
+    caseIdentity.append(el('span', 'agentic-eval-eyebrow', 'SELECTED CASE'),
+      el('strong', 'agentic-eval-workflow', text(workflow)), el('span', 'agentic-eval-scenario', text(scenario)));
+    const traceStatus = el('span', `agentic-eval-status ${verified ? 'is-recorded' : 'is-unavailable'}`,
+      verified ? 'Run trace verified' : 'Run trace unavailable');
+    caseBar.append(caseIdentity, traceStatus); panel.append(caseBar);
+
+    const flowHeading = el('div', 'agentic-eval-section-heading');
+    flowHeading.append(el('h4', '', 'Evaluation path'),
+      el('span', 'small muted', 'Trace evidence shown; quality verdicts require an evaluator or reference set.'));
+    panel.append(flowHeading);
+    const flow = el('ol', 'agentic-eval-flow');
+    const stages = [
+      {title: 'Case & scope', value: scopePinned ? `${text(workflow)} · ${text(scenario)} · package pin recorded` : 'Workflow, scenario or package pin unavailable', detail: 'Check the exact source package, workflow, scenario and version before grading.', state: scopePinned ? 'Scope recorded' : 'Scope incomplete'},
+      {title: 'Evidence grounding', value: sourceReferences.length
+        ? `${resolvedCitationCount} / ${citedIds.size} cited IDs resolve to captured source records`
+        : `${citedIds.size} cited IDs · source-reference catalog unavailable`, detail: 'ID resolution is structural only; whether each claim is supported is not scored here.', state: findings.length ? 'Citations observed' : 'No findings to grade'},
+      {title: 'Agent collaboration', value: `${completedRoles.size} / ${roles.length} required agent outputs recorded`, detail: 'Output completion does not prove consistent handoffs or agreement across agents.', state: roleRows.length ? 'Output trace recorded' : 'Outputs unavailable'},
+      {title: 'Tool decisions', value: `${display(toolsStarted)} started · ${display(toolsFinished)} completed · ${display(toolsRejected)} rejected · ${display(toolsFailed)} failed`, detail: 'Evaluate tool choice, arguments, result use and recovery against an expected trace.', state: verified ? 'Tool trace recorded' : 'Tool trace unavailable'},
+      {title: 'Draft & human review', value: writer ? `${human(writer.status || 'status unavailable')}${writer.manifest_status ? ` · ${human(writer.manifest_status)}` : ''}` : 'No candidate-writer record', detail: `${tasks.length ? `${draftedTasks} / ${tasks.length} task dispositions drafted. ` : ''}Artifact correctness, runtime behavior and approval remain separate checks.`, state: writer ? 'Draft receipt recorded' : 'Draft not recorded'}
+    ];
+    stages.forEach((stage, index) => {
+      const item = el('li', 'agentic-eval-stage');
+      item.append(el('span', 'agentic-eval-step', String(index + 1)),
+        el('span', 'agentic-eval-stage-status', stage.state),
+        el('h5', '', stage.title), el('strong', 'agentic-eval-stage-value', stage.value),
+        el('p', 'small muted', stage.detail));
+      flow.append(item);
+    });
+    panel.append(flow);
+
+    const stakeholderHeading = el('div', 'agentic-eval-section-heading');
+    stakeholderHeading.append(el('h4', '', 'Three review lenses'),
+      el('span', 'small muted', 'Role-based checks, not claims that these reviewers participated.'));
+    panel.append(stakeholderHeading);
+    const stakeholders = el('div', 'agentic-eval-stakeholders');
+    for (const [title, question, artifact] of [
+      ['Informatica owner', 'Are source behavior, dependencies, SQL and edge cases represented?', 'Behavior and evidence'],
+      ['Databricks engineer', 'Are target contracts, permissions and Jobs dependencies valid?', 'Target and runtime readiness'],
+      ['Migration reviewer', 'Are assumptions, unsupported items and approval boundaries explicit?', 'Review and sign-off']
+    ]) {
+      const card = el('article', 'agentic-eval-stakeholder');
+      card.append(el('span', 'agentic-eval-eyebrow', 'REVIEW LENS'),
+        el('h5', '', title), el('p', '', question), el('span', 'agentic-eval-artifact', artifact));
+      stakeholders.append(card);
+    }
+    panel.append(stakeholders);
+
+    const failureSignals = el('section', 'agentic-eval-breakpoints');
+    const breakpointHeading = el('div', 'agentic-eval-section-heading');
+    breakpointHeading.append(el('h4', '', 'Observed breakpoints'));
+    failureSignals.append(breakpointHeading,
+      el('p', 'small muted', 'These are trace signals for review, not automatic judgments of agent quality.'));
+    const signals = el('div', 'agentic-eval-signals');
+    for (const [label, value, note] of [
+      ['Correction rejections', count(counts.tool_rejected), 'Submissions returned for correction'],
+      ['Tool failures', toolsFailed, 'Recorded failed tool calls'],
+      ['Model failures', modelsFailed, 'Recorded failed model calls'],
+      ['Unresolved citation IDs', unresolvedCitationCount, sourceReferences.length ? 'IDs absent from the captured reference list' : 'Reference list unavailable']
+    ]) {
+      const card = el('article', 'agentic-eval-signal');
+      card.append(el('span', 'agentic-eval-eyebrow', label),
+        el('strong', `agentic-eval-signal-value${value > 0 ? ' has-signal' : ''}`, display(value)),
+        el('span', 'small muted', note));
+      signals.append(card);
+    }
+    failureSignals.append(signals,
+      el('p', 'agentic-eval-ungraded', 'Not graded: claim-level groundedness, behavior equivalence, mapping correctness, target authorization, runtime outcomes and stakeholder impact. No independent evaluator verdict is attached to this run.'));
+    panel.append(failureSignals);
+
+    const operational = el('details', 'agentic-eval-operational-details');
+    operational.append(el('summary', 'Operational KPI trend (supporting evidence)'),
+      renderOperationalKpiTrend(run, completed));
+    panel.append(operational);
+    return panel;
+  }
   function renderAgentRoleCallTrend(run, completed) {
     const panel = el('section', 'agent-evaluation-trend agent-role-call-trend');
-    panel.setAttribute('aria-label', 'Six agent roles model-call progression');
-    heading(panel, 'Model calls by agent role · six lines', 'h3');
-    paragraph(panel, 'Each line is cumulative actual model calls started by that role. Recorded call-start times plot the steps; during a live run, the current status observation extends the lines without inventing calls.', 'small muted');
+    panel.setAttribute('aria-label', 'Model-call progression for six AI agents');
+    heading(panel, 'Model calls by AI agent · six lines', 'h3');
+    paragraph(panel, 'Each line shows the cumulative model calls started by an AI agent. Recorded start times plot the steps; during a live run, the lines extend to the latest observation.', 'small muted');
     const receipt = agentObservationReceipt(run);
     const roles = ['supervisor', 'discovery', 'semantics', 'architecture', 'validation', 'artifact'];
     const turns = array(receipt?.turns);
@@ -3645,7 +3864,7 @@
     const completeInventory = Number.isSafeInteger(receipt?.turn_count) && receipt.turn_count === turns.length
       && turns.every(turn => roles.includes(turn.role) && Number.isFinite(Date.parse(turn.started_at || '')));
     if (!completeInventory || !Number.isFinite(start)) {
-      paragraph(panel, 'A complete role-by-role model-call timeline is not available for this run. No missing calls are filled in or inferred.', 'small muted');
+      paragraph(panel, 'A complete model-call timeline for each AI agent is not available for this run.', 'small muted');
       return panel;
     }
     const events = turns.map(turn => ({role: turn.role, at: Date.parse(turn.started_at)}))
@@ -3669,7 +3888,7 @@
     const maxX = Math.max(1, ...points.map(point => point.elapsed_seconds));
     const ns = 'http://www.w3.org/2000/svg';
     const chart = document.createElementNS(ns, 'svg'); chart.setAttribute('viewBox', '0 0 720 300');
-    chart.setAttribute('role', 'img'); chart.setAttribute('aria-label', `Six role lines showing cumulative model calls, maximum ${maxY} calls`);
+    chart.setAttribute('role', 'img'); chart.setAttribute('aria-label', `Six AI agent lines showing cumulative model calls, maximum ${maxY} calls`);
     const left = 54, right = 700, top = 18, bottom = 242;
     const x = value => left + value / maxX * (right - left);
     const y = value => bottom - value / maxY * (bottom - top);
@@ -3702,7 +3921,7 @@
       const item = el('span', 'small', `${roleLabel(role)} · ${cumulative[role]} calls`);
       item.style.setProperty('--trend-color', colors[role]); legend.append(item);
     }
-    panel.append(legend, el('p', 'small muted', `Source: ${completed ? 'complete saved' : 'current'} recorded model-turn inventory. One turn is one actual call. Roles with no recorded starts remain at zero so far; a live endpoint extends the chart to the latest observation time.`));
+    panel.append(legend, el('p', 'small muted', `Source: ${completed ? 'complete saved' : 'current'} recorded model-call history. AI agents with no recorded starts remain at zero so far; a live run extends the chart to the latest observation time.`));
     return panel;
   }
   function renderLatestAgentEvent(run, live, completed) {
@@ -3749,9 +3968,9 @@
   }
   function renderAgentEvaluations(run, live, completed) {
     const panel = el('section', 'agent-evaluation-panel');
-    panel.setAttribute('aria-label', 'Agent evaluation scorecard');
-    heading(panel, 'AGENT EVALUATIONS', 'h3');
-    paragraph(panel, 'Review recorded activity and operational results here. Business correctness requires separate validation; unavailable evaluations remain unscored.', 'small muted');
+    panel.setAttribute('aria-label', 'Recorded operational scorecard');
+    heading(panel, 'OPERATIONAL SCORECARD', 'h3');
+    paragraph(panel, 'Recorded execution and completion counters. These do not grade tool judgment, evidence quality or migration correctness.', 'small muted');
     const references = el('section', 'agent-evaluation-unavailable');
     heading(references, 'Reference-based quality KPIs', 'h4');
     paragraph(references, 'These quality measures require a labeled reference set or calibrated evaluator. Operational success is reported separately.', 'small muted');
@@ -3799,9 +4018,9 @@
     const source = run.output || {};
     const roles = array(source.role_completion);
     const expectedRoles = ['supervisor','discovery','semantics','architecture','validation','artifact'];
-    metric('Role output completion', roles.length ? expectedRoles.filter(role =>
+    metric('AI agent output completion', roles.length ? expectedRoles.filter(role =>
       roles.some(item => item.role === role && item.status === 'completed')).length : null,
-      roles.length ? expectedRoles.length : null, 'Recorded completed role outputs / six required roles. Not quality of their findings.');
+      roles.length ? expectedRoles.length : null, 'Completed AI agent outputs out of the six agents.');
     const writer = run.candidate_writer;
     const tasks = array(writer?.task_statuses);
     metric('Draft disposition completion', tasks.length ? tasks.filter(task => task.status === 'drafted').length : null,
@@ -3818,18 +4037,192 @@
     article.target = '_blank'; article.rel = 'noopener noreferrer'; panel.append(article);
     return panel;
   }
+  function writerPhaseLabel(run, writerActive) {
+    const writer = run.candidate_writer || {};
+    if (!writerActive) {
+      const result = writer.manifest_status ? ` · ${human(writer.manifest_status)}` : '';
+      return {phase: writer.phase || run.phase || '', label: `Candidate writer ${human(writer.status || 'finished')}${result}`};
+    }
+    const progress = run.writer_progress;
+    if (progress && typeof progress.message === 'string'
+        && ['in_progress', 'completed', 'rejected', 'failed'].includes(progress.status)) {
+      const stateLabel = progress.status === 'in_progress' ? 'in progress'
+        : progress.status === 'rejected' ? 'returned for correction' : human(progress.status);
+      return {phase: `writer_progress:${String(progress.stage || 'step')}`,
+        label: `${text(progress.message)} · ${stateLabel}`};
+    }
+    const currentPhase = typeof run.phase === 'string' ? run.phase : '';
+    const writerPhase = typeof writer.phase === 'string' ? writer.phase : '';
+    const phase = /^(?:candidate_code_generation(?::\d+\/\d+)?|writer_model_(?:started|completed|failed)|model_retry_(?:wait|resuming|succeeded))$/.test(currentPhase)
+      ? currentPhase : writerPhase || currentPhase || 'candidate_code_generation';
+    const labels = {
+      candidate_code_generation: 'Preparing candidate-code draft',
+      writer_model_started: 'Candidate model request in progress',
+      writer_model_completed: 'Model response received; processing writer step',
+      writer_model_failed: 'Candidate model request failed',
+      model_retry_wait: 'Waiting for model rate-limit retry',
+      model_retry_resuming: 'Resuming the model request',
+      model_retry_succeeded: 'Model retry completed'
+    };
+    const numbered = /^candidate_code_generation:(\d+)\/(\d+)$/.exec(phase);
+    return {phase, label: numbered ? `Preparing draft ${numbered[1]} of ${numbered[2]}` : labels[phase] || human(phase)};
+  }
+  function renderWriterProgress(run, writerActive, completed) {
+    const writer = run.candidate_writer;
+    if (!writer) return null;
+    const panel = el('section', 'agent-writer-progress');
+    panel.setAttribute('aria-label', 'Candidate code generation progress');
+    const header = el('div', 'agent-writer-progress-header');
+    heading(header, 'Candidate code generation', 'h3');
+    const status = semanticStatus(writer.status || 'unknown');
+    status.classList.add('agent-writer-progress-status');
+    header.append(status); panel.append(header);
+
+    const {label} = writerPhaseLabel(run, writerActive);
+    const started = Date.parse(writer.started_at || writer.created_at || '');
+    const ended = Date.parse(writer.finished_at || '');
+    const now = completed && Number.isFinite(ended) ? ended : Date.now();
+    const writerElapsed = Number.isFinite(started) ? formatClockDuration(Math.max(0, (now - started) / 1000)) : 'Not recorded';
+    const phaseStamp = Date.parse(run.phase_updated_at || run.writer_progress?.updated_at || writer.phase_updated_at || '');
+    const phaseAge = Number.isFinite(phaseStamp) ? Math.max(0, Math.floor((Date.now() - phaseStamp) / 1000)) : null;
+    const stale = writerActive && phaseAge !== null && phaseAge >= 300;
+    const phaseInfo = el('div', `agent-writer-current-phase${stale ? ' is-stale' : ''}`);
+    phaseInfo.append(el('span', 'agent-writer-phase-label', writerActive
+      ? stale ? 'Last persisted writer stage' : 'Latest persisted writer stage' : 'Writer result'),
+      el('strong', 'agent-writer-phase-value', label));
+    const phaseAgeLabel = writerActive
+      ? phaseAge === null ? 'Phase-update time not recorded' : `Last phase update ${formatClockDuration(phaseAge)} ago`
+      : `Writer duration ${writerElapsed}`;
+    const phaseAgeNode = el('span', 'agent-writer-phase-age', phaseAgeLabel);
+    if (writerActive && Number.isFinite(phaseStamp)) phaseAgeNode.dataset.phaseUpdatedAt = String(phaseStamp);
+    if (writerActive && Number.isFinite(started)) phaseAgeNode.dataset.writerStartedAt = String(started);
+    phaseInfo.append(phaseAgeNode);
+    if (writerActive && Number.isFinite(started)) {
+      const writerElapsedNode = el('span', 'agent-writer-elapsed', `Writer elapsed ${writerElapsed}`);
+      writerElapsedNode.dataset.writerStartedAt = String(started);
+      phaseInfo.append(writerElapsedNode);
+    }
+    panel.append(phaseInfo);
+    const progress = writer.writer_progress || run.writer_progress;
+    if (writerActive && progress && Number.isSafeInteger(progress.model_calls_started)
+        && Number.isSafeInteger(progress.tool_calls_started)) {
+      const progressCounts = el('div', 'agent-writer-progress-counts');
+      const counts = [
+        ['Model requests started', progress.model_calls_started],
+        ['Writer tools started', progress.tool_calls_started],
+        ['Files staged', progress.files_staged],
+        ['Task records staged', progress.task_records_staged]
+      ].filter(([, value]) => Number.isSafeInteger(value) && value >= 0);
+      for (const [labelText, value] of counts) {
+        const item = el('span', 'agent-writer-progress-count');
+        item.append(el('span', 'agent-writer-progress-count-label', labelText),
+          el('strong', '', value.toLocaleString()));
+        progressCounts.append(item);
+      }
+      if (progressCounts.children.length) panel.append(progressCounts);
+    }
+
+    const steps = el('ol', 'agent-writer-steps');
+    const terminalWriter = !writerActive && ['completed', 'complete', 'succeeded', 'success'].includes(String(writer.status).toLowerCase());
+    const unsuccessfulWriter = !writerActive && !terminalWriter;
+    const manifest = writer.manifest_status ? human(writer.manifest_status) : 'Final manifest not reported';
+    const rows = [
+      ['Design handoff', 'The selected design and run scope were handed to the candidate writer.', 'complete'],
+      ['Writer model and tool work', writerActive
+        ? `${label}. The live receipt reports the last persisted phase, not each in-flight tool action.`
+        : `${label}. Individual writer tool transitions are not included in this compact receipt.`,
+      writerActive ? 'active' : terminalWriter ? 'complete' : 'unknown'],
+      ['Static checks and manifest', terminalWriter ? `Writer result: ${manifest}.`
+        : unsuccessfulWriter ? 'No successful final manifest was recorded.' : 'Waiting for the writer’s final validation and manifest receipt.',
+      terminalWriter ? 'complete' : unsuccessfulWriter ? 'failed' : 'pending'],
+      ['Human review', 'Required separately. A completed draft does not approve, execute or deploy it.', 'review']
+    ];
+    rows.forEach(([title, detail, state], index) => {
+      const item = el('li', `agent-writer-step is-${state}`);
+      item.append(el('span', 'agent-writer-step-index', String(index + 1)),
+        el('div', 'agent-writer-step-copy', ''));
+      const copy = item.lastElementChild;
+      copy.append(el('strong', '', title), el('span', 'small muted', detail));
+      steps.append(item);
+    });
+    panel.append(steps);
+    const diagnostic = writer.failure_diagnostic;
+    if (writer.status === 'failed' || writer.failure_stage || writer.exception_class) {
+      const failure = el('section', 'agent-writer-failure');
+      heading(failure, 'Why code generation stopped', 'h4');
+      const summary = [writer.failure_stage ? `Stage: ${human(writer.failure_stage)}` : null,
+        writer.exception_class ? `Exception: ${writer.exception_class}` : null].filter(Boolean).join(' · ');
+      paragraph(failure, writer.error || 'The writer ended without a successful final manifest.', 'small');
+      if (summary) paragraph(failure, summary, 'small muted');
+      const exceptions = array(diagnostic?.exceptions).filter(item => item && typeof item.exception_class === 'string');
+      if (exceptions.length) {
+        const detail = el('details', '', 'agent-writer-failure-details');
+        detail.append(el('summary', 'Sanitized diagnostic frames'));
+        const list = el('ul');
+        for (const item of exceptions) {
+          list.append(el('li', `${item.exception_class}${diagnostic.operation ? ` · ${diagnostic.operation}` : ''}`));
+          for (const frame of array(item.stack).slice(-8)) {
+            if (typeof frame?.file === 'string' && typeof frame.function === 'string' && Number.isSafeInteger(frame.line))
+              list.append(el('li', `  ${frame.file}:${frame.line} · ${frame.function}`));
+          }
+        }
+        detail.append(list); failure.append(detail);
+      }
+      panel.append(failure);
+    }
+    const staleMessage = stale
+      ? `No writer phase has been persisted for ${formatClockDuration(phaseAge)}. This may be a long model/tool request or a stalled worker; status alone cannot distinguish them. The app does not auto-stop the run.`
+      : phaseAge === null && writerActive
+        ? `Writer elapsed ${writerElapsed}. This run has no phase-update timestamp, so progress freshness and a hang cannot be assessed from the status receipt.`
+        : writerActive ? 'A running status confirms only the last saved state. No automatic hang action is performed.'
+          : 'Writer status is terminal. Review the saved draft and its manifest separately; execution and deployment remain gated.';
+    paragraph(panel, staleMessage, `agent-writer-progress-note${stale ? ' is-stale' : ''}`);
+    return panel;
+  }
   function updateLiveRunClock() {
     const observed = liveRunObservation;
     if (!observed || observed.epoch !== state.epoch || observed.ticket !== state.runTicket) {
       clearInterval(liveRunClock); liveRunClock = null; return;
     }
-    const elapsed = Number.isFinite(observed.started) ? Math.max(0, Math.floor((Date.now() - observed.started) / 1000)) : null;
+    const now = Date.now();
+    const elapsed = Number.isFinite(observed.started) ? Math.max(0, Math.floor((now - observed.started) / 1000)) : null;
     document.dispatchEvent(new CustomEvent('orion:agent-clock', {detail: {id: observed.id, elapsed}}));
-    const age = Math.max(0, Math.floor((Date.now() - observed.receivedAt) / 1000));
-    formStatus($('agent-form'), `Run ${observed.id}: last reported ${observed.status}${elapsed === null ? '' : ` · elapsed ${elapsed}s`}. Last service update ${age}s ago. ${observed.pending ? 'Checking current status…' : 'Waiting for the next service update.'}`);
+    const age = Number.isFinite(observed.receivedAt) ? Math.max(0, Math.floor((now - observed.receivedAt) / 1000)) : null;
+    formStatus($('agent-form'), `Run ${observed.id}: last reported ${observed.status}${elapsed === null ? '' : ` · elapsed ${formatClockDuration(elapsed)}`}. Last successful status check ${age === null ? 'unavailable' : `${formatClockDuration(age)} ago`}. ${observed.pending ? 'Checking current status…' : 'Waiting for the next service update.'}`);
     const clock = document.querySelector('#run-detail .agent-live-clock');
-    if (clock) clock.textContent = `${elapsed === null ? 'Elapsed time unavailable' : `Elapsed ${elapsed}s`} · Last service update ${age}s ago${observed.pending ? ' · Status request pending' : ''}`;
+    if (clock) {
+      const elapsedNode = clock.querySelector('.agent-live-elapsed');
+      const ageNode = clock.querySelector('.agent-live-update-age');
+      if (elapsedNode) setClockTime(elapsedNode, elapsed, 'Elapsed time');
+      if (ageNode) setClockTime(ageNode, age, 'Last successful status check');
+      clock.dataset.pending = String(observed.pending);
+      clock.setAttribute('aria-label', `Elapsed ${elapsed === null ? 'time unavailable' : formatClockDuration(elapsed)}. Last successful status check ${age === null ? 'unavailable' : `${formatClockDuration(age)} ago`}${observed.pending ? '. Status request pending.' : ''}`);
+    }
+    const summaryElapsed = document.querySelector('#run-detail .agent-run-elapsed');
+    if (summaryElapsed) summaryElapsed.textContent = elapsed === null ? 'unknown' : formatClockDuration(elapsed);
+    for (const phaseAgeNode of document.querySelectorAll('#run-detail .agent-writer-phase-age[data-phase-updated-at]')) {
+      const stamp = Number(phaseAgeNode.dataset.phaseUpdatedAt);
+      if (Number.isFinite(stamp))
+        phaseAgeNode.textContent = `Last writer stage update ${formatClockDuration(Math.max(0, (now - stamp) / 1000))} ago`;
+    }
+    for (const writerElapsed of document.querySelectorAll('#run-detail .agent-writer-elapsed[data-writer-started-at]')) {
+      const stamp = Number(writerElapsed.dataset.writerStartedAt);
+      if (Number.isFinite(stamp)) writerElapsed.textContent = `Writer elapsed ${formatClockDuration(Math.max(0, (now - stamp) / 1000))}`;
+    }
     updateAgentTurnClocks();
+  }
+  function formatClockDuration(seconds) {
+    if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) return 'Not available';
+    const total = Math.floor(seconds);
+    return `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor(total / 60) % 60).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+  function setClockTime(element, seconds, label) {
+    if (!element) return;
+    const formatted = formatClockDuration(seconds);
+    element.textContent = formatted;
+    if (formatted === 'Not available') element.removeAttribute('datetime');
+    else element.dateTime = `PT${Math.floor(seconds)}S`;
+    element.setAttribute('aria-label', `${label}: ${formatted}`);
   }
   let modelPricesInFlight = false, modelPricesNextAttempt = 0;
   async function loadModelListPrices() {
@@ -3857,6 +4250,7 @@
   }
   function selectRun(id) {
     clearInterval(liveRunClock); liveRunClock = null; liveRunObservation = null;
+    renderedRunId = null; renderedRunSignature = null;
     state.runId = String(id);
     state.runTicket += 1;
     clearTimeout(state.runTimer);
@@ -3877,28 +4271,54 @@
         findings: saved.findings, role_completion: saved.role_completion,
         design_submission: saved.design_submission
       };
-      recordedRunStates.set(run.id, runState(run, epoch));
-      document.dispatchEvent(new CustomEvent('orion:agent-run', { detail: run }));
-      void loadModelListPrices();
       const parentTerminal = terminal.has(String(run.status).toLowerCase());
       const writerActive = activeWriter(run);
       const commitPending = state.hosted && state.agentSubmitting;
       const completed = parentTerminal && !writerActive && !commitPending;
+      const live = agentObservationReceipt(run);
+      recordAgentEvaluationSnapshot(run, live, completed);
+      const renderSignature = JSON.stringify([run, agentEvaluationSnapshots.get(run.id)?.length || 0,
+        completed, writerActive, commitPending]);
+      const unchanged = renderedRunId === run.id && renderedRunSignature === renderSignature;
+      recordedRunStates.set(run.id, runState(run, epoch));
+      if (!unchanged) document.dispatchEvent(new CustomEvent('orion:agent-run', { detail: run }));
+      void loadModelListPrices();
       if (completed && state.submittedRunId === String(run.id)) {
         state.submittedRunId = null;
         state.agentRunsLoaded = false;
       }
-      clearInterval(liveRunClock); liveRunClock = null;
-      liveRunObservation = completed ? null : {id,
-        status: text(writerActive ? `candidate writer ${run.candidate_writer.status}` : run.status), epoch, ticket,
-        started: Date.parse(run.started_at || run.created_at || ''),
-        receivedAt: Date.now(), pending: false};
-      if (liveRunObservation) liveRunClock = setInterval(updateLiveRunClock, 1000);
-      const phaseLabels = {agent_analysis: 'Agent analysis', candidate_code_generation: 'Candidate code drafting', complete: 'Complete'};
+      if (completed) {
+        clearInterval(liveRunClock); liveRunClock = null; liveRunObservation = null;
+      } else if (liveRunObservation?.id === id && liveRunObservation.ticket === ticket) {
+        liveRunObservation.status = text(writerActive ? `candidate writer ${run.candidate_writer.status}` : run.status);
+        liveRunObservation.started = Date.parse(run.started_at || run.created_at || '');
+        liveRunObservation.receivedAt = Date.now(); liveRunObservation.pending = false;
+      } else {
+        clearInterval(liveRunClock);
+        liveRunObservation = {id,
+          status: text(writerActive ? `candidate writer ${run.candidate_writer.status}` : run.status), epoch, ticket,
+          started: Date.parse(run.started_at || run.created_at || ''),
+          receivedAt: Date.now(), pending: false};
+        liveRunClock = setInterval(updateLiveRunClock, 1000);
+      }
+      const phaseLabels = {agent_analysis: 'Agent analysis', candidate_code_generation: 'Preparing candidate-code draft',
+        writer_model_started: 'Candidate model request in progress',
+        writer_model_completed: 'Model response received; processing writer step',
+        writer_model_failed: 'Candidate model request failed',
+        model_retry_wait: 'Waiting for model rate-limit retry',
+        model_retry_resuming: 'Resuming the model request',
+        model_retry_succeeded: 'Model retry completed', complete: 'Complete'};
       const activeStatus = activeRun(run);
-      const phaseValue = writerActive ? (run.candidate_writer.phase || 'candidate_code_generation')
+      const persistedWriterPhase = typeof run.phase === 'string'
+        && /^(?:candidate_code_generation(?::\d+\/\d+)?|writer_model_(?:started|completed|failed)|model_retry_(?:wait|resuming|succeeded))$/.test(run.phase)
+        ? run.phase : run.candidate_writer?.phase;
+      const phaseValue = writerActive ? persistedWriterPhase || 'candidate_code_generation'
         : run.phase || (activeStatus ? 'agent_analysis' : '');
-      const phase = typeof phaseValue === 'string' ? (phaseLabels[phaseValue] || (phaseValue.startsWith('candidate_code_generation:') ? `Candidate code drafting ${phaseValue.split(':')[1]}` : human(phaseValue))) : '';
+      const numberedWriterPhase = typeof phaseValue === 'string'
+        ? /^candidate_code_generation:(\d+)\/(\d+)$/.exec(phaseValue) : null;
+      const phase = typeof phaseValue === 'string' ? numberedWriterPhase
+        ? `Preparing code draft ${numberedWriterPhase[1]} of ${numberedWriterPhase[2]}`
+        : phaseLabels[phaseValue] || human(phaseValue) : '';
       const workflowName = run.workflow_name || run.name
         || [...$('agent-workflow').options].find(option => option.value === run.workflow_id)?.textContent
         || 'Workflow name unavailable';
@@ -3906,10 +4326,15 @@
       const observedEnd = completed ? Date.parse(run.finished_at || '') : Date.now();
       const elapsedSeconds = Number.isFinite(started) && Number.isFinite(observedEnd)
         ? Math.max(0, Math.floor((observedEnd - started) / 1000)) : null;
-      const elapsed = elapsedSeconds === null ? '' : ` · ${elapsedSeconds}s`;
+      const elapsed = elapsedSeconds === null ? '' : ` · elapsed ${formatClockDuration(elapsedSeconds)}`;
       formStatus($('agent-form'), `Run ${run.id}: ${text(run.status)}${writerActive ? ` · Candidate writer ${text(run.candidate_writer.status)}` : ''}${phase ? ` · ${phase}` : ''}${run.output?.status ? ` · ${human(run.output.status)}` : ''}${elapsed}. ${commitPending && parentTerminal ? 'Run finished in the active session; Delta commit is not yet confirmed.' : completed ? 'Review the recorded findings and generated draft below.' : 'Waiting for the next service status update.'}`, run.status === 'failed' ? 'error' : completed ? 'success' : '');
       if (!completed) state.agentRunning = true;
       updateControls();
+      if (unchanged) {
+        if (liveRunObservation) updateLiveRunClock();
+        if (!completed) state.runTimer = setTimeout(() => pollRun(ticket), 2000);
+        return;
+      }
       const oldCharts = $('run-detail').querySelector('.agent-usage-charts');
       const previousCharts = oldCharts?.dataset.runId === run.id ? {
         open: oldCharts.querySelector('.agent-model-turns')?.open ?? true,
@@ -3920,13 +4345,11 @@
       const oldSkills = $('run-detail').querySelector('.agent-skill-stats');
       const previousSkillsOpen = oldSkills?.dataset.runId === run.id ? oldSkills.querySelector('details')?.open : false;
       clear($('run-detail'));
-      const live = agentObservationReceipt(run);
-      recordAgentEvaluationSnapshot(run, live, completed);
       const activeAgentRoles = [...new Set(array(live?.active_calls).map(call => String(call?.role || '').trim()).filter(Boolean))];
-      const configuredRoles = $('agent-roles')?.textContent?.match(/^Configured roles:\s*(.*)$/i)?.[1]?.trim();
+      const configuredRoles = $('agent-roles')?.textContent?.match(/^Configured AI agents:\s*(.*)$/i)?.[1]?.trim();
       const runSummary = el('section', 'agent-run-summary');
-      runSummary.setAttribute('aria-label', 'DETAILED AGENT RUN DETAILS');
-      heading(runSummary, 'DETAILED AGENT RUN DETAILS', 'h3');
+      runSummary.setAttribute('aria-label', 'AGENTic MIGRATION RUN DETAILS');
+      heading(runSummary, 'AGENTic MIGRATION RUN DETAILS', 'h3');
       if (completed) paragraph(runSummary, `Historical observation, not live.${saved ? ` Snapshot captured ${activityTime(saved.captured_at)}.` : ' No terminal snapshot was saved for this older run.'} Elapsed time is frozen at the recorded finish.`, 'small muted');
       runSummary.append(semanticStatus(run.status));
       if (run.delivery_summary) paragraph(runSummary, run.delivery_summary,
@@ -3945,8 +4368,12 @@
         finished_at: (writerActive ? run.candidate_writer.finished_at : run.finished_at)
           ? historyTime(writerActive ? run.candidate_writer.finished_at : run.finished_at)
           : completed ? 'Not recorded' : 'Not finished',
-        elapsed_seconds: elapsedSeconds ?? 'unknown'
-      }, key => human(key).toUpperCase());
+        elapsed_seconds: elapsedSeconds === null ? 'unknown' : formatClockDuration(elapsedSeconds)
+      }, key => key === 'active_agent_role' ? 'ACTIVE AI AGENT'
+        : key === 'elapsed_seconds' ? 'ELAPSED TIME' : human(key).toUpperCase());
+      const elapsedValue = [...runSummary.querySelectorAll('.detail-row')]
+        .find(row => row.querySelector('.detail-key')?.textContent === 'ELAPSED TIME')?.querySelector('.detail-value');
+      if (elapsedValue) elapsedValue.classList.add('agent-run-elapsed');
       const writerRow = [...runSummary.querySelectorAll('.detail-row')]
         .find(row => row.querySelector('.detail-key')?.textContent === 'CANDIDATE WRITER');
       const writerValue = writerRow?.querySelector('.detail-value');
@@ -3957,16 +4384,40 @@
           semanticStatus(run.candidate_writer.manifest_status));
       }
       $('run-detail').append(runSummary);
+      const writerProgress = renderWriterProgress(run, writerActive, completed);
+      if (writerProgress) $('run-detail').append(writerProgress);
       let logPanel;
       if (live?.status === 'verified' && live.public_run_id === run.id) {
         logPanel = el('section', 'agent-live-logs');
         logPanel.setAttribute('aria-label', completed ? 'ORION HARNESS HISTORICAL OBSERVATION' : 'ORION HARNESS LIVE LOGS');
         const logHeader = el('div', 'agent-live-logs-header');
-        heading(logHeader, completed ? 'ORION HARNESS HISTORICAL OBSERVATION' : 'ORION HARNESS LIVE LOGS');
-        logHeader.append(el('span', 'small muted', 'Recorded agent and tool activity'));
+        heading(logHeader, completed ? 'ORION HARNESS · HISTORY' : 'ORION HARNESS LIVE LOGS');
+        logHeader.append(el('span', 'small muted agent-live-logs-kicker', 'Recorded agent and tool activity'));
         logPanel.append(logHeader);
-        logPanel.append(el('p', `small muted agent-live-logs-footer${completed ? '' : ' agent-live-clock'}`,
-          completed ? 'Historical, not live. No in-flight activity or advancing clock is implied.' : 'Waiting for the next service update.'));
+        if (completed) {
+          logPanel.append(el('p', 'small muted agent-live-logs-footer agent-live-history-note',
+            'Historical observation. No in-flight activity or advancing clock is implied.'));
+        } else {
+          const clock = el('div', 'agent-live-logs-footer agent-live-clock');
+          const elapsedItem = el('span', 'agent-live-clock-item agent-live-clock-duration');
+          const elapsedTime = el('time', 'agent-live-elapsed', '00:00:00');
+          elapsedTime.dateTime = 'PT0S';
+          elapsedTime.setAttribute('aria-live', 'off');
+          elapsedItem.append(el('span', 'agent-live-clock-label', 'Elapsed'), elapsedTime);
+          const updateItem = el('span', 'agent-live-clock-item agent-live-clock-update');
+          const updateTime = el('time', 'agent-live-update-age', '00:00:00');
+          updateTime.dateTime = 'PT0S';
+          updateTime.setAttribute('aria-live', 'off');
+          updateItem.append(el('span', 'agent-live-clock-label', 'Last successful status check'), updateTime,
+            el('span', 'agent-live-clock-suffix', 'ago'));
+          clock.append(elapsedItem, updateItem);
+          logPanel.append(clock);
+          const initial = liveRunObservation;
+          if (initial?.id === run.id) {
+            setClockTime(elapsedTime, Number.isFinite(initial.started) ? (Date.now() - initial.started) / 1000 : null, 'Elapsed time');
+            setClockTime(updateTime, (Date.now() - initial.receivedAt) / 1000, 'Last successful status check');
+          }
+        }
         const counts = live.counts ?? {};
         const logCounts = el('div', 'agent-live-logs-counts');
         rows(logCounts, Object.fromEntries([
@@ -4018,9 +4469,10 @@
         heading(logPanel, 'RECORDED AGENT AND TOOL ACTIVITY', 'h3');
         paragraph(logPanel, 'A verified event/count receipt is not available for this run. Missing activity data is unknown, not zero.', 'small muted');
       }
+      const activitySeparator = el('hr', 'agent-live-separator');
       const evaluationLayout = el('div', 'agent-observation-layout');
       evaluationLayout.append(logPanel, renderAgentEvaluations(run, live, completed));
-      $('run-detail').append(evaluationLayout, renderLatestAgentEvent(run, live, completed),
+      $('run-detail').append(activitySeparator, evaluationLayout, renderLatestAgentEvent(run, live, completed),
         renderAgentEvaluationTrend(run, completed), renderAgentRoleCallTrend(run, completed));
       const usageMetrics = observedTokenMetrics(run);
       if (usageMetrics.some(metric => metric.value !== null)) {
@@ -4179,6 +4631,7 @@
       }
       jsonDetails($('run-detail'), 'Complete run record', run);
       paragraph($('run-detail'), 'Output is advisory and statically checked only. Candidate notebooks/SQL remain unapproved drafts. No Databricks Job was run and no deployment occurred.', 'small muted');
+      renderedRunId = run.id; renderedRunSignature = renderSignature;
       if (!completed) {
         updateLiveRunClock();
         paragraph($('run-detail'), commitPending && parentTerminal

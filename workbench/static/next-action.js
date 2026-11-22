@@ -102,7 +102,7 @@
     ],
     evolution: [
       candidate('#evidence-design-open', 'Review the evidence-to-decision flow. Roadmap features are not enabled integrations.'),
-      candidate('#agent-design-open', 'Review specialist roles and the separate human approval boundaries.'),
+      candidate('#agent-design-open', 'Review the AI agents and the separate human approval steps.'),
     ],
   };
   const hints = new Map();
@@ -182,7 +182,26 @@
     target = next;
     const hint = hints.get(page);
     const targetLabel = target.matches('select') ? target.labels?.[0]?.textContent : target.textContent;
-    hint.textContent = `Suggested next step: ${(targetLabel || '').trim().replace(/\s+/g, ' ')}. ${reason}`;
+    const label = (targetLabel || '').trim().replace(/\s+/g, ' ');
+    const workspaceMatch = target.id === 'connect-workspace-models'
+      ? /\bConnect workspace models:\s*(https:\/\/[A-Za-z0-9.-]+(?::443)?\/?)/.exec(label) : null;
+    let workspaceOrigin = null;
+    if (workspaceMatch) {
+      try {
+        const url = new URL(workspaceMatch[1]);
+        if (url.protocol === 'https:' && url.hostname && !url.username && !url.password
+            && (!url.port || url.port === '443') && (url.pathname === '/' || url.pathname === '')
+            && !url.search && !url.hash
+            && /^[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*$/.test(url.hostname)) workspaceOrigin = url.origin;
+      } catch { /* Do not turn malformed status text into a link. */ }
+    }
+    if (workspaceOrigin) {
+      const link = document.createElement('a');
+      link.href = workspaceOrigin; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      link.textContent = workspaceOrigin; link.className = 'next-action-workspace-link';
+      hint.replaceChildren(document.createTextNode('Suggested next step: Connect workspace models: '), link,
+        document.createTextNode(`. ${reason}`));
+    } else hint.textContent = `Suggested next step: ${label}. ${reason}`;
     hint.hidden = false;
     const tokens = new Set((target.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
     tokens.add(hint.id); target.setAttribute('aria-describedby', [...tokens].join(' '));

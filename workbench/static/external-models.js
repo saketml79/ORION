@@ -65,7 +65,7 @@
     const label = element('label', title); label.htmlFor = control.id; fields.append(label, control);
   }
   const compatibility = element('p', ''); compatibility.className = 'small muted';
-  const configure = element('button', 'Use external API for all six roles'); configure.type = 'submit';
+  const configure = element('button', 'Use external API for all six AI agents'); configure.type = 'submit';
   configure.className = 'secondary compact'; fields.append(compatibility, configure);
   const billing = element('p', 'Anthropic and OpenAI API use is billed separately. ChatGPT, Claude, and Codex subscriptions include no API credits.');
   billing.className = 'small muted';
@@ -74,7 +74,7 @@
   const status = element('p', '', 'external-model-status'); status.className = 'external-status small';
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   const modeStatus = {
-    databricks: 'Selected: Databricks. Existing workspace endpoint and six-role routing controls apply.',
+    databricks: 'Selected: Databricks. The workspace model settings apply to the six AI agents.',
     external: 'External API selected for configuration, not connected. Invocation is disabled until configured.'
   };
   const statusMessage = element('span'); status.append(statusMessage);

@@ -22,7 +22,7 @@ from threading import Lock
 import time
 from urllib.parse import urlsplit
 
-from databricks.sdk.errors import AlreadyExists, NotFound
+from databricks.sdk.errors import AlreadyExists, NotFound, PermissionDenied
 from databricks.sdk.service.sql import (
     Disposition, ExecuteStatementRequestOnWaitTimeout, Format,
     StatementParameterListItem,
@@ -232,8 +232,19 @@ class DeltaStateStore:
         return username
 
     def _verify_table(self, table, username):
-        self._name(table)
-        info = self.client.tables.get(".".join((self.catalog, self.schema, table)))
+        self._name(table)  # Validate the fixed table allowlist and SQL identifier syntax.
+        name = ".".join((self.catalog, self.schema, table))
+        try:
+            info = self.client.tables.get(name)
+        except PermissionDenied as error:
+            # Keep the original SDK error type while adding only the fixed,
+            # validated UC object name for current-process diagnostics.
+            try:
+                error.diagnostic_resource_type = "unity_catalog_table"
+                error.diagnostic_resource_name = name
+            except Exception:
+                pass
+            raise
         fmt = _get(info, "data_source_format")
         if _get(info, "owner") != username or _get(fmt, "value", fmt) != "DELTA":
             raise PermissionError("Metadata table must be user-owned Delta")

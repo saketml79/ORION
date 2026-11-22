@@ -193,7 +193,10 @@
     purpose.append(node('h3', plan.folder.name), node('p', plan.business_purpose?.summary), node('p', `Purpose status: ${human(plan.business_purpose?.status)}. Domain intent: ${human(plan.business_purpose?.domain_intent)}.`));
     if (plan.business_purpose?.captured_description) purpose.append(node('p', plan.business_purpose.captured_description));
     purpose.append(node('p', plan.notice));
-    facts(purpose, [['Repository', plan.folder.scope?.repository], ['Folder ID', plan.folder_id], ['Package SHA-256', plan.package_hash], ['Input version', plan.input_version]]);
+    facts(purpose, [['Repository', plan.folder.scope?.repository]]);
+    disclosure(purpose, 'Technical package references', details => {
+      facts(details, [['Folder ID', plan.folder_id], ['Package SHA-256', plan.package_hash], ['Input version', plan.input_version]]);
+    });
     const counts = panel('Exact source facts');
     facts(counts, Object.entries(plan.counts || {}).map(([kind, count]) => [human(kind), count]));
     facts(counts, Object.entries(plan.table_summary || {}).map(([key, count]) => [human(key), count ?? 'Not observed']));
@@ -288,7 +291,7 @@
   function showFile(file) {
     const view = $('fm-file-view'), content = safe(file.content), changed = content !== file.content;
     view.replaceChildren(node('h3', file.path), node('p', `${human(file.language)} · Plain text (no public syntax-highlighting helper)`, 'fm-label'), node('p', fileStatus(file)));
-    facts(view, [['API SHA-256 (original response)', file.sha256]]);
+    disclosure(view, 'Technical file reference', details => facts(details, [['Original file SHA-256', file.sha256]]));
     view.append(node('p', changed ? 'Credential values redacted by the existing policy. Copy / download uses this same redacted text; the original API checksum will differ.' : 'Exact API contents. Copy / download preserves whitespace and contents, with credential-value redaction only when needed.'));
     const buttons = node('div', undefined, 'fm-toolbar'), copy = node('button', 'Copy contents', 'secondary'), download = node('button', 'Download file', 'secondary');
     copy.type = 'button'; download.type = 'button'; const note = node('p'); note.setAttribute('role', 'status');

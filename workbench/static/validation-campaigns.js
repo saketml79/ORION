@@ -125,7 +125,7 @@
   el('validation-context').addEventListener('click', () => action(async current => {
     const value = await request('/api/validation/context'); if (!current()) return;
     context = value; fresh = report ? samePins(report.pins, context.pins) : false; showFreshness();
-    el('validation-status').textContent = `Selected package ${value.pins.package_hash}. Exact analysis fingerprints loaded. No live execution.`;
+    el('validation-status').textContent = 'The selected package’s analysis is ready for validation. No job has been run.';
   }));
   el('validation-form').addEventListener('submit', event => {
     event.preventDefault(); if (!context) return;

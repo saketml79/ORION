@@ -16,18 +16,18 @@
   const roleLabels = {supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
     semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
     validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'};
-  const reviewSkillLabels = {supervisor: 'Specialist coordination', discovery: 'Informatica package understanding',
+  const reviewSkillLabels = {supervisor: 'Migration coordination', discovery: 'Informatica package understanding',
     semantics: 'Transformation and SQL semantics', architecture: 'Lakeflow workflow design',
     validation: 'Evidence and coverage validation', artifact: 'Artifact readiness review'};
   const skillLabel = (role, path) => path === '/library/review/SKILL.md' ? reviewSkillLabels[role]
-    : path === '/CONTEXT.md' ? 'Agent role context' : path === '/production-conversion-contract.md'
+    : path === '/CONTEXT.md' ? 'AI agent context' : path === '/production-conversion-contract.md'
       ? 'Production conversion contract' : path.split('/').slice(2, -1).join(' / ').replaceAll('-', ' ')
         .replace(/\b[a-z]/g, letter => letter.toUpperCase());
   const recordedSkillName = path => path === '/CONTEXT.md' ? 'Recorded file: CONTEXT.md'
     : path === '/production-conversion-contract.md' ? 'Recorded file: production-conversion-contract.md'
       : /^\/library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md$/.test(path)
         ? `Recorded skill: ${path.split('/').at(-2)}` : `Recorded file: ${path}`;
-  const purposes = ['Coordinates specialist findings and can submit or correct the logical design. The separate Spark and SQL code writer drafts candidate code.',
+  const purposes = ['Brings together the other AI agents’ analysis and can submit or correct the migration design. A separate Spark and SQL code writer generates the code.',
     'Inspects Informatica folders, definitions, references, tasks, and connections.',
     'Traces mapping expressions, SQL phases, write behavior, and control conditions.',
     'Proposes a Lakeflow task graph while preserving the original workflow behavior.',
@@ -63,7 +63,7 @@
   const telemetry = node('aside', '', 'arena-telemetry'); telemetry.setAttribute('aria-label', 'Recorded run facts');
   telemetry.append(node('span', 'RUN STATUS', 'arena-kicker'));
   const facts = node('dl'); const values = {};
-  for (const [key, label] of [['id', 'Run ID'], ['workflow', 'Workflow'], ['attempts', 'Specialist results'],
+  for (const [key, label] of [['id', 'Run ID'], ['workflow', 'Workflow'], ['attempts', 'AI agent results'],
     ['citations', 'XML references cited'], ['tokens', 'Total tokens'], ['models', 'Model calls started / completed'],
     ['tools', 'Tool calls started / completed'], ['created', 'Created'], ['finished', 'Finished']]) {
     const value = node('dd', 'Unknown'); value.dataset.fact = key; values[key] = value;
@@ -86,13 +86,13 @@
   stage.append(platform);
   const core = node('div', '', 'arena-core');
   core.append(node('span', 'O', 'arena-core-mark'), node('strong', 'ORION'), node('span', '6-agent team'));
-  const grid = node('div', '', 'arena-roles'); grid.setAttribute('role', 'group'); grid.setAttribute('aria-label', 'Inspect recorded role findings');
+  const grid = node('div', '', 'arena-roles'); grid.setAttribute('role', 'group'); grid.setAttribute('aria-label', 'Inspect recorded AI agent results');
   const cards = new Map(); let selected = 'supervisor', findings = [];
   const inspector = node('aside', '', 'arena-inspector'); inspector.setAttribute('aria-labelledby', 'arena-role-heading');
   const roleHeading = node('h3'); roleHeading.id = 'arena-role-heading';
   const rolePurpose = node('p', '', 'arena-role-purpose');
   const roleFindings = node('div', '', 'arena-findings');
-  inspector.append(node('span', 'ROLE RESULT', 'arena-kicker'), roleHeading, rolePurpose, roleFindings,
+  inspector.append(node('span', 'AI AGENT RESULT', 'arena-kicker'), roleHeading, rolePurpose, roleFindings,
     node('p', 'Findings are advisory. Supported does not mean approved, executed, or semantically equivalent.', 'arena-boundary'));
   const outcome = node('section', '', 'arena-run-outcome'); outcome.hidden = true;
   function showDesignOutcome(submission, source) {
@@ -131,7 +131,7 @@
       if (/edges\.\d+\.(condition|outcome|source)/.test(field)) return 'Preserve the exact threshold on a condition task and identify the true/false branch.';
       if (/scoped_unresolved/.test(field)) return 'Keep the affected connection, email, or asynchronous child-launch gap visible for human review.';
       if (/artifact_plan/.test(field)) return 'List notebook responsibilities in the artifact plan; do not imply notebook code was generated.';
-      if (/evidence_ids/.test(field)) return 'Citations must be full canonical IDs retrieved by the submitting specialist.';
+      if (/evidence_ids/.test(field)) return 'Citations must identify source records retrieved by the submitting AI agent.';
       return String(issue?.issue ?? 'The proposal did not satisfy a required field.');
     };
     const issues = rejections.flatMap(rejection => array(rejection.validation_issues).map(issue => ({...issue, role: rejection.role})));
@@ -149,7 +149,7 @@
       const technical = node('details');
       technical.append(node('summary', 'Validation details'));
       const raw = node('ul');
-      unique.flatMap(group => group.issues).forEach(issue => raw.append(node('li', `${roleLabels[issue.role] ?? 'Design specialist'}: ${issue.field}: ${issue.issue}`)));
+      unique.flatMap(group => group.issues).forEach(issue => raw.append(node('li', `${roleLabels[issue.role] ?? 'AI agent not identified'}: ${issue.field}: ${issue.issue}`)));
       technical.append(raw); outcome.append(technical);
     } else if (legacySchemaFailure) {
       const text = String(supervisor.summary ?? '');
@@ -161,7 +161,7 @@
         const list = node('ul'); details.forEach(issue => list.append(node('li', issue))); outcome.append(list);
       }
     }
-    outcome.append(node('p', 'Review the specialist findings below to understand what needs attention before a workflow can be drafted.', 'arena-outcome-note'));
+    outcome.append(node('p', 'Review the AI agents’ results below to see what needs attention before generating the workflow.', 'arena-outcome-note'));
   }
   function inspect() {
     cards.forEach((card, role) => card.button.setAttribute('aria-pressed', String(role === selected)));
@@ -177,8 +177,8 @@
       const group = groups.get(key) ?? {finding, count: 0}; group.count++; groups.set(key, group);
     }
     const matching = [...groups.values()];
-    if (raw.length) roleFindings.append(node('p', `${raw.length} recorded submission${raw.length === 1 ? '' : 's'}, ${matching.length} distinct finding${matching.length === 1 ? '' : 's'} for this role. Latest recorded status: ${findingStatus[raw.at(-1).status] ?? 'Unknown'}. These are not additional independent reviews.`, 'arena-boundary'));
-    if (!matching.length) roleFindings.append(node('p', 'This specialist did not submit a finding. Its analysis state is unknown, not successful.'));
+    if (raw.length) roleFindings.append(node('p', `${raw.length} recorded submission${raw.length === 1 ? '' : 's'}, ${matching.length} distinct finding${matching.length === 1 ? '' : 's'} for this AI agent. Latest recorded status: ${findingStatus[raw.at(-1).status] ?? 'Unknown'}. These are not additional independent reviews.`, 'arena-boundary'));
+    if (!matching.length) roleFindings.append(node('p', 'This AI agent has not submitted a finding. Its analysis status is unknown.'));
     for (const {finding, count} of matching) {
       const item = node('article', '', 'arena-finding');
       const summary = String(finding.summary ?? 'No explanation was submitted.');
@@ -206,7 +206,7 @@
       item.append(node('strong', findingStatus[finding.status] ?? 'Finding status not recognized'),
         node('p', verifiedClaim ? summary : historicalConnectionOnly
           ? 'Historical Oracle connection metadata is informational only because this workflow reads source data already in Unity Catalog.'
-          : 'No verified reference or field issue recorded for this role. The agent statement lacked an exact matching workflow diagnostic.'));
+          : 'No verified reference or field issue recorded for this AI agent. The agent statement lacked an exact matching workflow diagnostic.'));
       if (count > 1) item.append(node('p', `Identical finding recorded ${count} times. Collapsed for display only; original history is unchanged.`, 'arena-boundary'));
       const citationIds = array(finding.evidence_ids).filter(id => typeof id === 'string');
       if (citationIds.length) {
@@ -359,6 +359,7 @@
     return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
   }
   function renderActivity(receipt, active, historical) {
+    const openAgentRoles = new Set([...activityPanel.querySelectorAll('.arena-agent-cell[open]')].map(item => item.dataset.role));
     const openContextRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role[open]')].map(item => item.dataset.role));
     const openSourceRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role .arena-context-source-details[open]')]
       .map(item => item.closest('.arena-context-role')?.dataset.role));
@@ -396,14 +397,15 @@
     activityPanel.append(totals, turnNote);
     const table = node('table', '', 'arena-activity-table');
     const caption = node('caption');
-    caption.append(node('h4', 'Model calls by role'),
+    caption.append(node('h4', 'Model calls by AI agent'),
       node('span', 'Completed calls on a shared scale. Missing counters are unavailable, not zero.', 'arena-chart-help'));
     const head = node('thead'), headings = node('tr');
-    for (const label of ['Role', 'Started', 'Completed', 'Failed']) {
+    for (const label of ['AI agent', 'Started', 'Completed', 'Failed']) {
       const cell = node('th', label); cell.setAttribute('scope', 'col'); headings.append(cell);
     }
     head.append(headings);
     const body = node('tbody');
+    const agentCells = new Map();
     const roleRows = array(receipt?.per_role).filter(object);
     const rows = roles.map(role => {
       const matches = roleRows.filter(row => row.role === role);
@@ -411,12 +413,17 @@
     });
     const scale = Math.max(1, ...rows.map(({row}) => activityCount(row?.model_completed) ?? 0));
     for (const {role, row} of rows) {
-      const tr = node('tr'), label = node('th', roleLabels[role]);
-      label.setAttribute('scope', 'row'); tr.append(label);
+      const tr = node('tr'), label = node('th');
+      label.setAttribute('scope', 'row');
+      const disclosure = node('details', '', 'arena-agent-cell');
+      disclosure.dataset.role = role; disclosure.open = openAgentRoles.has(role);
+      const content = node('div', '', 'arena-agent-cell-content');
+      disclosure.append(node('summary', roleLabels[role]), content);
+      label.append(disclosure); tr.append(label); agentCells.set(role, content);
       for (const state of ['started', 'completed', 'failed']) {
         const value = activityCount(row?.[`model_${state}`]);
         const cell = node('td', activityLabel(value));
-        if (state === 'completed') {
+        if (state === 'completed' && value !== null) {
           const bar = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
           bar.setAttribute('viewBox', '0 0 100 8'); bar.setAttribute('class', 'arena-activity-bar');
           bar.setAttribute('role', 'img'); bar.setAttribute('focusable', 'false');
@@ -432,29 +439,42 @@
     table.append(caption, head, body); activityPanel.append(table);
     const skillStrip = node('section', '', 'arena-current-skills');
     skillStrip.setAttribute('aria-label', 'Recorded agent skills');
+    skillStrip.id = 'arena-skill-receipts';
     const runList = document.getElementById('runs-list');
     const latestDisplayed = runList?.dataset.offset === '0'
       && runList.querySelector('[data-run-id]')?.dataset.runId === current.id;
-    skillStrip.append(node('h4', latestDisplayed ? 'Skills used during latest run' : 'Skills used during selected run'));
+    skillStrip.append(node('h4', latestDisplayed ? 'Skills recorded during latest run' : 'Skills recorded during selected run'));
+    skillStrip.append(node('p', 'Cumulative skill access stickers for this run. A pulse marks an agent with an in-flight call; it does not claim a skill influenced the model’s reasoning.', 'arena-skill-summary'));
     const skillGrid = node('div', '', 'arena-skills-grid');
     skillStrip.append(skillGrid);
     const activeRoles = new Set(array(receipt?.active_calls).map(call => call.role).filter(role => roles.includes(role)));
-    const skillRows = array(receipt?.skill_stats?.per_role).filter(row => object(row)
-      && roles.includes(row.role) && (!active || activeRoles.has(row.role)));
-    skillStrip.dataset.active = String(active && skillRows.some(row => activeRoles.has(row.role)));
+    const skillRows = new Map(roles.map(role => [role, {role, loaded: new Map(), tool_reads: new Map()}]));
+    for (const row of array(receipt?.skill_stats?.per_role).filter(object)) {
+      const merged = skillRows.get(row.role);
+      if (!merged) continue;
+      for (const item of array(row.loaded)) {
+        const path = item?.path;
+        if (typeof path === 'string' && /^\/(?:CONTEXT\.md|production-conversion-contract\.md|library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md)$/.test(path))
+          merged.loaded.set(path, item);
+      }
+      for (const item of array(row.tool_reads)) {
+        const path = item?.path;
+        if (typeof path === 'string' && /^\/(?:CONTEXT\.md|production-conversion-contract\.md|library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md)$/.test(path))
+          merged.tool_reads.set(path, Number.isSafeInteger(item.count) && item.count > 0 ? item.count : 0);
+      }
+    }
+    const displayedSkillPaths = new Map();
     let skillCount = 0;
-    for (const row of skillRows) {
-      const skillGroup = node('div', '', 'arena-skill-group');
-      skillGroup.setAttribute('role', 'group');
-      skillGroup.setAttribute('aria-label', roleLabels[row.role]);
-      skillGroup.dataset.role = row.role;
-      const readCounts = new Map(array(row.tool_reads).map(read => [read.path, read.count]));
-      const loadedPaths = new Set(array(row.loaded).map(skill => skill.path));
+    let activeSkillCount = 0;
+    for (const row of skillRows.values()) {
+      const loadedPaths = new Set(row.loaded.keys());
+      const readCounts = row.tool_reads;
       const paths = new Set([...loadedPaths, ...readCounts.keys()]);
       for (const path of paths) {
-        if (typeof path !== 'string' || !/^\/(?:CONTEXT\.md|production-conversion-contract\.md|library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md)$/.test(path)) continue;
+        const isCurrent = active && activeRoles.has(row.role);
         const card = node('article', '', 'arena-current-skill');
-        card.dataset.active = String(active && activeRoles.has(row.role));
+        card.dataset.active = String(isCurrent);
+        card.dataset.phase = isCurrent ? 'active' : active ? 'earlier' : 'recorded';
         card.dataset.role = row.role;
         const label = skillLabel(row.role, path);
         const access = [];
@@ -464,18 +484,29 @@
           access.push(Number.isSafeInteger(count) && count > 0 ? `Read ${count} ${count === 1 ? 'time' : 'times'}` : 'Read');
         }
         card.title = `Recorded file: ${path}`;
-        card.append(node('strong', label), node('span', recordedSkillName(path), 'arena-current-skill-name'),
-          node('span', access.join(' · '), 'arena-current-skill-access'));
-        skillGroup.append(card); skillCount++;
-      }
-      if (skillGroup.children.length) {
-        skillGroup.prepend(node('span', roleLabels[row.role], 'arena-current-skill-agent'));
-        skillGrid.append(skillGroup);
+        card.append(node('span', roleLabels[row.role], 'arena-current-skill-agent'),
+          node('strong', label), node('span', recordedSkillName(path), 'arena-current-skill-name'),
+          node('span', access.join(' · ') || 'Access recorded', 'arena-current-skill-access'),
+          node('span', isCurrent ? 'ACTIVE AGENT' : active ? 'RECORDED EARLIER' : 'RECORDED FOR RUN', 'arena-current-skill-phase'));
+        if (!displayedSkillPaths.has(row.role)) displayedSkillPaths.set(row.role, new Set());
+        displayedSkillPaths.get(row.role).add(path);
+        skillGrid.append(card); skillCount++;
+        if (isCurrent) activeSkillCount++;
       }
     }
-    if (!skillCount) skillStrip.append(node('p', receipt?.skill_stats?.status === 'unavailable'
-      ? 'Skill information is unavailable for this run.' : 'No skills are recorded for the agents shown.', 'arena-activity-note'));
-    skillStrip.append(node('p', 'Loaded means included in an agent’s instructions; read means the agent retrieved the file. These records show access, not whether a skill influenced the result.', 'arena-activity-note'));
+    skillStrip.dataset.active = String(activeSkillCount > 0);
+    if (skillCount) {
+      skillStrip.append(node('p', active
+        ? `${skillCount} cumulative stickers · ${activeSkillCount} associated with an AI agent currently in flight · ${skillCount - activeSkillCount} recorded earlier.`
+        : `${skillCount} cumulative skill-access stickers recorded for this run.`, 'arena-skill-count'));
+    } else {
+      const status = receipt?.skill_stats?.status;
+      skillStrip.append(node('p', status === 'unavailable'
+        ? 'Skill access was not recorded or could not be verified for this run. This does not establish that no guidance was provided.'
+        : receipt ? 'No skill load or read receipts were recorded for this run.'
+          : 'A verified skill-access receipt is unavailable for this run; no skill list is inferred.', 'arena-activity-note'));
+    }
+    skillStrip.append(node('p', 'Loaded means included in the agent’s instructions; read means the agent retrieved the file. These are access records, not proof of reasoning influence.', 'arena-activity-note'));
     activityPanel.append(skillStrip);
     const contextPanel = node('section', '', 'arena-context-panel');
     contextPanel.setAttribute('aria-label', 'Agent context and evidence');
@@ -510,15 +541,16 @@
       const details = node('details', '', 'arena-context-role'); details.dataset.role = role; details.open = openContextRoles.has(role);
       const summary = node('summary');
       const loadedCount = array(row?.loaded).length, readCount = array(row?.tool_reads).length;
-      summary.append(node('strong', roleLabels[role]), node('span', row?.status === 'recorded'
+      summary.append(node('strong', 'Context and evidence'), node('span', row?.status === 'recorded'
         ? `${loadedCount} guidance ${loadedCount === 1 ? 'file' : 'files'} loaded · ${readCount} ${readCount === 1 ? 'file' : 'files'} read`
         : 'Guidance records unavailable', 'arena-context-summary'));
       details.append(summary);
       const body = node('div', '', 'arena-context-body');
       if (row?.status === 'recorded') {
         const describe = path => `${skillLabel(role, path)} · ${recordedSkillName(path)}`;
-        const loaded = array(row.loaded).filter(item => typeof item?.path === 'string').map(item => describe(item.path));
-        const read = array(row.tool_reads).filter(item => typeof item?.path === 'string').map(item => describe(item.path));
+        const shown = displayedSkillPaths.get(role) || new Set();
+        const loaded = array(row.loaded).filter(item => typeof item?.path === 'string' && !shown.has(item.path)).map(item => describe(item.path));
+        const read = array(row.tool_reads).filter(item => typeof item?.path === 'string' && !shown.has(item.path)).map(item => describe(item.path));
         for (const item of loaded) body.append(node('p', `Instructions: ${item}`));
         for (const item of read) body.append(node('p', `Also read: ${item}`));
       } else body.append(node('p', 'Guidance details were not recorded for this agent.'));
@@ -549,10 +581,23 @@
       details.append(body); contextGrid.append(details);
     }
     contextPanel.append(contextGrid);
-    activityPanel.append(contextPanel);
+    // Keep each agent's skills and evidence with its own call counts, rather
+    // than repeating the agent list in separate panels.
+    const contextIntro = node('div', '', 'arena-context-heading');
+    contextIntro.append(node('span', 'Open an agent’s context for tools and source references. Skill access is summarized in the cumulative stickers above.'), contextHelp);
+    caption.append(contextIntro, scope);
+    for (const role of roles) {
+      const cell = agentCells.get(role);
+      const details = [...contextGrid.children].find(item => item.dataset.role === role);
+      const skillLink = node('a', 'View this run’s skill stickers', 'arena-agent-skill-link');
+      skillLink.href = '#arena-skill-receipts';
+      cell.append(skillLink);
+      if (details) cell.append(details);
+    }
+    caption.append(node('p', 'Skill labels show guidance loaded or read for this run.', 'arena-activity-note'));
     const latest = object(receipt?.last_event) ? receipt.last_event : null;
     const event = activityStates.includes(latest?.event) ? latest.event : null;
-    const role = roles.includes(latest?.role) ? roleLabels[latest.role] : 'Role unknown';
+    const role = roles.includes(latest?.role) ? roleLabels[latest.role] : 'AI agent unknown';
     const name = event?.startsWith('tool_') ? activityName(latest?.tool_name)
       : event?.startsWith('model_') ? activityName(latest?.endpoint) : null;
     const stamp = activityTime(latest?.created_at);

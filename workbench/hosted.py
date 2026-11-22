@@ -452,7 +452,8 @@ class HostedRequestFlow:
                                            exception_class=type(error).__name__)
 
     def error_body(self, detail):
-        return {"detail": detail, **({"diagnostic_id": self.diagnostic_id} if self.diagnostic_id else {})}
+        return {"detail": detail, "failure_phase": self.phase,
+            **({"diagnostic_id": self.diagnostic_id} if self.diagnostic_id else {})}
 
     async def secure_send(self, message):
         if message["type"] == "http.response.start":
@@ -920,6 +921,7 @@ class HostedDispatcher:
                         self.sessions.notify(session)
                         if session.live_readers:
                             await session.live_readers_done.wait()
+                    await progress("committing_delta")
                     await run_in_threadpool(snapshots.flush, prime_cache=False)
                     session.marker = snapshots.receipt_marker
                     session.generation, session.sequence = snapshots.generation, snapshots.sequence
@@ -1006,6 +1008,15 @@ class HostedDispatcher:
                                 bounded_receive, secure_send, progress, worker_progress,
                                 diagnostic_id, diagnostic_owner, package_warm_read,
                                 artifact_read, history_read, selected_object_read, artifact_body):
+        if path.startswith("/api/hosted/logs/"):
+            diagnostic_id = path.removeprefix("/api/hosted/logs/")
+            item = self.diagnostics.find(owner, diagnostic_id)
+            if item is None:
+                raise HTTPException(404, "No matching diagnostic is retained by this app instance")
+            await JSONResponse({"item": item,
+                "storage": "bounded per-user in-memory diagnostics; cleared when this app instance restarts"})(
+                    scope, bounded_receive, secure_send)
+            return
         remote = await run_in_threadpool(provision, identity, self.config.catalog_prefix, initialize=False)
         with tempfile.TemporaryDirectory(prefix="workbench-special-" + owner[:12] + "-") as temporary:
             snapshots = DeltaRuntime(current_identity, remote, temporary, warehouse=self.config.warehouse,
@@ -1170,6 +1181,13 @@ class HostedDispatcher:
                 "storage": "bounded per-user in-memory diagnostics; cleared when this app instance restarts",
                 "sql_text_logged": False, "credentials_logged": False}
             return await send_response(JSONResponse(result))
+        if path.startswith("/api/hosted/logs/") and scope["method"] == "GET":
+            diagnostic_id = path.removeprefix("/api/hosted/logs/")
+            result = self.diagnostics.find(owner_key(identity.host, identity.user_id), diagnostic_id)
+            if result is None:
+                raise HTTPException(404, "No matching diagnostic is retained by this app instance")
+            return await send_response(JSONResponse({"item": result,
+                "storage": "bounded per-user in-memory diagnostics; cleared when this app instance restarts"}))
         if path.startswith("/api/hosted/loading/") and scope["method"] == "GET":
             from workbench.hosted_loading import warehouse_status
             result = self.loading.snapshot(owner, path[len("/api/hosted/loading/"):])
@@ -1365,7 +1383,8 @@ class HostedDispatcher:
             frames = [(Path(frame.filename).name, frame.name, frame.lineno)
                       for frame in traceback.extract_tb(error.__traceback__)]
             event = self.diagnostics.record(owner_key(identity.host, identity.user_id),
-                method=scope["method"], path=path, status=status, error=error, frames=frames)
+                method=scope["method"], path=path, status=status, error=error, frames=frames,
+                phase=flow.phase)
             import logging
             logging.getLogger(__name__).error("Hosted request diagnostic %s", json.dumps(event, sort_keys=True))
             return event
@@ -1539,7 +1558,9 @@ class HostedDispatcher:
             await progress("starting")
             from workbench.hosted_object_reads import ROUTE as OBJECT_READ_ROUTE, object_read_response
             from workbench.hosted_agent_reads import PATHS as HISTORY_PATHS, history_response
-            history_read = (scope["method"] == "GET" and path in HISTORY_PATHS
+            diagnostic_read = (scope["method"] == "GET"
+                and re.fullmatch(r"/api/hosted/logs/[a-f0-9]{32}", path) is not None)
+            history_read = (diagnostic_read or scope["method"] == "GET" and path in HISTORY_PATHS
                            and (headers.get("x-workbench-package")
                                or (path == "/api/tracing/status" and not headers.get("x-workbench-project"))))
             if history_read and path == "/api/agents/runs":
@@ -1611,7 +1632,10 @@ class HostedDispatcher:
         except Exception as error:
             flow.fail_loading(error)
             event = record_failure(error, 503)
-            await JSONResponse({**flow.error_body("Hosted action or Delta generation completion is unconfirmed. Inspect committed state and Logs before retrying. No local fallback was used."),
+            detail = ("The agent worker finished, but Databricks denied access while verifying a Unity Catalog metadata table during the final Delta save. The run result may remain only in this app instance. Inspect Logs and committed run state before retrying."
+                if type(error).__name__ == "PermissionDenied" and flow.phase == "committing_delta"
+                else "Hosted action or Delta generation completion is unconfirmed. Inspect committed state and Logs before retrying. No local fallback was used.")
+            await JSONResponse({**flow.error_body(detail),
                                 **({"failure_id": event["id"]} if event else {})},
                                status_code=503)(scope, receive, secure_send)
         finally:

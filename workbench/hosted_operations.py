@@ -122,7 +122,12 @@ def _authentication(error):
 
 def _error(error):
     auth = _authentication(error)
-    return {"detail": "User authentication is required." if auth else "Hosted operation failed.",
+    detail = "User authentication is required." if auth else "Hosted operation failed."
+    message = error.args[0] if isinstance(error, RuntimeError) and len(error.args) == 1 else None
+    if (not auth and isinstance(message, str)
+            and re.fullmatch(r"Hosted action failed; diagnostic [a-f0-9]{32}(?: phase [A-Za-z][A-Za-z0-9_:.-]{0,80})?", message)):
+        detail = message
+    return {"detail": detail,
             **ds.safe_error(error)}
 
 
@@ -138,7 +143,14 @@ def _valid_error(error, status):
         "error_code": error["error_code"],
         "status_code": 401 if status == "authentication_required" else None,
     })()
-    return error == _error(recorded)
+    expected = _error(recorded)
+    if error == expected:
+        return True
+    return (status == "failed" and error.get("error_type") == expected["error_type"]
+        and error.get("error_code") == expected["error_code"]
+        and isinstance(error.get("detail"), str)
+        and re.fullmatch(r"Hosted action failed; diagnostic [a-f0-9]{32}(?: phase [A-Za-z][A-Za-z0-9_:.-]{0,80})?",
+                         error["detail"]) is not None)
 
 
 def _json(raw):
@@ -839,7 +851,15 @@ class HostedOperations:
                 if status == 401:
                     raise AuthenticationUnavailable("User authentication required")
                 if not 200 <= status < 300:
-                    raise RuntimeError("Hosted action failed")
+                    error = RuntimeError("Hosted action failed")
+                    diagnostic_id = result.get("failure_id") if isinstance(result, dict) else None
+                    phase = result.get("failure_phase") if isinstance(result, dict) else None
+                    if isinstance(diagnostic_id, str) and re.fullmatch(r"[a-f0-9]{32}", diagnostic_id):
+                        detail = f"Hosted action failed; diagnostic {diagnostic_id}"
+                        if isinstance(phase, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_:.-]{0,80}", phase):
+                            detail += f" phase {phase}"
+                        error.args = (detail,)
+                    raise error
                 # Normalize to actual JSON before validation/readback comparison.
                 failure_phase = "result_validation"
                 result_bytes = _checked(result, forbidden)

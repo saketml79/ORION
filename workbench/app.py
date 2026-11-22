@@ -1045,10 +1045,52 @@ def _candidate_writer_status(root, parent_run_id, package_hash=None):
         return None
     job = max(matches, key=lambda item: (str(item.get("created_at", "")), item["id"]))
     output = job.get("output") if isinstance(job.get("output"), dict) else {}
-    return {key: job.get(key) for key in ("id", "status", "phase", "created_at", "started_at", "finished_at")} | {
+    result = {key: job.get(key) for key in ("id", "status", "phase", "created_at", "started_at", "finished_at")} | {
         "manifest_status": output.get("manifest_status", output.get("status")),
         "task_statuses": output.get("task_statuses", []),
     }
+    failure_stage = job.get("failure_stage")
+    if isinstance(failure_stage, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,80}", failure_stage):
+        result["failure_stage"] = failure_stage
+    exception_class = job.get("exception_class")
+    if isinstance(exception_class, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,80}", exception_class):
+        result["exception_class"] = exception_class
+    if job.get("error") == "Candidate code draft unavailable. No approval, execution or deployment occurred.":
+        result["error"] = job["error"]
+    diagnostic = job.get("failure_diagnostic") or output.get("failure_diagnostic")
+    if isinstance(diagnostic, dict) and diagnostic.get("schema_version") == 1:
+        operation = diagnostic.get("operation")
+        exceptions = []
+        for item in diagnostic.get("exceptions", [])[:4] if isinstance(diagnostic.get("exceptions"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("exception_class")
+            if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,80}", name):
+                continue
+            frames = []
+            for frame in item.get("stack", [])[-8:] if isinstance(item.get("stack"), list) else []:
+                if not isinstance(frame, dict):
+                    continue
+                file_name, function, line = frame.get("file"), frame.get("function"), frame.get("line")
+                if (isinstance(file_name, str) and len(file_name) <= 180 and not file_name.startswith(("/", "\\"))
+                        and ".." not in file_name.split("/") and isinstance(function, str)
+                        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,100}|<module>", function)
+                        and type(line) is int and line > 0):
+                    frames.append({"file": file_name, "function": function, "line": line})
+            exceptions.append({"exception_class": name, "stack": frames})
+        safe_operations = {"writer_invocation", "writer_model_handler", "writer_tool", "writer_graph",
+                           "writer_model_progress_started", "writer_model_progress_completed",
+                           "writer_model_progress_failed", "writer_progress_persistence",
+                           "generated_code_validation", "writer_preflight_write", "writer_preflight_read",
+                           "writer_preflight_rename", "writer_preflight_sqlite", "writer_preflight_cleanup",
+                           "writer_preflight_temp_directory"}
+        if operation in safe_operations and exceptions:
+            result["failure_diagnostic"] = {"schema_version": 1, "operation": operation,
+                                             "exceptions": exceptions}
+    failure = job.get("error")
+    if isinstance(failure, str) and failure in {"Candidate code draft unavailable. No approval, execution or deployment occurred."}:
+        result["error"] = failure
+    return result
 
 
 def _run_or_writer_active(record):
@@ -2250,7 +2292,8 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
             if (body.generate_code and saved_redesigns
                     and output.get("status") not in {"failed", "unavailable", "proposal_failed", "cancelled"}
                     and not cancellation_event.is_set()):
-                record.update(phase="candidate_code_generation", design_finished_at=_now())
+                record.update(phase="candidate_code_generation", design_finished_at=_now(),
+                              phase_updated_at=_now())
                 service.update_record(record, agent=True)
                 # The single user-invoked Agent activity action includes a
                 # clearly unapproved candidate-code draft for each exact
@@ -2266,7 +2309,7 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                     and submitted.get('package_hash') == record['package_hash']]
                 final_designs = [max(selected_designs, key=lambda submitted: submitted['version'])] if selected_designs else []
                 for design_ref in final_designs:
-                    record.update(phase="candidate_code_generation:1/1")
+                    record.update(phase="candidate_code_generation:1/1", phase_updated_at=_now())
                     service.update_record(record, agent=True)
                     draft_job = {"id": uuid4().hex, "kind": "spark_draft", "status": "running",
                                  "created_at": _now(), "started_at": _now(),
@@ -2276,6 +2319,17 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                                  "input_version": record["input_version"], "advisory_only": True,
                                  "approved": False, "execution_allowed": False, "deployment_allowed": False}
                     service.update_record(draft_job)
+                    writer_started = _now()
+                    record["writer_progress"] = {
+                        "stage": "preparing", "status": "in_progress",
+                        "message": "Preparing the draft workspace and checking the saved design.",
+                        "tool_name": None, "model_calls_started": 0, "tool_calls_started": 0,
+                        "submission_attempts": 0, "files_staged": 0,
+                        "file_chunks_staged": 0, "task_records_staged": 0,
+                        "updated_at": writer_started,
+                    }
+                    record["phase_updated_at"] = writer_started
+                    service.update_record(record, agent=True)
                     try:
                         exact_design = store_for(service).get(design_ref["id"], record["package_hash"],
                                                                design_ref["version"])
@@ -2309,6 +2363,30 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                     finally:
                         draft_job["finished_at"] = _now()
                         service.update_record(draft_job)
+                        writer_state = draft_job["status"]
+                        writer_message = ("Candidate-code draft finished; inspect its manifest and review status."
+                            if writer_state == "completed" else
+                            "Candidate-code draft stopped. Inspect the sanitized failure details before retrying.")
+                        record["writer_progress"] = {
+                            **(record.get("writer_progress") or {}),
+                            "stage": "final_result", "status": writer_state,
+                            "message": writer_message, "updated_at": draft_job["finished_at"],
+                            **({"failure_stage": draft_job["failure_stage"]}
+                               if isinstance(draft_job.get("failure_stage"), str) else {}),
+                            **({"exception_class": draft_job["exception_class"]}
+                               if isinstance(draft_job.get("exception_class"), str) else {}),
+                        }
+                        record["phase_updated_at"] = draft_job["finished_at"]
+                        try:
+                            service.update_record(record, agent=True)
+                        except Exception as error:
+                            from workbench.databricks_models import safe_failure_diagnostic
+                            draft_job["progress_write_diagnostic"] = safe_failure_diagnostic(
+                                error, "writer_progress_persistence")
+                            try:
+                                service.update_record(draft_job)
+                            except Exception:
+                                pass
                     candidate_drafts.append({"job_id": draft_job["id"], "status": draft_job["status"],
                                              "design_id": design_ref["id"], "design_version": design_ref["version"],
                                              "manifest_status": (draft_job.get("output") or {}).get("manifest_status")})

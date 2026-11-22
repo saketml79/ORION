@@ -67,6 +67,10 @@ _SECRET = re.compile(
     r"(?i)bearer\s+|\bdapi[a-z0-9]+|\beyJ[a-zA-Z0-9_-]+\.|"
     r"(?:token|secret|password|api[_ -]?key|authorization)\s*[:=]"
 )
+_SAFE_EXCEPTION_MODULES = (
+    'databricks.sdk.errors', 'openai', 'anthropic', 'httpx', 'httpx2',
+    'langchain_core', 'langgraph', 'pydantic', 'mlflow',
+)
 _LOCKS: dict[str, RLock] = {}
 _LOCKS_GUARD = RLock()
 
@@ -131,9 +135,16 @@ def safe_failure_diagnostic(error, operation, *, workspace_root=None):
         if not isinstance(current, BaseException) or id(current) in seen:
             break
         seen.add(id(current))
-        cls = next((base.__name__ for base in type(current).__mro__
-                    if getattr(builtins, base.__name__, None) is base
-                    and issubclass(base, BaseException)), 'Exception')
+        cls = 'Exception'
+        for base in type(current).__mro__:
+            name, module = base.__name__, getattr(base, '__module__', '')
+            if (getattr(builtins, name, None) is base and issubclass(base, BaseException)):
+                cls = name; break
+            if (re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,80}', name)
+                    and any(module == allowed or module.startswith(allowed + '.')
+                            for allowed in _SAFE_EXCEPTION_MODULES)
+                    and issubclass(base, BaseException)):
+                cls = name; break
         item = {'exception_class': cls, 'errno': None, 'winerror': None,
                 'filename': None, 'filename2': None, 'stack': []}
         if isinstance(current, OSError):

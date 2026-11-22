@@ -11,7 +11,7 @@
         ['XML inventory evidence', 'partial',
           'XML inventory, structural relationships, and evidence inspection have implementation paths. Parsed structure does not establish business intent, active use, physical connectivity, or semantic parity.'],
         ['Advisory agents', 'needs verification',
-          'Agent roles, model routing, and review tools are configured, not verified here. Configuration does not prove a successful live run, valid design submission, provider compatibility, or specialist coverage. Findings remain advisory.'],
+          'AI agents, model settings and review tools are configured. This section does not check whether a run completed or whether the selected model works.'],
         ['Versioned logical review', 'partial',
           'Versioned logical designs and review records have implementation paths. Outline review does not authorize executable artifacts, clear independent validation gates, or approve deployment.'],
         ['Captured SQL drafts', 'partial',
@@ -35,7 +35,7 @@
         ['LangSmith activation', 'needs verification',
            'Tracing integration paths do not prove activation. Enablement, safe configuration, and an observed remote trace receipt must be verified for the intended environment; this panel does not inspect or activate tracing.'],
         ['Skills improvement', 'not implemented',
-          'Existing role skills are not a reviewed improvement lifecycle. Evidence-linked lessons, human approval, regression evaluation, and controlled promotion of reusable skills remain work.'],
+          'Improving reusable AI agent skills using recorded lessons, review and evaluation is planned.'],
       ]],
     ];
 

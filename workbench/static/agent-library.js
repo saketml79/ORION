@@ -14,6 +14,9 @@
     pages: {tools: null, knowledge: null}, controller: null, request: 0, selected: {tools: null, knowledge: null},
   };
   const text = (value) => String(value ?? 'Unknown');
+  const agentName = id => ({supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
+    semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
+    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[id] || text(id).replaceAll('_', ' ');
   const make = (tag, value = '', className = '') => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -61,13 +64,18 @@
       } catch (_) { entry.textContent = linkText; }
       parent.append(entry);
       setFacts(parent, [
-        ['Source hash', ref.source_sha256 || 'Not recorded', true],
-        ['Section hash', ref.section_sha256 || 'Not recorded', true],
         ['Retrieved', ref.retrieved_at || 'Not recorded'],
         ['Published', ref.published_at || 'Not recorded'],
         ['Updated', ref.updated_at || 'Not recorded'],
         ['Expires', ref.expires_at || 'Not recorded'],
       ]);
+      const technical = make('details');
+      technical.append(make('summary', 'Technical source references'));
+      setFacts(technical, [
+        ['Source SHA-256', ref.source_sha256 || 'Not recorded', true],
+        ['Section SHA-256', ref.section_sha256 || 'Not recorded', true],
+      ]);
+      parent.append(technical);
       if (ref.excerpt) parent.append(make('p', ref.excerpt));
     }
   }
@@ -82,11 +90,9 @@
     const lineRef = source.line_start ? `${source.path}#L${source.line_start}${source.line_end && source.line_end !== source.line_start ? `-L${source.line_end}` : ''}` : source.path;
     const facts = [
       ['Kind', item.category || item.node_kind || item.kind],
-      ['Roles', (item.roles || []).join(', ') || 'Not role-scoped'],
+      ['AI agents', (item.roles || []).map(agentName).join(', ') || 'Not assigned to a specific AI agent'],
       ['Source path / lines', lineRef || source.external_url || (source.node_id ? `Knowledge node ${source.node_id}` : 'No local source path')],
     ];
-    if (source.file_sha256) facts.push(['File / graph SHA-256', source.file_sha256, true]);
-    if (source.snippet_sha256) facts.push(['Snippet SHA-256', source.snippet_sha256, true]);
     if (item.conditional) facts.push(['Availability condition', item.condition || 'Conditional in source']);
     if (item.release_state) facts.push(['Documented release state', item.release_state]);
     if (item.verification) facts.push(['Verification', item.verification]);
@@ -102,6 +108,14 @@
       facts.push(['Superseded by', item.lifecycle.superseded_by]);
     }
     setFacts(target, facts);
+    if (source.file_sha256 || source.snippet_sha256) {
+      const technical = make('details');
+      technical.append(make('summary', 'Technical source references'));
+      const references = [];
+      if (source.file_sha256) references.push(['File / graph SHA-256', source.file_sha256, true]);
+      if (source.snippet_sha256) references.push(['Snippet SHA-256', source.snippet_sha256, true]);
+      setFacts(technical, references); target.append(technical);
+    }
     addSourceLinks(target, item.source_refs);
     if (item.source_refs?.length) {
       const refs = item.source_refs.map(ref => ref.url || ref.label).filter(Boolean).join(' · ');
@@ -129,7 +143,7 @@
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', `0 0 1160 ${height}`);
     svg.setAttribute('role', 'group');
-    svg.setAttribute('aria-label', section === 'tools' ? 'Role-to-tool graph' : 'Role-to-source knowledge graph');
+    svg.setAttribute('aria-label', section === 'tools' ? 'AI agents and their tools' : 'AI agents and their knowledge sources');
     const links = makeSvg('g', {'aria-hidden': 'true'}, svg);
     const roleNodes = makeSvg('g', {}, svg);
     const graphNodes = makeSvg('g', {}, svg);
@@ -167,7 +181,7 @@
     items.forEach((item) => {
       const point = positions.get(item.id);
       const group = makeSvg('g', {class: 'agent-library-node', role: 'button', tabindex: '0',
-        'aria-label': `${item.name || item.label || item.id}; roles ${(item.roles || []).join(', ')}`,
+        'aria-label': `${item.name || item.label || item.id}; AI agents ${(item.roles || []).map(agentName).join(', ')}`,
         'aria-pressed': String(state.selected[section] === item.id)}, graphNodes);
       makeSvg('rect', {x: point.x, y: point.y, width: 168, height: 42, rx: 9}, group);
       const title = makeSvg('text', {x: point.x + 10, y: point.y + 17}, group);
@@ -192,7 +206,7 @@
   function describeStatus(section, page) {
     const value = page.status || {};
     if (section === 'tools') {
-      return `${value.analysis_role_count || 0} analysis roles; ${value.analysis_unique_tools || 0} declared analysis tools; ${value.writer_unique_tools || 0} separate writer tools; ${value.harness_operations || 0} harness operations. Internet search: unavailable. This page lists ${page.returned} of ${page.total}.`;
+      return `${value.analysis_role_count || 0} analysis AI agents; ${value.analysis_unique_tools || 0} declared analysis tools; ${value.writer_unique_tools || 0} separate writer tools; ${value.harness_operations || 0} supporting operations. Internet search: unavailable. This page lists ${page.returned} of ${page.total}.`;
     }
     const graph = value.status === 'available'
       ? `Stored graph ${value.version}; ${value.feature_count} features, ${value.fresh_source_count} source records inside their recorded retrieval window and ${value.expired_source_count} expired.`

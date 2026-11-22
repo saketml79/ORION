@@ -48,7 +48,7 @@
     line('M 266 936 H 220 V 796 H 266', 'call', true);
     line('M 786 936 H 850', 'result');
     svgNode('text', {x: 560, y: 22, class: 'agent-communication-edge-label', 'text-anchor': 'middle'}, svg, 'Source analysis and migration handoffs inform the next agents');
-    svgNode('text', {x: 520, y: 636, class: 'agent-communication-edge-label', 'text-anchor': 'middle'}, svg, 'Optional: lead analyst delegates a focused specialist follow-up');
+    svgNode('text', {x: 520, y: 636, class: 'agent-communication-edge-label', 'text-anchor': 'middle'}, svg, 'Optional: lead AI agent requests focused follow-up');
     svgNode('text', {x: 230, y: 870, class: 'agent-communication-edge-label', 'text-anchor': 'end'}, svg, 'Feedback → revise');
     const box = (x, y, width, height, css, title, subtitle) => {
       const group = svgNode('g', {class: css}, svg);
@@ -65,7 +65,7 @@
       svgNode('circle', {cx: 293, cy: y + 36, r: 17}, group);
       svgNode('text', {x: 293, y: y + 40, 'text-anchor': 'middle', class: 'agent-communication-number'}, group, number);
       svgNode('text', {x: 322, y: y + 25, class: 'agent-communication-title'}, group, label);
-      svgNode('text', {x: 322, y: y + 47, class: 'agent-communication-subtitle'}, group, `Agent: ${role}  ·  Skill: ${skill}`);
+      svgNode('text', {x: 322, y: y + 47, class: 'agent-communication-subtitle'}, group, `AI agent · Skill: ${skill.replaceAll('-', ' ')}`);
     });
     box(266, 665, 520, 72, 'agent-communication-writer', 'Databricks migration design', 'Selected design and source evidence guide code generation');
     box(266, 760, 520, 72, 'agent-communication-writer', '07  Spark and SQL code writer', 'Skill: spark-code-writer  ·  generates migration code');
@@ -74,14 +74,14 @@
     return container;
   }
   for (const [index, mount] of [...document.querySelectorAll('#agent-dialog [data-agent-team-flow]')].entries()) {
-    const intro = make('p', 'agent-team-intro', 'The agents understand the Informatica workflow, develop a Databricks design and generate migration code. Each specialist receives the migration handoffs recorded by earlier agents.');
+    const intro = make('p', 'agent-team-intro', 'The AI agents understand the Informatica workflow, develop a Databricks design and generate migration code. Each agent receives the migration handoffs recorded by earlier agents.');
     const legend = make('p', 'agent-communication-legend', 'Animated arrows show the configured flow. Lighter dotted paths are optional; this is not live run activity.');
     const list = make('ol', 'agent-team-steps', '');
     for (const [number, label, role, skill, description] of steps) {
       const item = make('li', 'agent-team-step', '');
       const badge = make('span', 'agent-team-number', number); badge.setAttribute('aria-hidden', 'true');
       const content = make('div', 'agent-team-step-content', '');
-      content.append(make('strong', 'agent-team-name', label), make('span', 'agent-team-role', `Agent: ${role}`),
+      content.append(make('strong', 'agent-team-name', label), make('span', 'agent-team-role', 'AI agent'),
         make('p', 'agent-team-call', 'Workbench → agent · prior migration handoffs included'),
         make('p', 'agent-team-description', description), make('p', 'agent-team-skill', `Skill: ${skill}`));
       item.append(badge, content); list.append(item);
@@ -94,7 +94,7 @@
       make('p', 'agent-team-skill', 'Skill: spark-code-writer'));
     const note = make('p', 'agent-team-note', 'Checks and available AI review can return feedback to the writer for bounded revisions. The user can review and change the generated code. Automatic scored optimization across multiple generated versions is planned separately.');
     const details = make('details', 'agent-team-text-details', '');
-    details.append(make('summary', '', 'Agent roles and responsibilities'), list, writer);
+    details.append(make('summary', '', 'AI agents and their responsibilities'), list, writer);
     mount.replaceChildren(intro, legend, graph(index), details, note);
     if (mount.parentElement?.id === 'agent-dialog') mount.parentElement.classList.add('agent-team-enhanced');
   }

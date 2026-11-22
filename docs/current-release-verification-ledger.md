@@ -6,6 +6,174 @@ with checks pending; record those gaps clearly and never present them as passed.
 Passing regression tests is not a migration specification or runtime-parity
 certificate.
 
+## Migration run heading, local change
+
+- The run summary heading and accessible section label now read
+	`AGENTic MIGRATION RUN DETAILS`, as requested. This is a presentation-only
+	change; no run data or generation control flow was changed.
+
+## Local visible end-to-end release check
+
+- One user-requested run, `12a6273b9e004a8f828d1f5f81d49c29`, used the
+	selected `wkf_Load_tblcircuits_temp` workflow, bronze scenario, unchanged
+	workflow-independent prompt and the ready Opus 5.5 endpoint. The actual
+	local app reported `completed`, writer `completed`, `generation complete`,
+	and elapsed `00:31:49`. The selected design v3 presented one notebook
+	with task details and download/open controls. Source and target parameters
+	include unresolved bindings, and runtime correctness and parity remain
+	unverified. No generated notebook or workflow was executed or deployed.
+- The live run exposed an undefined `write` call in the elapsed-summary clock.
+	After the run completed, it was corrected to update the DOM directly. This
+	post-run correction has not been exercised during another active model run.
+- The Git comparison initially reported false deletions because the original
+	local index is on an unborn branch. An isolated index based on remote
+	`feature/dev` showed no deleted files. The original index was not modified.
+
+## Model route and tracing panel compactness, local changes
+
+- Scoped styling reduces panel/card padding and spacing, and overrides the
+	global prose rule for 12 px high-contrast route, gateway and trace notes.
+	Status meaning, controls and configuration checks are unchanged.
+- In the actual shared local app at 1440 px, the panel measured 359 px high
+	(previously 466 px), and the affected notes rendered at 12 px. Dark-theme
+	note contrast measured 14.16:1 against the card. At 390 px, notes fit their
+	cards and the document had no horizontal overflow. Theme and viewport were
+	restored. `git diff --check` passed; existing unrelated CSS compatibility
+	advisories remain. No model invocation, hosted UI, push or deployment.
+
+## Run clock synchronization and evaluation spacing, local changes
+
+- The run summary elapsed value, live activity clock, and agent-arena timer now
+	share the same run start and one-second clock tick. Writer duration and last
+	persisted writer-stage age also advance from that tick. The second live timer
+	is explicitly labeled as time since the last successful status check, not as
+	backend progress freshness.
+- The reference-quality section is separated from operational metric cards by
+	18 px of vertical spacing. This is a scoped CSS change.
+- `node --check workbench/static/app.js`, Python `compileall` for `workbench`,
+	`git diff --check`, and editor diagnostics passed. The actual shared browser
+	was returned to project selection after a package-context reload and did not
+	show a selected run, so final run-detail geometry and advancing clocks were
+	not visually verified in this pass. No `test_*.py` files, agent/model runs,
+	push, or deployment were performed. Local only; hosted behavior is unverified.
+
+## Code-generation diagnostics and log refresh, local changes
+
+- Candidate-writer status now records bounded, payload-free model/tool stages,
+	request/tool start counts, staged-file/task counters, and the final writer
+	state. Failed drafts expose a safe failure stage, allowlisted exception
+	class, and filtered source frames. The hosted request marks `committing_delta`
+	before final flush; permission diagnostics can include the validated UC table
+	name, and a failure ID can be resolved from the same user's in-memory buffer.
+	The background-operation journal preserves only the validated failure ID and
+	phase, so the UI can fetch that exact diagnostic after a 503 without replaying
+	the run. This supports the reported final Delta `PermissionDenied` path; no
+	hosted retry or generation was performed.
+- The run detail now preserves its DOM when an unchanged status poll arrives.
+	Recorded Logs and hosted diagnostics update by stable event ID, retaining
+	expanded disclosures; automatic log polling is 10 seconds, and failures retain
+	the last successful rows. In the actual local app, opening a log disclosure and
+	observing a polling interval produced zero log-list mutations and kept the
+	disclosure open. The selected saved-run details likewise had zero mutations
+	during repeated unchanged status polls.
+- The model banner now distinguishes saved route configuration from tested
+	inference. The Databricks workspace URL in the next-step hint is a validated
+	HTTPS anchor. MLflow itself remains unintegrated/unconfigured; no trace URL or
+	delivery is claimed. Unity Gateway inference migration remains deferred in
+	[ORION-TODO.md](ORION-TODO.md).
+- JavaScript syntax, Python compilation, Pylance diagnostics, and CRLF-aware diff
+	checks passed. A safe in-memory check verified a synthetic PermissionDenied
+	retains the validated UC table and phase but not its raw message. Local-only;
+	not pushed or deployed. Active writer-phase rendering, hosted failure lookup,
+	and live MLflow delivery were not exercised.
+
+## Cumulative agent skill stickers, local changes
+
+- The selected-run sticker panel now aggregates recorded loaded/read skill
+	receipts across all six agents instead of filtering to only currently active
+	agents or leaving the cumulative container empty. Each sticker identifies its
+	agent and access record. During an active run, the current agent's recorded
+	stickers receive the pulse; earlier stickers stay visible. A role link points
+	back to the cumulative list, avoiding a second per-agent sticker copy. Missing
+	receipts are described as unavailable, not proof that no guidance was present.
+- In the actual local saved Lumen run, all 12 recorded stickers (two per agent)
+	appeared, collapsed agent rows stayed about 61 px, and the 390 px viewport had
+	no horizontal overflow. The selected run was completed, so active pulse state
+	was not exercised. JavaScript syntax and CRLF-aware diff checks passed. Local
+	only, not pushed or deployed.
+
+## Agent activity text and duration formatting, local changes
+
+- The run-history header now separates its concise title from the recorded
+	activity label. Explanatory notes use a consistent callout treatment. Run
+	durations and service-update age render as zero-padded HH:MM:SS, with the
+	active elapsed and last-update values in labeled, tabular-number chips.
+- In the actual local app, a saved completed run showed `00:31:19` and the
+	shortened history heading beside its descriptor at 1440 px. At 390 px, the
+	heading stacked cleanly and the document had no horizontal overflow. No
+	active run was available, so advancing live-clock behavior was not exercised.
+	JavaScript syntax and CRLF-aware diff checks passed; existing Safari CSS
+	compatibility advisories remain. Local only, not pushed or deployed.
+
+## Agent activity table and cost investigation, local changes
+
+- Each agent's first-column cell is now a closed-by-default disclosure. The
+	compact row shows only the agent name; opening it reveals that agent's
+	recorded skills and context. Open state survives saved-run rereads. In the
+	actual local app, all six cells were collapsed by default at about 61 px on
+	desktop; one opened to show its content, then remained open after rereading
+	the saved run. At 390 px, the expanded details fit without horizontal
+	overflow. This is local only, not pushed or deployed.
+- The saved local Lumen run showed six agent rows, each with its recorded
+	guidance and context under the agent name. Counts were centered and bars
+	stayed within their cells. An expanded context stayed open when the saved
+	run was selected again. At a 390 px viewport, the table fit the viewport.
+- After restoring and restarting the idle local server, the saved Opus run
+	showed $36.46 when the rate lookup completed. The existing rate adapter reads
+	Databricks published pricing assets and supports only the Opus 5.5 endpoint;
+	it is an analysis-model estimate, excluding writer and shared compute. The
+	hosted cost display and the endpoint used in the user's run remain unverified.
+	No new model run, deployment or push was performed.
+
+## AI agent terminology, local changes
+
+- Agent-facing labels now say AI agent instead of role, including the result
+	card, activity charts, model controls, catalog, readiness view and log
+	filter. Internal identifiers and log-filter values remain unchanged. The
+	selected-run prompt and saved run records were not modified.
+- In the actual local app, a saved run showed the AI agent result heading,
+	all six named agents, the per-agent call chart, and configured-agent summary.
+	Each of the six agent cards was selectable. The Logs filter showed readable
+	agent names with the original filter values. Eight changed JavaScript files
+	passed syntax checks and the changed files passed the Windows line-ending
+	diff check. Other dynamic states and hosted UI remain unverified. No new
+	agent run, deployment or GitHub push was performed.
+
+## Agent context help layout, local change
+
+- The help paragraph was constrained by the general page paragraph
+	`max-width: 100%` rule to the 20 px help control. A saved local run
+	reproduced the issue: the popup was about 25 px wide and 2,559 px tall.
+	The scoped CSS now anchors it to the heading and overrides the cap.
+- The same saved-run view showed a 320 px wide popup on desktop and a
+	270 px wide popup within a 390 px viewport. No agent run, hosted browser,
+	deployment, or data change was performed. The section and skill stickers
+	remain unchanged; a pre-existing Safari backdrop-filter advisory remains.
+
+## User-facing package labels, local changes
+
+- The Estate scope now displays the selected project and XML filename rather
+	than a package hash or internal binding terminology. Package pickers show
+	filenames, with numbered copies when names repeat; their underlying IDs are
+	unchanged. Inventory rows, logs summaries, lineage labels, and validation
+	status use more readable descriptions. Folder and knowledge-source hashes
+	remain accessible in optional technical details.
+- The selected local Lumen project showed its XML filename in the package
+	picker and Estate scope. The Mappings list displayed 434 named records, and
+	its detail selection was exercised. The Logs summary showed project and XML
+	names. These are local observations, not a complete audit of every state or
+	hosted UI. No model run or deployment was performed for these edits.
+
 ## Plain-language release, 2026-11-22
 
 - Deployment `01f1e6312aa21268976847acaa79e314` was created at

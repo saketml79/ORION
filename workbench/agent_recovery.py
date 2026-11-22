@@ -12,9 +12,19 @@ from workbench.domain import _hash, _redact
 
 
 def safe_exception_class(exc):
-    # Custom exception names may themselves contain sensitive data.
-    return next((base.__name__ for base in type(exc).__mro__
-                 if base.__module__ == "builtins" and issubclass(base, Exception)), "Exception")
+    # Keep custom names only from known dependency namespaces; never expose
+    # arbitrary dynamically-created class names or exception messages.
+    known_modules = ("databricks.sdk.errors", "openai", "anthropic", "httpx", "httpx2",
+                     "langchain_core", "langgraph", "pydantic", "mlflow")
+    for base in type(exc).__mro__:
+        name, module = base.__name__, base.__module__
+        if module == "builtins" and issubclass(base, Exception):
+            return name
+        if (re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,80}", name)
+                and any(module == allowed or module.startswith(allowed + ".") for allowed in known_modules)
+                and issubclass(base, Exception)):
+            return name
+    return "Exception"
 
 
 def _digest(path):

@@ -22,6 +22,9 @@
   };
   let selected = scope();
   const node = (tag, text = '') => { const n = document.createElement(tag); n.textContent = text; return n; };
+  const agentName = role => ({supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
+    semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
+    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[role] || label(role);
   const names = {
     total_workflows: 'Workflows in package', structurally_analyzed: 'Source definitions analyzed',
     agent_assessed: 'Workflows reviewed', logical_draft: 'Designs proposed',
@@ -95,7 +98,7 @@
   }
   function table(headers, rows) {
     const wrap = node('div'); wrap.className = 'readiness-table';
-    const t = node('table'), caption = node('caption', headers[0] === 'Role' ? 'Stored specialist evidence and advisory human outcomes'
+    const t = node('table'), caption = node('caption', headers[0] === 'AI agent' ? 'Saved AI agent evidence and human feedback'
       : headers[0] === 'Pillar' ? 'Architecture references, not validation results' : 'Canonical workflow readiness, one selected package');
     const head = node('thead'), line = node('tr');
     headers.forEach(h => { const th = node('th', h); th.scope = 'col'; line.append(th); }); head.append(line);
@@ -187,8 +190,8 @@
 
     const agents = panel('Agent review and human feedback');
     const active = (data.agents || []).filter(a => a.latest_run_id || a.finding_count > 0 || a.typed_design_versions > 0 || Object.keys(a.feedback || {}).length);
-    if (active.length) agents.append(table(['Role', 'Latest evidence', 'Findings / designs', 'Human feedback'], active.map(a => [
-      label(a.role), `${label(a.latest_status)}; ${label(a.freshness)}`,
+    if (active.length) agents.append(table(['AI agent', 'Latest evidence', 'Findings / designs', 'Human feedback'], active.map(a => [
+      agentName(a.role), `${label(a.latest_status)}; ${label(a.freshness)}`,
       `${value(a.finding_count)} findings / ${value(a.typed_design_versions)} designs`,
       Object.entries(a.feedback || {}).map(([key, n]) => `${label(key)}: ${value(n)}`).join(', ') || 'No feedback recorded'
     ])));
@@ -197,7 +200,7 @@
     const agentDetails = node('details'); agentDetails.append(node('summary', 'Review findings, usage and evaluation evidence'));
     agentDetails.append(node('p', plain(data.feedback_basis)));
     active.forEach(a => {
-      agentDetails.append(node('h3', label(a.role)), node('p', `Run: ${a.latest_run_id || 'No run reference'}. Whole-run usage, not role attribution: ${a.reported_usage ? JSON.stringify(a.reported_usage) : 'not recorded'}.`));
+      agentDetails.append(node('h3', agentName(a.role)), node('p', `Run: ${a.latest_run_id || 'No run reference'}. Usage for the whole run, not this AI agent alone: ${a.reported_usage ? JSON.stringify(a.reported_usage) : 'not recorded'}.`));
       (a.latest_findings || []).forEach(f => agentDetails.append(node('p', `${label(f.status)}: ${plain(f.summary)}. ${value(f.citation_count)} citations. ${plain((f.blockers || []).join(', '))}`)));
     });
     agentDetails.append(node('p', `Stored deterministic evaluations: ${value(data.evaluation_count)}. Schema and citation checks do not measure model accuracy.`));

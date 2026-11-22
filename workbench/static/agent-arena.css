@@ -287,8 +287,8 @@
 .agent-arena .arena-activity-totals dd { margin: 5px 0 0; font: 10px/1.6 var(--mono); }
 .agent-arena .arena-activity-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
 .agent-arena .arena-activity-table caption { text-align: left; caption-side: top; }
-.agent-arena .arena-activity-table th, .agent-arena .arena-activity-table td { padding: 6px 3px; vertical-align: top; text-align: right; white-space: normal; }
-.agent-arena .arena-activity-table th:first-child { width: 32%; text-align: left; }
+.agent-arena .arena-activity-table th, .agent-arena .arena-activity-table td { padding: 6px 3px; vertical-align: top; text-align: center; white-space: normal; }
+.agent-arena .arena-activity-table th:first-child { width: 40%; text-align: left; }
 .agent-arena .arena-activity-table tbody th {
   position: static;
   padding: 12px 12px 12px 14px;
@@ -303,10 +303,20 @@
   vertical-align: middle;
   overflow-wrap: anywhere;
 }
+.agent-arena .arena-activity-table tbody .arena-agent-cell { min-width: 0; margin: 0; padding: 0; border: 0; }
+.agent-arena .arena-activity-table tbody .arena-agent-cell > summary { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 2px 0; color: var(--ink); font: 700 13px/1.4 var(--body); text-align: left; list-style: none; cursor: pointer; overflow-wrap: anywhere; }
+.agent-arena .arena-activity-table tbody .arena-agent-cell > summary::-webkit-details-marker { display: none; }
+.agent-arena .arena-activity-table tbody .arena-agent-cell > summary::before { flex: 0 0 auto; color: var(--arena-role-accent, var(--indigo)); content: '▸'; font-size: 15px; transition: transform 120ms ease; }
+.agent-arena .arena-activity-table tbody .arena-agent-cell[open] > summary::before { transform: rotate(90deg); }
+.agent-arena .arena-activity-table tbody .arena-agent-cell > summary:focus-visible { outline: 2px solid var(--arena-role-accent, var(--indigo)); outline-offset: 3px; border-radius: 4px; }
+.agent-arena .arena-activity-table .arena-agent-cell-content { min-width: 0; margin-top: 10px; }
+.agent-arena .arena-activity-table .arena-agent-cell:not([open]) > .arena-agent-cell-content { display: none; }
+.agent-arena .arena-activity-table .arena-agent-cell[open] > .arena-agent-cell-content { display: block; }
+.agent-arena .arena-activity-table .arena-agent-cell-content > * + * { margin-top: 8px; }
 .agent-arena .arena-activity-table tbody tr:nth-child(3n + 2) th { --arena-role-accent: var(--teal); }
 .agent-arena .arena-activity-table tbody tr:nth-child(3n) th { --arena-role-accent: var(--rose); }
 .agent-arena .arena-activity-table thead th { color: var(--muted); font-size: 9px; }
-.agent-arena .arena-activity-bar { display: block; width: 100%; height: auto; margin-top: 5px; }
+.agent-arena .arena-activity-bar { display: block; width: min(100%, 140px); max-width: 100%; height: 12px; margin: 5px auto 0; }
 .agent-arena .arena-activity-track { fill: var(--soft); }
 .agent-arena .arena-activity-fill { fill: var(--teal); }
 .agent-arena .arena-activity-flow { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 12px 0 6px; list-style: none; font-size: 10px; line-height: 1.5; }
@@ -317,6 +327,7 @@
 .arena-current-skills::after { content: '➜'; display: none; position: absolute; inset: 0 auto auto 0; color: var(--teal); font-size: 13px; line-height: 1; offset-path: inset(3px round 9px); offset-distance: 0%; offset-rotate: auto; pointer-events: none; }
 .arena-current-skills[data-active="true"]::after { display: block; }
 @media (prefers-reduced-motion: no-preference) { .arena-current-skills[data-active="true"]::after { animation: arena-skill-orbit 16s linear infinite; } }
+.arena-current-skills::after { content: none; }
 .agent-arena .arena-current-skills > h4, .agent-arena .arena-context-panel > h4 { margin: 0 0 10px; font-size: 14px; }
 .arena-skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 8px; align-items: stretch; }
 .arena-skill-group { --skill-accent: var(--indigo); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; }
@@ -330,14 +341,25 @@
 .arena-current-skill strong { min-width: 0; color: var(--ink); font: 650 12px/1.35 var(--body); }
 .arena-current-skill-name, .arena-current-skill-access { color: var(--ink); font: 500 11px/1.35 var(--body); }
 .arena-current-skill-access { margin-top: auto; padding: 2px 6px; border-radius: 5px; background: var(--surface); color: var(--skill-accent); font-weight: 650; }
+.arena-current-skill-agent { color: var(--muted); font-size: 10px; }
+.arena-current-skill-phase { margin-top: 2px; padding: 3px 7px; border-radius: 999px; background: var(--surface); color: var(--muted); font: 750 9px/1.25 var(--mono); letter-spacing: .04em; }
+.arena-current-skill[data-active="true"] { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
+.arena-current-skill[data-active="true"] .arena-current-skill-phase { background: var(--teal-soft); color: var(--teal); }
+.arena-current-skill[data-phase="earlier"] .arena-current-skill-phase { background: var(--indigo-soft); color: var(--indigo); }
+.arena-skill-summary { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.arena-skill-count { margin: 10px 0 0; color: var(--ink); font: 650 12px/1.45 var(--body); font-variant-numeric: tabular-nums; }
+.arena-agent-skill-link { width: fit-content; color: var(--indigo); font-size: 11px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+@keyframes arena-skill-current-pulse { 50% { box-shadow: 0 0 0 4px var(--teal-soft); } }
+@media (prefers-reduced-motion: no-preference) { .arena-current-skill[data-active="true"] { animation: arena-skill-current-pulse 1.8s ease-in-out infinite; } }
+@media (prefers-reduced-motion: reduce) { .arena-current-skill[data-active="true"] { outline: 2px solid var(--teal); outline-offset: 2px; } }
 .agent-arena .arena-current-skills > .arena-activity-note, .agent-arena .arena-context-panel > .arena-activity-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; }
 .arena-context-panel { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); min-width: 0; }
-.arena-context-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.arena-context-heading { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .agent-arena .arena-context-heading h4 { margin: 0; font-size: 14px; }
-.arena-context-help { position: relative; margin: 0; padding: 0; border: 0; }
+.arena-context-help { position: static; margin: 0; padding: 0; border: 0; }
 .arena-context-help > summary { display: grid; place-items: center; width: 20px; min-height: 20px; padding: 0; border-radius: 50%; background: var(--indigo-soft); color: var(--indigo); font: 700 12px/1 var(--body); list-style: none; }
 .arena-context-help > summary::-webkit-details-marker { display: none; }
-.agent-arena .arena-context-help > .arena-context-help-text { position: absolute; z-index: 3; left: 0; top: 24px; width: min(320px, 70vw); margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font: 400 12px/1.5 var(--body); }
+.agent-arena .arena-context-help > .arena-context-help-text { position: absolute; z-index: 3; left: 0; top: calc(100% + 4px); box-sizing: border-box; width: min(320px, 100%); max-width: none; margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font: 400 12px/1.5 var(--body); }
 .arena-context-panel .arena-context-scope { margin: 12px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .arena-context-facts { display: grid; grid-template-columns: minmax(100px, 160px) minmax(0, 1fr); gap: 6px 12px; margin: 8px 0; font-size: 12px; }
 .arena-context-facts dt { font-weight: 650; }
@@ -346,6 +368,13 @@
 .arena-context-role { margin: 0; padding: 10px 12px; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
 .arena-context-role summary { padding: 0; min-height: 0; color: var(--ink); font-size: 13px; line-height: 1.4; }
 .arena-context-role summary strong { color: var(--indigo); }
+.agent-arena .arena-activity-table .arena-skill-group { margin-top: 8px; }
+.agent-arena .arena-activity-table .arena-context-role { margin-top: 8px; background: var(--surface); }
+@media (max-width: 760px) {
+  .agent-arena .arena-activity-table .arena-skill-group { grid-template-columns: minmax(0, 1fr); }
+  .agent-arena .arena-activity-table .arena-context-facts { grid-template-columns: minmax(0, 1fr); }
+}
+.agent-arena .arena-activity-table .arena-context-role summary { font-weight: 500; }
 .arena-context-summary { display: block; margin: 5px 0 0; color: var(--ink); font-size: 12px; font-weight: 400; }
 .agent-arena .arena-context-body p, .agent-arena .arena-context-body li { margin: 8px 0; color: var(--ink); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .agent-arena .arena-context-body :is(strong, b) { font-weight: 600; }

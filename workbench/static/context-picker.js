@@ -68,8 +68,7 @@
         const check = document.createElement('span'); check.className = 'context-check'; check.textContent = '✓'; check.setAttribute('aria-hidden', 'true');
         // Never copy the native option's potentially enormous serialized scope/title.
         const shortName = option.textContent.replace(/\s+/g, ' ').trim().slice(0, 160);
-        const shortId = option.value.replace(/\s+/g, ' ').slice(0, 40);
-        row.title = shortId ? `${shortName} | ${shortId}` : shortName;
+        row.title = shortName;
         row.append(dot, name);
         if (id === 'agent-workflow' && option.dataset.workflowClass) {
           const classification = document.createElement('span'); classification.className = 'context-workflow-class';

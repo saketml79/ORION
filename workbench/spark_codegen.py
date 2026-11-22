@@ -1643,6 +1643,76 @@ class SparkCodegen:
                     'input_tokens': 0, 'output_tokens': 0, 'total_tokens': 0}
         deadline = monotonic() + self.budget.seconds if self.budget is not None else None
         mutex = RLock()
+        tool_progress_labels = {
+            'fetch_source_task': 'Reading source task details',
+            'fetch_sql_phases': 'Reading source SQL phases',
+            'read_file': 'Reading writer guidance',
+            'stage_generation_artifact': 'Staging a draft file',
+            'stage_generation_file_chunk': 'Staging a draft file chunk',
+            'stage_generation_task': 'Recording task implementation',
+            'stage_generation_obligation': 'Recording behavior obligations',
+            'stage_generation_translation_page': 'Recording translation coverage',
+            'stage_generation_translation': 'Recording translation coverage',
+            'stage_generation_artifact_binding': 'Recording artifact ownership',
+            'stage_generation_basis': 'Recording evidence basis',
+            'inspect_generation_receipts': 'Checking staged receipts',
+            'check_generation_code': 'Running code and notebook checks',
+            'submit_generation_artifact_set': 'Submitting the draft set for validation',
+            'finalize_generation_artifact_set': 'Finalizing the draft set',
+            'commit_generation_receipts': 'Saving the validated draft receipts',
+            'uc_list_catalogs': 'Checking Unity Catalog catalogs',
+            'uc_list_schemas': 'Checking Unity Catalog schemas',
+            'uc_list_tables': 'Checking Unity Catalog tables',
+            'uc_get_table': 'Checking Unity Catalog table metadata',
+            'record_uc_binding': 'Recording the reviewed data binding',
+            'uc_metadata_state': 'Checking Unity Catalog metadata state',
+            'ls': 'Listing staged writer files',
+            'glob': 'Finding staged writer files',
+            'grep': 'Searching staged writer files',
+        }
+
+        def publish_writer_progress(stage, status, *, tool_name=None, event=None):
+            """Persist only bounded writer phase metadata, never code or tool arguments."""
+            if (not self.agent_run_id or self.candidate_authority is not None
+                    or not callable(getattr(service, 'update_record', None))):
+                return
+            stamp = _now()
+            if stage == 'tool' and tool_name in tool_progress_labels:
+                message = tool_progress_labels[tool_name]
+            elif stage == 'model':
+                message = {
+                    'writer_model_started': 'Waiting for candidate-writer model response',
+                    'writer_model_completed': 'Candidate-writer model response received',
+                    'writer_model_failed': 'Candidate-writer model request failed',
+                    'model_retry_wait': 'Waiting for a model rate-limit retry',
+                    'model_retry_resuming': 'Retrying the candidate-writer model request',
+                    'model_retry_succeeded': 'Candidate-writer model retry completed',
+                }.get(tool_name, 'Candidate-writer model step')
+            elif stage == 'validation':
+                message = 'Checking generated code and task structure'
+            else:
+                message = 'Preparing the candidate-code draft'
+            progress = {
+                'stage': stage, 'status': status, 'message': message,
+                'tool_name': tool_name if stage == 'tool' and tool_name in tool_progress_labels else None,
+                'model_calls_started': counters['artifact_model_calls'] + counters['validation_model_calls'],
+                'tool_calls_started': counters['tool_calls'],
+                'submission_attempts': counters['submission_attempts'],
+                'files_staged': len(staged.files), 'file_chunks_staged': len(staged.chunks),
+                'task_records_staged': len(metadata.tasks), 'updated_at': stamp,
+            }
+            try:
+                with service.lock:
+                    run_record = service.record(self.agent_run_id, agent=True)
+                    if (run_record.get('id') == self.agent_run_id
+                            and run_record.get('status') in {'queued', 'running'}):
+                        run_record['writer_progress'] = progress
+                        run_record['phase_updated_at'] = stamp
+                        service.update_record(run_record, agent=True)
+            except Exception as error:
+                if event is not None:
+                    event['progress_write_diagnostic'] = safe_failure_diagnostic(
+                        error, 'writer_progress_persistence')
 
         def budget_timeout(message):
             nonlocal budget_exhausted
@@ -1723,16 +1793,19 @@ class SparkCodegen:
             event = dict(kind='model', role='validation', route='runtime.role_models.validation',
                 ordinal=counters['model_calls'], started_at=_now(), usage=None)
             events.append(event)
+            publish_writer_progress('validation', 'in_progress', event=event)
             try:
                 response = self.validation_model.invoke(messages)
                 usage = getattr(response, 'usage_metadata', None)
                 account_usage(usage)
                 event.update(status='completed', finished_at=_now(), usage=usage)
+                publish_writer_progress('validation', 'completed', event=event)
                 check_cancelled()
                 return response
             except Exception as error:
                 event.update(status='failed', finished_at=_now(),
                     failure_diagnostic=safe_failure_diagnostic(error, 'generated_code_validation'))
+                publish_writer_progress('validation', 'failed', event=event)
                 raise
 
         reviewer = GeneratedCodeReviewer(invoke_validation, max_characters=160_000,
@@ -2153,6 +2226,27 @@ class SparkCodegen:
                                         and run_record.get('status') in {'queued', 'running', 'completed'}):
                                     run_record.pop('model_retry', None)
                                     run_record['phase'] = phase
+                                    stamp = _now()
+                                    run_record['phase_updated_at'] = stamp
+                                    model_message = {
+                                        'writer_model_started': 'Waiting for candidate-writer model response',
+                                        'writer_model_completed': 'Candidate-writer model response received',
+                                        'writer_model_failed': 'Candidate-writer model request failed',
+                                        'model_retry_wait': 'Waiting for a model rate-limit retry',
+                                        'model_retry_resuming': 'Retrying the candidate-writer model request',
+                                        'model_retry_succeeded': 'Candidate-writer model retry completed',
+                                    }.get(phase, 'Candidate-writer model step')
+                                    run_record['writer_progress'] = {
+                                        'stage': 'model_request',
+                                        'status': 'failed' if phase == 'writer_model_failed'
+                                            else 'completed' if phase == 'writer_model_completed' else 'in_progress',
+                                        'message': model_message, 'tool_name': None,
+                                        'model_calls_started': counters['artifact_model_calls'] + counters['validation_model_calls'],
+                                        'tool_calls_started': counters['tool_calls'],
+                                        'submission_attempts': counters['submission_attempts'],
+                                        'files_staged': len(staged.files), 'file_chunks_staged': len(staged.chunks),
+                                        'task_records_staged': len(metadata.tasks), 'updated_at': stamp,
+                                    }
                                     if details is not None:
                                         run_record['model_retry'] = {**details, 'role': 'artifact',
                                                                     'operation': 'spark_codegen', 'writer_run_id': run_id}
@@ -2241,10 +2335,12 @@ class SparkCodegen:
                             and '\\' not in virtual_path and ':' not in virtual_path):
                         event['workspace_relative_path'] = safe_workspace_path(SKILLS / virtual_path.lstrip('/'))
                 events.append(event)
+                publish_writer_progress('tool', 'in_progress', tool_name=name, event=event)
                 if request.tool_call['id'] in truncated_tool_calls:
                     truncated_tool_calls.discard(request.tool_call['id'])
                     event.update(status='rejected', finished_at=_now(),
                                  error_code='incomplete_model_tool_payload', finish_reason='length')
+                    publish_writer_progress('tool', 'rejected', tool_name=name, event=event)
                     return ToolMessage(content=_json({'accepted': False,
                         'error': 'incomplete_model_tool_payload', 'finish_reason': 'length',
                         'instruction': 'No partial arguments were accepted. Do not retry the monolithic artifact set. '
@@ -2259,6 +2355,7 @@ class SparkCodegen:
                         # not another round spent inventing translation bookkeeping.
                         feedback = commit_generation_receipts.invoke({})
                         event.update(status='completed' if feedback.get('accepted') else 'rejected', finished_at=_now())
+                        publish_writer_progress('tool', event['status'], tool_name=name, event=event)
                         return ToolMessage(content=_json(feedback), tool_call_id=request.tool_call['id'],
                             name=name, status='success' if feedback.get('accepted') else 'error')
                     with mutex:
@@ -2276,9 +2373,11 @@ class SparkCodegen:
                                          error_code='writer_protocol_no_progress',
                                          reason='Identical empty finalization after corrective feedback; no semantic progress',
                                          timeout=False, staged_artifacts_preserved=len(staged_receipts))
+                            publish_writer_progress('tool', 'failed', tool_name=name, event=event)
                             raise WriterProtocolError('Identical empty finalization after corrective feedback; no semantic progress')
                         empty_finalization_correction = {'progress': progress, 'model_call': counters['model_calls']}
                     event.update(status='rejected', finished_at=_now(), error_code='empty_finalization_arguments')
+                    publish_writer_progress('tool', 'rejected', tool_name=name, event=event)
                     return ToolMessage(content=_json({'accepted': False, 'error': 'empty_finalization_arguments',
                         'instruction': 'Supply the required artifact_set argument as a JSON object or JSON string, not {}. '
                             'Include the actual tasks, obligations and translation_coverage from your work. '
@@ -2309,6 +2408,7 @@ class SparkCodegen:
                 except WriterProtocolError:
                     event.update(status='failed', finished_at=_now(), error_code='writer_protocol_no_progress',
                                  timeout=False, staged_artifacts_preserved=len(staged_receipts))
+                    publish_writer_progress('tool', 'failed', tool_name=name, event=event)
                     raise
                 except ValueError as error:
                     event.update(status='rejected', finished_at=_now(),
@@ -2331,7 +2431,9 @@ class SparkCodegen:
                             event['repair'] = repair
                             if repair['remaining_attempts'] == 0 or repairs.total >= 12:
                                 event.update(status='failed', error_code='candidate_repair_exhausted')
+                                publish_writer_progress('tool', 'failed', tool_name=name, event=event)
                                 raise CandidateRepairExhausted('Candidate code/structure repair attempts exhausted') from None
+                    publish_writer_progress('tool', 'rejected', tool_name=name, event=event)
                     return ToolMessage(content=_json({'accepted': False, 'error': message[:600],
                         'invalid_fields': fields,
                         **({'repair': repair} if repair is not None else {}),
@@ -2345,6 +2447,7 @@ class SparkCodegen:
                 except Exception as error:
                     event.update(status='failed', finished_at=_now(),
                                  failure_diagnostic=safe_failure_diagnostic(error, 'writer_tool'))
+                    publish_writer_progress('tool', 'failed', tool_name=name, event=event)
                     raise
                 try:
                     if (name == 'check_generation_code' and isinstance(result, ToolMessage)
@@ -2365,6 +2468,7 @@ class SparkCodegen:
                     result.status = 'error'
                     event['error_code'] = 'generated_code_review_feedback'
                     event.update(status='rejected', finished_at=_now())
+                    publish_writer_progress('tool', 'rejected', tool_name=name, event=event)
                     return result
                 if isinstance(result, ToolMessage) and name == 'commit_generation_receipts':
                     feedback = json.loads(cast(str, result.content))
@@ -2402,6 +2506,7 @@ class SparkCodegen:
                         repairs.resolved(name, args)
                 event.update(status='rejected' if getattr(result, 'status', None) == 'error' else 'completed',
                              finished_at=_now())
+                publish_writer_progress('tool', event['status'], tool_name=name, event=event)
                 check_cancelled()
                 return result
 

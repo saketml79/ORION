@@ -1,6 +1,8 @@
 /* A soft halo, never movement, flashing, a replacement focus ring or a border. */
 .next-action-hint { margin: 10px 0 18px; max-width: 100%; }
 .next-action-hint[hidden] { display: none; }
+.next-action-workspace-link { color: var(--indigo); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.next-action-workspace-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 3px; }
 .page .orion-next-action {
   --next-action-glow: rgb(46 132 147 / 58%);
   filter: drop-shadow(0 0 4px var(--next-action-glow));
