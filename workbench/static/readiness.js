@@ -22,9 +22,9 @@
   };
   let selected = scope();
   const node = (tag, text = '') => { const n = document.createElement(tag); n.textContent = text; return n; };
-  const agentName = role => ({supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
-    semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
-    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[role] || label(role);
+  const agentName = role => ({supervisor: 'Migration lead and coordinator', discovery: 'Informatica package analyst',
+    semantics: 'Transformation semantics analyst', architecture: 'Databricks Lakeflow solution architect',
+    validation: 'Independent validation analyst', artifact: 'Notebook and delivery requirements analyst'})[role] || label(role);
   const names = {
     total_workflows: 'Workflows in package', structurally_analyzed: 'Source definitions analyzed',
     agent_assessed: 'Workflows reviewed', logical_draft: 'Designs proposed',
@@ -93,7 +93,7 @@
     if (!hasData) card.dataset.empty = 'true';
     const alternative = node('details'); alternative.append(node('summary', 'Chart data and legend'));
     const list = node('ul'); rows.forEach(([k, n]) => list.append(node('li', `${label(k)}: ${n}`)));
-    alternative.append(list, node('p', basis), node('p', 'Bar length compares recorded counts within this chart, not readiness or accuracy. Unknown values have no bar.'));
+    alternative.append(list, node('p', basis), node('p', 'Bar length compares recorded counts within this chart, not readiness or accuracy. Unavailable values have no bar.'));
     card.append(svg, node('p', hasData ? basis : empty), alternative); return card;
   }
   function table(headers, rows) {
@@ -151,7 +151,7 @@
     const gaps = Object.entries(counts).filter(([, n]) => n === null || n === undefined);
     if (gaps.length || !data.evidence_complete) {
       const missing = node('details'); missing.className = 'readiness-evidence-gaps'; missing.append(node('summary', 'Evidence gaps'));
-      missing.append(node('p', 'Missing counts are unknown, not zero. No execution results recorded yet unless explicitly shown in Execution checks.'));
+      missing.append(node('p', 'Missing counts are unavailable, not zero. No execution results recorded yet unless explicitly shown in Execution checks.'));
       const list = node('ul'); gaps.forEach(([key]) => list.append(node('li', `${label(key)}: no current evidence recorded.`)));
       missing.append(list, node('p', data.evidence_complete ? 'Review the exact workflow and validation evidence; execution requires separate approval.' : 'History is bounded. Sample counts cannot establish complete totals or freshness.'));
       root.append(missing);

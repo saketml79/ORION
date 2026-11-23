@@ -13,10 +13,10 @@
     section: 'tools', category: 'all', view: 'skills', offsets: {tools: 0, knowledge: 0},
     pages: {tools: null, knowledge: null}, controller: null, request: 0, selected: {tools: null, knowledge: null},
   };
-  const text = (value) => String(value ?? 'Unknown');
-  const agentName = id => ({supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
-    semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
-    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[id] || text(id).replaceAll('_', ' ');
+  const text = (value) => String(value ?? 'N/A');
+  const agentName = id => ({supervisor: 'Migration lead and coordinator', discovery: 'Informatica package analyst',
+    semantics: 'Transformation semantics analyst', architecture: 'Databricks Lakeflow solution architect',
+    validation: 'Independent validation analyst', artifact: 'Notebook and delivery requirements analyst'})[id] || text(id).replaceAll('_', ' ');
   const make = (tag, value = '', className = '') => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -128,7 +128,7 @@
     const items = Array.isArray(page.items) ? page.items : [];
     if (!items.length) {
       host.append(make('p', section === 'knowledge' && page.status?.status !== 'available'
-        ? `No stored architecture graph is available (${page.status?.status || 'unknown'}). The skill catalog remains separately available.`
+        ? `No stored architecture graph is available (${page.status?.status || 'status not reported'}). The skill catalog remains separately available.`
         : 'No entries are available for this view.'));
       byId(section === 'tools' ? 'agent-library-tools-detail' : 'agent-library-knowledge-detail').replaceChildren();
       return;

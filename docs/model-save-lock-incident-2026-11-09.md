@@ -214,4 +214,5 @@ staged together: [history projection](../workbench/hosted_agent_reads.py),
 [browser history regressions](../tests/test_agent_history_scoped_ui.py).
 The unchanged allowlisted [stager](../deployment/stage_hosted.py) copies the full
 reviewed workbench source, not a partial replacement of those pending changes.
-The [historical setup note](agent-model-setup-2026-11-09.md) now points here.
+The earlier package-independent model-picker design is summarized in the
+[current release ledger](current-release-verification-ledger.md).

@@ -29,18 +29,18 @@
     const aliases = Object.entries(record.declared_aliases || {}).map(([name, field]) => `${name}: ${field.value} (${field.status})`).join('; ');
     article.append(element('h3', aliases || 'No declared alias captured'));
     row(article, 'Role / source or target', `${record.role} / ${record.source_target}`);
-    row(article, 'Session', record.session?.name || 'Unknown, not captured');
-    row(article, 'Component', record.component?.name || 'Unknown, not captured');
-    row(article, 'Mapping', record.mapping?.name || 'Unknown, unresolved or not captured');
-    row(article, 'Mapping instance', record.mapping_instance?.name || 'Unknown, unresolved or not captured');
-    row(article, 'Configured physical binding', `Unknown (${record.physical_binding?.status || 'not_captured'})`);
-    row(article, 'Source schema', `Unknown (${record.source_schema?.status || 'not_captured'})`);
+    row(article, 'Session', record.session?.name || 'Not captured');
+    row(article, 'Component', record.component?.name || 'Not captured');
+    row(article, 'Mapping', record.mapping?.name || 'Unresolved or not captured');
+    row(article, 'Mapping instance', record.mapping_instance?.name || 'Unresolved or not captured');
+    row(article, 'Configured physical binding', `Unavailable (${record.physical_binding?.status || 'not_captured'})`);
+    row(article, 'Source schema', `Unavailable (${record.source_schema?.status || 'not_captured'})`);
     const details = element('details', ''); details.append(element('summary', 'Captured metadata and XML evidence'));
     for (const [label, fields] of [['Connection', record.metadata], ['Component', record.component_metadata]]) {
       for (const field of (Array.isArray(fields) ? fields : []).slice(0, 100)) row(details, `${label} ${field.name}`, `${field.value} (${field.status})`);
     }
     if (record.metadata_truncated || record.component_metadata_truncated) details.append(element('p', 'Metadata display limited to 100 fields per object.'));
-    row(details, 'XML locator', record.evidence?.locator || 'Unknown'); article.append(details); list.append(article);
+    row(details, 'XML locator', record.evidence?.locator || 'N/A'); article.append(details); list.append(article);
   }
   async function load({preload = false} = {}) {
     if (page.hidden && !preload) return false;

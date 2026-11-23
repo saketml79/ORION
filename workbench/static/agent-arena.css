@@ -80,6 +80,9 @@
 .arena-role strong { font-size: 12px; }
 .arena-role-signal { color: var(--muted); font-size: 10px; font-weight: 400; }
 .arena-role[aria-pressed="true"] { border-color: var(--indigo); background: var(--indigo-soft); }
+.arena-role[data-in-flight="true"] { box-shadow: inset 0 0 0 2px var(--teal), 0 2px 8px var(--teal-soft); }
+@keyframes arena-role-in-flight { 50% { box-shadow: inset 0 0 0 2px var(--teal), 0 0 0 5px var(--teal-soft); } }
+@media (prefers-reduced-motion: no-preference) { .arena-role[data-in-flight="true"] { animation: arena-role-in-flight 2.8s ease-in-out infinite; } }
 .arena-role[data-state="supported"] .arena-role-signal { color: var(--teal); }
 .arena-role[data-state="needs_information"] .arena-role-signal { color: var(--indigo); }
 .arena-role[data-state="unsupported"] .arena-role-signal, .arena-role[data-state="failed"] .arena-role-signal { color: var(--rose); }
@@ -229,6 +232,14 @@
 #page-agents .arena-middle { grid-column: 2; display: grid; grid-template-rows: minmax(0, 1fr) 94px; gap: 12px; min-width: 0; height: 600px; align-self: start; }
 #page-agents .arena-stage { box-sizing: border-box; height: 100%; min-height: 0; padding: 128px 0 4px; }
 #page-agents .arena-role { box-sizing: border-box; block-size: 88px; min-height: 0; overflow: hidden; }
+#page-agents .arena-role[data-in-flight="true"] { outline: 3px solid var(--teal); outline-offset: -3px; }
+@keyframes arena-role-active-outline {
+  0%, 100% { outline-color: var(--teal); outline-offset: -3px; }
+  50% { outline-color: var(--indigo); outline-offset: -7px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #page-agents .arena-role[data-in-flight="true"] { animation: arena-role-active-outline 1.8s ease-in-out infinite; }
+}
 #page-agents .arena-role strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 #page-agents .arena-role-signal { max-width: 100%; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 #page-agents .arena-progress { box-sizing: border-box; width: 100%; min-width: 0; height: 94px; grid-column: auto;
@@ -329,11 +340,14 @@
 @media (prefers-reduced-motion: no-preference) { .arena-current-skills[data-active="true"]::after { animation: arena-skill-orbit 16s linear infinite; } }
 .arena-current-skills::after { content: none; }
 .agent-arena .arena-current-skills > h4, .agent-arena .arena-context-panel > h4 { margin: 0 0 10px; font-size: 14px; }
-.arena-skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 8px; align-items: stretch; }
+.arena-skills-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+@media (max-width: 980px) { .arena-skills-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .arena-skills-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 360px) { .arena-skills-grid { grid-template-columns: minmax(0, 1fr); } }
 .arena-skill-group { --skill-accent: var(--indigo); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; }
 .arena-skill-group[data-role="discovery"], .arena-skill-group[data-role="validation"] { --skill-accent: var(--teal); }
 .arena-skill-group[data-role="semantics"], .arena-skill-group[data-role="artifact"] { --skill-accent: var(--rose); }
-.arena-current-skill { --skill-accent: var(--indigo); position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; box-sizing: border-box; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--skill-accent); border-radius: 10px 10px 10px 4px; background: var(--soft); background: color-mix(in srgb, var(--skill-accent) 9%, var(--surface)); box-shadow: 0 2px 6px rgba(22, 32, 57, .12); overflow-wrap: anywhere; }
+.arena-current-skill { --skill-accent: var(--indigo); position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; box-sizing: border-box; min-width: 0; padding: 7px 8px; border: 1px solid var(--line); border-left: 3px solid var(--skill-accent); border-radius: 10px 10px 10px 4px; background: var(--soft); background: color-mix(in srgb, var(--skill-accent) 9%, var(--surface)); box-shadow: 0 2px 6px rgba(22, 32, 57, .12); overflow-wrap: anywhere; }
 .arena-current-skill[data-role="discovery"], .arena-current-skill[data-role="validation"] { --skill-accent: var(--teal); }
 .arena-current-skill[data-role="semantics"], .arena-current-skill[data-role="artifact"] { --skill-accent: var(--rose); }
 .arena-current-skill[data-active="true"] { box-shadow: 0 3px 9px rgba(0, 120, 120, .25); }

@@ -13,20 +13,61 @@
   if (!mount || mount.dataset.initialized) return;
   mount.dataset.initialized = 'true';
   const roles = ['supervisor', 'discovery', 'semantics', 'architecture', 'validation', 'artifact'];
-  const roleLabels = {supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
-    semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
-    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'};
+  const roleLabels = {supervisor: 'Migration lead and coordinator', discovery: 'Informatica package analyst',
+    semantics: 'Transformation semantics analyst', architecture: 'Databricks Lakeflow solution architect',
+    validation: 'Independent validation analyst', artifact: 'Notebook and delivery requirements analyst',
+    writer: 'Spark and SQL notebook code writer'};
   const reviewSkillLabels = {supervisor: 'Migration coordination', discovery: 'Informatica package understanding',
     semantics: 'Transformation and SQL semantics', architecture: 'Lakeflow workflow design',
     validation: 'Evidence and coverage validation', artifact: 'Artifact readiness review'};
+  const localSkillLabels = {
+    'migration-coordination': 'Coordinate the migration analysis',
+    'informatica-understanding': 'Understand Informatica workflows and mappings',
+    'transformation-semantics': 'Interpret transformations and SQL',
+    'lakeflow-design': 'Design Databricks Lakeflow workflows',
+    'independent-validation': 'Check migration evidence and coverage',
+    'artifact-requirements': 'Review notebook and delivery requirements',
+    'spark-code-writer': 'Write Spark and SQL notebooks',
+  };
+  const officialSkillLabels = {'academy-guide': 'Learning and training guidance', 'algorithmic-art': 'Algorithmic art',
+    'brand-guidelines': 'Brand guidelines', 'canvas-design': 'Visual canvas design', 'claude-api': 'Claude API development',
+    'discernment-nudge': 'Decision support', 'doc-coauthoring': 'Collaborative document writing', 'docx': 'Word document processing',
+    'frontend-design': 'Frontend interface design', 'internal-comms': 'Internal communications', 'mcp-builder': 'MCP server development',
+    'pdf': 'PDF document processing', 'pptx': 'PowerPoint presentation processing', 'skill-creator': 'Skill creation and evaluation',
+    'slack-gif-creator': 'Slack animation creation', 'theme-factory': 'Visual theme design', 'webapp-testing': 'Web application testing',
+    'web-artifacts-builder': 'Interactive web artifact development', 'xlsx': 'Spreadsheet processing',
+    'databricks-ai-runtime': 'Databricks AI Runtime workloads', 'databricks-apps': 'Databricks application development',
+    'databricks-genie-agents': 'Databricks Genie agents', 'databricks-serverless': 'Databricks serverless jobs and pipelines',
+    'databricks-setup-local': 'Databricks local environment setup', 'databricks-unity-gateway': 'Databricks Unity AI Gateway',
+    'databricks-zerobus-ingest': 'Databricks streaming ingestion'};
+  Object.assign(officialSkillLabels, {
+    'databricks-agent-bricks': 'Databricks Agent Bricks', 'databricks-ai-functions': 'Databricks SQL AI functions',
+    'databricks-aibi-dashboards': 'Databricks AI/BI dashboards', 'databricks-app-design': 'Databricks application design',
+    'databricks-apps-python': 'Databricks Python applications', 'databricks-core': 'Databricks authentication and data access',
+    'databricks-dabs': 'Databricks Asset Bundles', 'databricks-data-discovery': 'Databricks data discovery',
+    'databricks-dbsql': 'Databricks SQL', 'databricks-docs': 'Databricks documentation',
+    'databricks-execution-compute': 'Databricks compute execution', 'databricks-iceberg': 'Apache Iceberg on Databricks',
+    'databricks-jobs': 'Databricks Lakeflow Jobs', 'databricks-lakebase': 'Databricks Lakebase',
+    'databricks-lakeflow-connect': 'Databricks Lakeflow Connect', 'databricks-metric-views': 'Databricks metric views',
+    'databricks-ml-training': 'Databricks machine learning training', 'databricks-mlflow-evaluation': 'MLflow agent evaluation',
+    'databricks-model-serving': 'Databricks model serving', 'databricks-pipelines': 'Databricks Lakeflow pipelines',
+    'databricks-python-sdk': 'Databricks Python SDK', 'databricks-serverless-migration': 'Databricks serverless migration',
+    'databricks-spark-structured-streaming': 'Spark Structured Streaming',
+    'databricks-synthetic-data-gen': 'Databricks synthetic data generation', 'databricks-unity-catalog': 'Databricks Unity Catalog',
+    'databricks-unstructured-pdf-generation': 'Synthetic PDF generation', 'databricks-vector-search': 'Databricks vector search'});
+  const officialSkillParts = path => /^\/library\/official\/(anthropic|databricks)\/([A-Za-z0-9_-]+)\/SKILL\.md$/.exec(path);
   const skillLabel = (role, path) => path === '/library/review/SKILL.md' ? reviewSkillLabels[role]
+    : /^\/library\/([^/]+)\/SKILL\.md$/.test(path) && localSkillLabels[path.split('/')[2]]
+      ? localSkillLabels[path.split('/')[2]]
+    : officialSkillParts(path) ? officialSkillLabels[officialSkillParts(path)[2]] || officialSkillParts(path)[2].replaceAll('-', ' ')
     : path === '/CONTEXT.md' ? 'AI agent context' : path === '/production-conversion-contract.md'
-      ? 'Production conversion contract' : path.split('/').slice(2, -1).join(' / ').replaceAll('-', ' ')
+      ? 'Migration conversion guidelines' : path.split('/').slice(2, -1).join(' / ').replaceAll('-', ' ')
         .replace(/\b[a-z]/g, letter => letter.toUpperCase());
-  const recordedSkillName = path => path === '/CONTEXT.md' ? 'Recorded file: CONTEXT.md'
-    : path === '/production-conversion-contract.md' ? 'Recorded file: production-conversion-contract.md'
+  const recordedSkillName = path => path === '/CONTEXT.md' ? 'Agent guidance document'
+    : path === '/production-conversion-contract.md' ? 'Shared guidance document'
+      : officialSkillParts(path) ? `${officialSkillParts(path)[1] === 'anthropic' ? 'Anthropic' : 'Databricks'} skill · page read`
       : /^\/library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md$/.test(path)
-        ? `Recorded skill: ${path.split('/').at(-2)}` : `Recorded file: ${path}`;
+        ? 'Recorded technical skill' : `Recorded file: ${path}`;
   const purposes = ['Brings together the other AI agents’ analysis and can submit or correct the migration design. A separate Spark and SQL code writer generates the code.',
     'Inspects Informatica folders, definitions, references, tasks, and connections.',
     'Traces mapping expressions, SQL phases, write behavior, and control conditions.',
@@ -37,7 +78,7 @@
     unsupported: 'Agent-reported unsupported behavior', failed: 'Analysis failed'};
   const array = (value) => Array.isArray(value) ? value : [];
   const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
-  const safe = (value) => window.orionRedaction.text(value ?? 'Unknown').slice(0, 4000);
+  const safe = (value) => window.orionRedaction.text(value ?? 'N/A').slice(0, 4000);
   function node(tag, text = '', className = '') {
     const element = document.createElement(tag);
     element.className = className; element.textContent = safe(text); return element;
@@ -66,7 +107,7 @@
   for (const [key, label] of [['id', 'Run ID'], ['workflow', 'Workflow'], ['attempts', 'AI agent results'],
     ['citations', 'XML references cited'], ['tokens', 'Total tokens'], ['models', 'Model calls started / completed'],
     ['tools', 'Tool calls started / completed'], ['created', 'Created'], ['finished', 'Finished']]) {
-    const value = node('dd', 'Unknown'); value.dataset.fact = key; values[key] = value;
+    const value = node('dd', 'N/A'); value.dataset.fact = key; values[key] = value;
     facts.append(node('dt', label), value);
   }
   telemetry.append(facts);
@@ -177,8 +218,8 @@
       const group = groups.get(key) ?? {finding, count: 0}; group.count++; groups.set(key, group);
     }
     const matching = [...groups.values()];
-    if (raw.length) roleFindings.append(node('p', `${raw.length} recorded submission${raw.length === 1 ? '' : 's'}, ${matching.length} distinct finding${matching.length === 1 ? '' : 's'} for this AI agent. Latest recorded status: ${findingStatus[raw.at(-1).status] ?? 'Unknown'}. These are not additional independent reviews.`, 'arena-boundary'));
-    if (!matching.length) roleFindings.append(node('p', 'This AI agent has not submitted a finding. Its analysis status is unknown.'));
+    if (raw.length) roleFindings.append(node('p', `${raw.length} recorded submission${raw.length === 1 ? '' : 's'}, ${matching.length} distinct finding${matching.length === 1 ? '' : 's'} for this AI agent. Latest recorded status: ${findingStatus[raw.at(-1).status] ?? 'N/A'}. These are not additional independent reviews.`, 'arena-boundary'));
+    if (!matching.length) roleFindings.append(node('p', 'No finding is recorded for this AI agent. Analysis status is not available.'));
     for (const {finding, count} of matching) {
       const item = node('article', '', 'arena-finding');
       const summary = String(finding.summary ?? 'No explanation was submitted.');
@@ -285,7 +326,7 @@
   // Observational only: consume the exact receipt selected by render(), never
   // current_usage_receipt, other runs, findings, or candidate summaries as counts.
   const activityCount = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
-  const activityLabel = value => activityCount(value) === null ? 'Unknown' : String(value);
+  const activityLabel = value => activityCount(value) === null ? 'N/A' : String(value);
   const activityName = value => typeof value === 'string'
     && /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(value) ? value : null;
   // Decimal rates are scaled exactly, without floating-point overflow or rounding
@@ -322,9 +363,9 @@
     runtimeCost.title = disclaimer;
     runtimeCost.removeAttribute('aria-label');
     if (!current) { write(runtimeCost, 'Select a run.'); return; }
-    if (!receipt || !Array.isArray(receipt.turns)) { write(runtimeCost, 'Unknown: verified model turns unavailable.'); return; }
-    if (!listPrices) { write(runtimeCost, 'Unknown: current list prices unavailable.'); return; }
-    let total = 0n, priced = 0, partial = false, pending = false;
+    if (!receipt || !Array.isArray(receipt.turns)) { write(runtimeCost, 'N/A: verified model turns unavailable.'); return; }
+    if (!listPrices) { write(runtimeCost, 'N/A: current list prices unavailable.'); return; }
+    let total = 0n, priced = 0, partial = false, pending = false, unpriced = false;
     const seen = new Set(), sources = new Set();
     if (activityCount(receipt.turn_count) !== receipt.turns.length) partial = true;
     for (const turn of receipt.turns) {
@@ -335,19 +376,20 @@
       if (turn.status === 'started') { pending = true; partial = true; continue; }
       const rate = listPrices.get(turn.endpoint);
       if (!rate || activityCount(turn.input_tokens) === null || activityCount(turn.output_tokens) === null) {
-        partial = true; continue;
+        partial = true; unpriced = true; continue;
       }
       total += BigInt(turn.input_tokens) * rate.input + BigInt(turn.output_tokens) * rate.output;
       priced++; sources.add(`${rate.source} (observed ${rate.observed})`);
     }
     if (!priced) {
-      write(runtimeCost, pending || (active && !receipt.turns.length) ? 'Pending: no priced model calls yet.' : 'Unknown: no priced model calls.');
+      write(runtimeCost, unpriced ? 'N/A: model rate or token usage unavailable.'
+        : pending || (active && !receipt.turns.length) ? 'Pending: no priced model calls yet.' : 'N/A: no priced model calls.');
       return;
     }
     const centsScale = priceScale * 10000n;
     const cents = (total + centsScale / 2n) / centsScale;
     const amount = `$${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
-    write(runtimeCost, amount);
+    write(runtimeCost, partial ? `Partial ${amount}` : amount);
     runtimeCost.setAttribute('aria-label', `${amount}, ${partial ? 'partial ' : ''}analysis model cost estimate. ${disclaimer}`);
     runtimeCost.title = `${partial ? 'Partial estimate. ' : ''}${disclaimer} ${[...sources].join('; ')}`;
   }
@@ -443,8 +485,8 @@
     const runList = document.getElementById('runs-list');
     const latestDisplayed = runList?.dataset.offset === '0'
       && runList.querySelector('[data-run-id]')?.dataset.runId === current.id;
-    skillStrip.append(node('h4', latestDisplayed ? 'Skills recorded during latest run' : 'Skills recorded during selected run'));
-    skillStrip.append(node('p', 'Cumulative skill access stickers for this run. A pulse marks an agent with an in-flight call; it does not claim a skill influenced the model’s reasoning.', 'arena-skill-summary'));
+    skillStrip.append(node('h4', latestDisplayed ? 'Skills and guidance recorded during latest run' : 'Skills and guidance recorded during selected run'));
+    skillStrip.append(node('p', 'These cards show skills and guidance recorded as loaded or read, not the full available catalog. Spark and SQL coding appears when the separate writer has a recorded receipt. Official coding and Databricks skills appear only if a successful read was recorded. A pulse marks recorded active work, not proof that a skill influenced reasoning.', 'arena-skill-summary'));
     const skillGrid = node('div', '', 'arena-skills-grid');
     skillStrip.append(skillGrid);
     const activeRoles = new Set(array(receipt?.active_calls).map(call => call.role).filter(role => roles.includes(role)));
@@ -463,6 +505,24 @@
           merged.tool_reads.set(path, Number.isSafeInteger(item.count) && item.count > 0 ? item.count : 0);
       }
     }
+    const writerActive = ['queued', 'running', 'cancelling'].includes(current?.candidate_writer?.status);
+    const writerReceipt = current?.candidate_writer?.writer_skill_receipt
+      ?? (writerActive ? current?.writer_progress?.writer_skill_receipt : null);
+    if (writerReceipt?.schema_version === 1 && Array.isArray(writerReceipt.loaded)
+        && Array.isArray(writerReceipt.tool_reads)) {
+      const merged = {role: 'writer', loaded: new Map(), tool_reads: new Map()};
+      for (const item of writerReceipt.loaded.slice(0, Object.keys(officialSkillLabels).length + 3)) {
+        const path = item?.path;
+        if (typeof path === 'string' && /^\/(?:CONTEXT\.md|production-conversion-contract\.md|library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md)$/.test(path)
+            && item.source === 'system_prompt' && /^[a-f0-9]{64}$/.test(item.content_sha256)) merged.loaded.set(path, item);
+      }
+      for (const item of writerReceipt.tool_reads.slice(0, Object.keys(officialSkillLabels).length + 3)) {
+        const path = item?.path;
+        if (typeof path === 'string' && /^\/(?:CONTEXT\.md|library\/(?:[A-Za-z0-9_-]+\/)+SKILL\.md)$/.test(path)
+            && Number.isSafeInteger(item.count) && item.count > 0) merged.tool_reads.set(path, item.count);
+      }
+      if (merged.loaded.size || merged.tool_reads.size) skillRows.set('writer', merged);
+    }
     const displayedSkillPaths = new Map();
     let skillCount = 0;
     let activeSkillCount = 0;
@@ -471,7 +531,7 @@
       const readCounts = row.tool_reads;
       const paths = new Set([...loadedPaths, ...readCounts.keys()]);
       for (const path of paths) {
-        const isCurrent = active && activeRoles.has(row.role);
+        const isCurrent = row.role === 'writer' ? writerActive : active && activeRoles.has(row.role);
         const card = node('article', '', 'arena-current-skill');
         card.dataset.active = String(isCurrent);
         card.dataset.phase = isCurrent ? 'active' : active ? 'earlier' : 'recorded';
@@ -481,13 +541,13 @@
         if (loadedPaths.has(path)) access.push('Loaded');
         if (readCounts.has(path)) {
           const count = readCounts.get(path);
-          access.push(Number.isSafeInteger(count) && count > 0 ? `Read ${count} ${count === 1 ? 'time' : 'times'}` : 'Read');
+          access.push(Number.isSafeInteger(count) && count > 0 ? `Read ${count} ${officialSkillParts(path) ? count === 1 ? 'page' : 'pages' : count === 1 ? 'time' : 'times'}` : 'Read');
         }
         card.title = `Recorded file: ${path}`;
         card.append(node('span', roleLabels[row.role], 'arena-current-skill-agent'),
           node('strong', label), node('span', recordedSkillName(path), 'arena-current-skill-name'),
           node('span', access.join(' · ') || 'Access recorded', 'arena-current-skill-access'),
-          node('span', isCurrent ? 'ACTIVE AGENT' : active ? 'RECORDED EARLIER' : 'RECORDED FOR RUN', 'arena-current-skill-phase'));
+          node('span', isCurrent ? row.role === 'writer' ? 'ACTIVE WRITER' : 'ACTIVE AGENT' : active ? 'RECORDED EARLIER' : 'RECORDED FOR RUN', 'arena-current-skill-phase'));
         if (!displayedSkillPaths.has(row.role)) displayedSkillPaths.set(row.role, new Set());
         displayedSkillPaths.get(row.role).add(path);
         skillGrid.append(card); skillCount++;
@@ -497,8 +557,8 @@
     skillStrip.dataset.active = String(activeSkillCount > 0);
     if (skillCount) {
       skillStrip.append(node('p', active
-        ? `${skillCount} cumulative stickers · ${activeSkillCount} associated with an AI agent currently in flight · ${skillCount - activeSkillCount} recorded earlier.`
-        : `${skillCount} cumulative skill-access stickers recorded for this run.`, 'arena-skill-count'));
+        ? `${skillCount} cumulative stickers · ${activeSkillCount} associated with currently active work · ${skillCount - activeSkillCount} recorded earlier.`
+        : `${skillCount} cumulative skill and guidance access stickers recorded for this run.`, 'arena-skill-count'));
     } else {
       const status = receipt?.skill_stats?.status;
       skillStrip.append(node('p', status === 'unavailable'
@@ -506,7 +566,7 @@
         : receipt ? 'No skill load or read receipts were recorded for this run.'
           : 'A verified skill-access receipt is unavailable for this run; no skill list is inferred.', 'arena-activity-note'));
     }
-    skillStrip.append(node('p', 'Loaded means included in the agent’s instructions; read means the agent retrieved the file. These are access records, not proof of reasoning influence.', 'arena-activity-note'));
+    skillStrip.append(node('p', `Loaded means included in instructions; read means a file was retrieved. These are access records, not proof of reasoning influence. ${skillRows.has('writer') ? 'The separate Spark/SQL writer has its own recorded receipts.' : 'Writer-specific skill receipts were not recorded for this run.'}`, 'arena-activity-note'));
     activityPanel.append(skillStrip);
     const contextPanel = node('section', '', 'arena-context-panel');
     contextPanel.setAttribute('aria-label', 'Agent context and evidence');
@@ -597,12 +657,12 @@
     caption.append(node('p', 'Skill labels show guidance loaded or read for this run.', 'arena-activity-note'));
     const latest = object(receipt?.last_event) ? receipt.last_event : null;
     const event = activityStates.includes(latest?.event) ? latest.event : null;
-    const role = roles.includes(latest?.role) ? roleLabels[latest.role] : 'AI agent unknown';
+    const role = roles.includes(latest?.role) ? roleLabels[latest.role] : 'AI agent not reported';
     const name = event?.startsWith('tool_') ? activityName(latest?.tool_name)
       : event?.startsWith('model_') ? activityName(latest?.endpoint) : null;
     const stamp = activityTime(latest?.created_at);
     activityPanel.append(node('p', latest
-      ? `Latest activity: ${role} · ${name ?? 'Name unknown'} · ${event?.replaceAll('_', ' ') ?? 'State unknown'} · ${stamp ?? 'Time unknown'}`
+      ? `Latest activity: ${role} · ${name ?? 'Name not reported'} · ${event?.replaceAll('_', ' ') ?? 'State not reported'} · ${stamp ?? 'Time not reported'}`
       : 'Latest activity: not recorded.', 'arena-activity-latest'));
     if (event?.startsWith('tool_') && name === 'check_generation_code')
       activityPanel.append(node('p', `Latest code check: ${event.replaceAll('_', ' ')}.`, 'arena-activity-note'));
@@ -617,7 +677,7 @@
       for (const turn of turns) {
         const number = activityCount(turn.turn);
         const time = activityTime(turn.completed_at) ?? activityTime(turn.failed_at) ?? activityTime(turn.started_at);
-        list.append(node('li', `${number !== null && number > 0 ? `Turn ${number}` : 'Recorded call'} · ${roleLabels[turn.role]} · ${activityName(turn.endpoint) ?? 'Model unknown'} · ${turn.status} · ${time ?? 'Time unknown'}`));
+        list.append(node('li', `${number !== null && number > 0 ? `Turn ${number}` : 'Recorded call'} · ${roleLabels[turn.role]} · ${activityName(turn.endpoint) ?? 'Model not reported'} · ${turn.status} · ${time ?? 'Time not reported'}`));
       }
       details.append(list);
     }
@@ -628,8 +688,8 @@
   const stack = node('div', '', 'arena-stack');
   let smithStatus;
   const traceLabel = trace => ['server_key_required', 'explicit_project_required'].includes(trace?.reason)
-    ? 'Not configured' : String(trace?.state || 'unknown').replaceAll('_', ' ');
-  for (const [name, description] of [['LangChain', 'Agent tools and model interfaces'], ['LangGraph', 'Agent execution and checkpoints'], ['LangSmith', 'Configuration unknown'], ['MLflow', 'Not integrated']]) {
+    ? 'Not configured' : String(trace?.state || 'not reported').replaceAll('_', ' ');
+  for (const [name, description] of [['LangChain', 'Agent tools and model interfaces'], ['LangGraph', 'Agent execution and checkpoints'], ['LangSmith', 'Configuration not reported'], ['MLflow', 'Not integrated']]) {
     const item = node('span'); item.append(node('strong', name));
     const descriptionNode = node('span', ` · ${description}`); item.append(descriptionNode); stack.append(item);
     if (name === 'LangSmith') { smithStatus = descriptionNode; smithStatus.id = 'arena-langsmith-status'; }
@@ -688,10 +748,17 @@
     const generated = current?.status === 'completed'
       && current?.candidate_writer?.manifest_status === 'generation_complete';
     const percentage = !current ? 0 : generated ? 100 : estimatedProgress;
-    write(progressValue, `${percentage}%`);
+    const finishedWithoutCompletion = !!current && !active && !generated;
+    write(progressValue, finishedWithoutCompletion ? 'Ended' : `${percentage}%`);
     progressValue.setAttribute('aria-label', 'Estimated conversion progress');
     progressValue.setAttribute('aria-valuemin', '0'); progressValue.setAttribute('aria-valuemax', '100');
-    progressValue.setAttribute('aria-valuenow', String(percentage));
+    if (finishedWithoutCompletion) {
+      progressValue.removeAttribute('aria-valuenow');
+      progressValue.setAttribute('aria-valuetext', 'Run ended; completion percentage unavailable');
+    } else {
+      progressValue.setAttribute('aria-valuenow', String(percentage));
+      progressValue.removeAttribute('aria-valuetext');
+    }
     write(progressBasis, !current ? 'Select a run' : generated
       ? 'Generation finished. Review and runtime correctness are separate.'
       : `Estimated progress: ${modelCalls}/50 model calls · ${toolCalls}/125 tool calls completed. Baseline, not a fixed task total.${knownProgress ? ` ${doneTasks}/${totalTasks} ${writerKnown ? 'writer tasks generated' : 'analysis milestones completed'}.` : ''}${percentage === 99 ? ' Awaiting completion.' : ''}`);
@@ -706,28 +773,30 @@
       outcome.hidden = false;
       outcome.append(node('p', `Architecture knowledge: ${array(knowledge.retrievals).length} recorded retrievals; ${array(knowledge.citations).length} applied citations. Retrieval alone does not demonstrate that a recommendation used the knowledge or improved the design. Irrelevant features do not need citations.`, 'arena-boundary'));
     }
-    const id = safe(current?.id); write(values.id, current ? (id.length > 20 ? `${id.slice(0, 17)}…` : id) : 'Unknown');
+    const id = safe(current?.id); write(values.id, current ? (id.length > 20 ? `${id.slice(0, 17)}…` : id) : 'N/A');
     values.id.title = current ? id : '';
     write(values.workflow, current?.workflow_name || current?.workflow_id);
     values.workflow.title = safe(current?.workflow_name ? `${current.workflow_name} (${current.workflow_id})` : current?.workflow_id);
     const dateLabel = value => {
-      if (!value) return 'Unknown';
+      if (!value) return 'N/A';
       const date = new Date(value); return Number.isNaN(date.getTime()) ? safe(value) : date.toLocaleString();
     };
     write(values.created, dateLabel(current?.created_at)); write(values.finished, dateLabel(current?.finished_at));
     const roleResults = array(source?.role_completion);
-    write(values.attempts, roleResults.length ? `${roleResults.filter(item => item.status === 'completed').length}/${roleResults.length} completed` : 'Unknown');
+    write(values.attempts, roleResults.length ? `${roleResults.filter(item => item.status === 'completed').length}/${roleResults.length} completed` : 'N/A');
     const citations = new Set(findings.flatMap((f) => array(f.evidence_ids)).filter((id) => typeof id === 'string'));
-    write(values.citations, Array.isArray(source?.findings) && findings.every((f) => Array.isArray(f.evidence_ids)) ? citations.size : 'Unknown');
+    write(values.citations, Array.isArray(source?.findings) && findings.every((f) => Array.isArray(f.evidence_ids)) ? citations.size : 'N/A');
     values.citations.title = 'Unique citations in recorded findings';
     const usage = live?.usage ?? current?.usage ?? current?.output?.usage ?? current?.output?.usage_metadata;
     const total = usage?.total_tokens;
-    write(values.tokens, typeof total === 'number' && Number.isFinite(total) && total >= 0 ? total : 'Unknown');
+    const knownTotal = usage?.known_total_tokens;
+    write(values.tokens, activityCount(total) !== null ? total.toLocaleString()
+      : activityCount(knownTotal) !== null ? `${knownTotal.toLocaleString()} (partial)` : 'N/A');
     const countLabel = kind => {
-      if (!live) return 'Unknown';
+      if (!live) return 'N/A';
       const started = live.counts?.[`${kind}_started`] ?? 0, completed = live.counts?.[`${kind}_completed`] ?? 0;
       return Number.isSafeInteger(started) && started >= 0 && Number.isSafeInteger(completed) && completed >= 0
-        ? `${started} / ${completed}` : 'Unknown';
+        ? `${started} / ${completed}` : 'N/A';
     };
     write(values.models, countLabel('model')); write(values.tools, countLabel('tool'));
     const roleReceipts = new Map(array(source?.role_completion).map(item => [item.role, item]));
@@ -738,6 +807,7 @@
       button.dataset.state = severity ?? 'unknown';
       const receipt = roleReceipts.get(role);
       const roleCalls = active ? activeCalls.filter(call => call.role === role) : [];
+      button.dataset.inFlight = String(roleCalls.length > 0);
       const result = roleCalls.length ? roleCalls.map(call => call.kind === 'tool'
         ? `Tool in flight: ${safe(call.tool_name)}` : `Model in flight: ${safe(call.endpoint)}`).join(' · ')
         : matching.length ? [...new Set(states.map(s => findingStatus[s] ?? 'Finding status not recognized'))].join(' · ')

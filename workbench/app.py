@@ -243,16 +243,24 @@ def _agent_delivery_status(output, candidate_drafts, generate_code):
     incomplete_roles = sorted({item.get("role", "unknown") for item in roles
                                if isinstance(item, dict) and item.get("status") != "completed"})
     designs = output.get("redesigns", []) if isinstance(output, dict) else []
+    if generate_code and not designs:
+        return "failed", "No design was submitted for the requested code generation."
+    current_drafts = (candidate_drafts[-1:] if any(item.get("design_round", 0) > 0
+                                                       for item in candidate_drafts) else candidate_drafts)
     draft_blocked = bool(generate_code and designs and (
-        not candidate_drafts or any(item.get("status") != "completed"
+        not current_drafts or any(item.get("status") != "completed"
                                     or item.get("manifest_status") != "generation_complete"
-                                    for item in candidate_drafts)))
-    if incomplete_roles or draft_blocked:
+                                    for item in current_drafts)))
+    unresolved_feedback = any((item.get("design_correction_feedback") or {}).get("status") == "unresolved"
+                              for item in current_drafts)
+    if incomplete_roles or draft_blocked or unresolved_feedback:
         parts = []
         if incomplete_roles:
             parts.append("Incomplete specialist results: " + ", ".join(incomplete_roles) + ".")
         if draft_blocked:
             parts.append("Candidate notebook/code generation is blocked or incomplete.")
+        if unresolved_feedback:
+            parts.append("Reviewer feedback or missing review evidence needs triage; prior review opinions remain recorded.")
         return "partial", " ".join(parts)
     return "completed", "Requested analysis and candidate-drafting stages completed; execution and parity remain unverified."
 
@@ -792,6 +800,34 @@ class AgentBody(_Body):
     consent: bool = False
     generate_code: bool = False
     knowledge_preview_consent: bool = False
+    official_docs_consent: bool = False
+
+
+class SupportAIReviewBody(_Body):
+    run_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    review_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    consent: bool = False
+
+
+class SupportHumanReviewBody(_Body):
+    run_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    consent: bool = False
+
+
+class SupportSkillSubmitBody(_Body):
+    filename: str = Field(min_length=4, max_length=100)
+    content: str = Field(min_length=1, max_length=128 * 1024)
+    consent: bool = False
+
+
+class SupportHumanDecisionBody(_Body):
+    decision: Literal["reviewed", "needs_information", "declined"]
+    comment: str = Field(default="", max_length=4000)
+
+
+class SupportSkillPromotionBody(_Body):
+    approved: bool = False
+    review_note: str = Field(default="", max_length=4000)
 
 
 class SparkDraftBody(_Body):
@@ -810,6 +846,135 @@ class WorkflowArtifactsBody(_Body):
     workflow_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     scenario: Literal["bronze"]
     consent: bool
+
+
+def _revision_runtime_provenance(root, record, runtime_id=None):
+    """Resolve an explicitly persisted revision, never an arbitrary output path.
+
+    The parent owns revision_ledger: {schema_version: 1, current_runtime_run_id,
+    entries: [{round_index, runtime_run_id, runtime_input_hashes, status,
+    context_sha256, output_sha256}]}. Entries are ordered rounds 1 and 2;
+    status is admitted or the actual terminal runtime status. An admitted
+    entry has a null output hash; a terminal entry pins _hash(runtime result).
+    The caller must persist admission before invoking and seal the result after
+    runtime completion, under its existing consent and concurrency controls.
+    Neither this reader nor the runtime authenticates the review handoff.
+    """
+    import sqlite3
+    from contextlib import closing
+
+    root = Path(root).resolve()
+    public_id = record.get("id")
+    if not isinstance(public_id, str) or not _JOB_ID.fullmatch(public_id):
+        raise ValueError("Invalid revision parent")
+    parent_path = root / "state" / "agent-runs" / (public_id + ".json")
+    def safe_file(path):
+        return (path.resolve() == path.absolute() and path.is_file()
+                and path.resolve().is_relative_to(root))
+    if not safe_file(parent_path) or parent_path.stat().st_size > 32 * 1024 * 1024:
+        raise ValueError("Invalid persisted revision parent")
+    saved = json.loads(parent_path.read_bytes())
+    fields = ("id", "package_hash", "workflow_id", "scenario", "input_version",
+              "input_hashes", "input_versions", "consent", "generate_code", "output", "revision_ledger")
+    if (not isinstance(saved, dict) or any(saved.get(k) != record.get(k) for k in fields)
+            or saved.get("consent") is not True or saved.get("generate_code") is not True):
+        raise ValueError("Revision parent pins changed")
+    original = saved.get("output")
+    ledger = saved.get("revision_ledger")
+    if (not isinstance(original, dict) or not isinstance(original.get("run_id"), str)
+            or not _JOB_ID.fullmatch(original["run_id"])
+            or not isinstance(original.get("input_hashes"), dict) or not original["input_hashes"]
+            or not isinstance(ledger, dict)
+            or set(ledger) != {"schema_version", "current_runtime_run_id", "entries"}
+            or type(ledger["schema_version"]) is not int or ledger["schema_version"] != 1
+            or not isinstance(ledger["entries"], list) or not 1 <= len(ledger["entries"]) <= 2):
+        raise ValueError("Invalid revision ledger")
+    pins, versions = saved.get("input_hashes"), saved.get("input_versions")
+    if not isinstance(pins, dict) or not pins or not isinstance(versions, dict):
+        raise ValueError("Invalid parent input pins")
+    expected = {**pins, "documents": versions.get("documents"), "feedback": versions.get("reviews")}
+    if any(not isinstance(k, str) or not isinstance(v, str) or not _ID.fullmatch(v)
+           for k, v in expected.items()):
+        raise ValueError("Invalid parent input pins")
+    if any(original["input_hashes"].get(k) != v for k, v in expected.items()):
+        raise ValueError("Original runtime input pins changed")
+    terminal = {"draft_available", "proposal_failed", "failed", "cancelled", "unavailable",
+                "needs_information", "advisory"}
+    entries, seen = ledger["entries"], {original["run_id"]}
+    for number, entry in enumerate(entries, 1):
+        if (not isinstance(entry, dict) or set(entry) != {"round_index", "runtime_run_id",
+                "runtime_input_hashes", "status", "context_sha256", "output_sha256"}
+                or type(entry["round_index"]) is not int or entry["round_index"] != number
+                or not isinstance(entry["runtime_run_id"], str)
+                or not _JOB_ID.fullmatch(entry["runtime_run_id"]) or entry["runtime_run_id"] in seen
+                or not isinstance(entry["runtime_input_hashes"], dict) or not entry["runtime_input_hashes"]
+                or any(not isinstance(k, str) or not isinstance(v, str) or not _ID.fullmatch(v)
+                       for k, v in entry["runtime_input_hashes"].items())
+                or any(entry["runtime_input_hashes"].get(k) != v for k, v in expected.items())
+                or entry["runtime_input_hashes"].get("identity_scope") != original["input_hashes"].get("identity_scope")
+                or not isinstance(entry["context_sha256"], str) or not _ID.fullmatch(entry["context_sha256"])
+                or entry["status"] not in terminal | {"admitted"}
+                or (entry["status"] == "admitted" and entry["output_sha256"] is not None)
+                or (entry["status"] != "admitted" and (not isinstance(entry["output_sha256"], str)
+                    or not _ID.fullmatch(entry["output_sha256"])))
+                or (number < len(entries) and entry["status"] == "admitted")):
+            raise ValueError("Invalid revision entry")
+        seen.add(entry["runtime_run_id"])
+    current = ledger["current_runtime_run_id"]
+    if current is not None and current != entries[-1]["runtime_run_id"]:
+        raise ValueError("Invalid current revision")
+    selected = runtime_id if runtime_id is not None else current
+    if selected is None:
+        return None
+    matches = [entry for entry in entries if entry["runtime_run_id"] == selected]
+    if len(matches) != 1:
+        raise ValueError("Revision runtime is not uniquely recorded")
+    entry = matches[0]
+    hashes = entry["runtime_input_hashes"]
+    identity = hashes.get("identity_scope")
+    directory = root / "agents"
+    paths = [directory / "agents.sqlite3"]
+    if identity is not None:
+        paths.append(directory / "identities" / identity / "agents.sqlite3")
+    candidates = []
+    namespace = _hash([saved["package_hash"], hashes, saved["workflow_id"], saved["scenario"]])
+    for path in paths:
+        if not path.exists():
+            continue
+        if not safe_file(path):
+            raise ValueError("Invalid revision runtime storage")
+        if path.parent == directory and identity not in (None, _hash("")):
+            continue
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=0.1)) as db:
+            db.execute("PRAGMA query_only=ON")
+            db.execute("BEGIN")
+            row = db.execute("SELECT namespace,input_hashes,state,length(CAST(result AS BLOB)) FROM agent_runs WHERE run_id=?",
+                             (selected,)).fetchone()
+            if row is None:
+                continue
+            if (row[0] != namespace or json.loads(row[1]) != hashes
+                    or (entry["status"] == "admitted" and (row[2] != "running" or row[3] is not None))
+                    or (entry["status"] != "admitted" and (row[2] != entry["status"]
+                        or type(row[3]) is not int or not 1 <= row[3] <= 32 * 1024 * 1024))):
+                raise ValueError("Revision runtime ledger mismatch")
+            output = None
+            if entry["status"] != "admitted":
+                raw = db.execute("SELECT result FROM agent_runs WHERE run_id=?", (selected,)).fetchone()[0]
+                output = json.loads(raw)
+                revision = output.get("revision") if isinstance(output, dict) else None
+                context = revision.get("context") if isinstance(revision, dict) else None
+                if (not isinstance(context, dict) or output.get("run_id") != selected
+                        or output.get("input_hashes") != hashes or output.get("status") != row[2]
+                        or _hash(output) != entry["output_sha256"]
+                        or revision.get("context_sha256") != entry["context_sha256"]
+                        or _hash(context) != entry["context_sha256"]
+                        or context.get("round_index") != entry["round_index"]
+                        or context.get("original_runtime_run_id") != original["run_id"]):
+                    raise ValueError("Revision output pins changed")
+            candidates.append((entry, output, path, namespace))
+    if len(candidates) != 1:
+        raise ValueError("Revision runtime storage is not unique")
+    return candidates[0]
 
 
 def _stored_agent_progress(root, record):
@@ -835,6 +1000,15 @@ def _stored_agent_progress(root, record):
         return unavailable
     output = record.get("output") or {}
     runtime_pin, runtime_hashes = output.get("run_id"), output.get("input_hashes")
+    revision = None
+    if "revision_ledger" in record:
+        try:
+            revision = _revision_runtime_provenance(root, record)
+        except Exception:
+            return unavailable
+        if revision is not None:
+            entry, _, _, _ = revision
+            runtime_pin, runtime_hashes = entry["runtime_run_id"], entry["runtime_input_hashes"]
     if (runtime_pin is not None and (not isinstance(runtime_pin, str) or not _JOB_ID.fullmatch(runtime_pin)
             or not isinstance(runtime_hashes, dict) or not runtime_hashes
             or any(runtime_hashes.get(k) != v for k, v in expected.items()))):
@@ -845,7 +1019,7 @@ def _stored_agent_progress(root, record):
         if start_time.tzinfo is None:
             return unavailable
         next_time = None
-        for path in (Path(root) / "state" / "agent-runs").glob("*.json"):
+        for path in (() if revision is not None else (Path(root) / "state" / "agent-runs").glob("*.json")):
             other = json.loads(path.read_bytes())
             if (other.get("id") != record["id"] and other.get("package_hash") == record["package_hash"]
                     and other.get("workflow_id") == record["workflow_id"]
@@ -853,8 +1027,9 @@ def _stored_agent_progress(root, record):
                 created = datetime.fromisoformat(other["created_at"])
                 if created > start_time and (next_time is None or created < next_time):
                     next_time = created
-        directory = Path(root) / "agents"
-        paths = [directory / "agents.sqlite3", *directory.glob("identities/*/agents.sqlite3")]
+        directory = (Path(root).resolve() if revision is not None else Path(root)) / "agents"
+        paths = ([revision[2]] if revision is not None else
+             [directory / "agents.sqlite3", *directory.glob("identities/*/agents.sqlite3")])
         candidates = []
         for path in paths:
             if not path.is_file():
@@ -871,7 +1046,8 @@ def _stored_agent_progress(root, record):
                             or not _JOB_ID.fullmatch(runtime_id)
                             or namespace != _hash([record["package_hash"], hashes, record["workflow_id"], record["scenario"]])
                             or (path.parent != directory and hashes.get("identity_scope") != path.parent.name)
-                            or (path.parent == directory and hashes.get("identity_scope") is not None)
+                            or (path.parent == directory and hashes.get("identity_scope") is not None
+                                and not (revision is not None and hashes.get("identity_scope") == _hash("")))
                             or (next_time is not None and datetime.fromisoformat(created) >= next_time)):
                         continue
                     events = db.execute(
@@ -958,11 +1134,14 @@ def _stored_agent_progress(root, record):
             active.extend(call for call in tool_calls.values() if call["status"] == "started")
             if last_tool_event is not None and (last_event is None or last_tool_event["id"] > last_event["id"]):
                 last_event = last_tool_event
+        if revision is not None and _revision_runtime_provenance(root, record) != revision:
+            return unavailable
         return {"status": "verified", "source": "local_agent_usage_ledger",
                 "historical_output_unchanged": True, "public_run_id": record["id"],
                 "run_id": runtime_id, "namespace": namespace,
                 "input_hashes": hashes, "identity_scope_hash": hashes.get("identity_scope"),
-                "mapping_basis": "captured_hashes_workflow_namespace_invocation_window",
+                "mapping_basis": ("persisted_revision_runtime_pin" if revision is not None else
+                                  "captured_hashes_workflow_namespace_invocation_window"),
                 "event_count": len(events), "counts": dict(counts), "active_calls": active,
                 "last_event": last_event, **activity, **tools, "skill_stats": skill_activity(activity_events),
                 "usage": {**{"known_" + key: value for key, value in known.items()},
@@ -1049,6 +1228,16 @@ def _candidate_writer_status(root, parent_run_id, package_hash=None):
         "manifest_status": output.get("manifest_status", output.get("status")),
         "task_statuses": output.get("task_statuses", []),
     }
+    # This projection is additive and never rewrites the mutable job or parent.
+    if job.get("package_hash") == package_hash:
+        from workbench.spark_codegen import writer_recent_events
+        recent_events = writer_recent_events(root, package_hash, job.get("id"))
+        if recent_events is not None:
+            result["writer_recent_events"] = recent_events
+    from workbench.agent_skill_receipt import writer_skill_receipt
+    writer_receipt = writer_skill_receipt(output.get("writer_skill_receipt"))
+    if writer_receipt is not None:
+        result["writer_skill_receipt"] = writer_receipt
     failure_stage = job.get("failure_stage")
     if isinstance(failure_stage, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,80}", failure_stage):
         result["failure_stage"] = failure_stage
@@ -1618,6 +1807,9 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
     app.state.service = service
     app.add_middleware(_LocalBoundary)
 
+    from workbench.application_log_analytics import install_application_log_analytics
+    install_application_log_analytics(app)
+
     @app.exception_handler(ValueError)
     async def invalid_value(request, exc):
         message = str(_redact(str(exc)))[:2000]
@@ -1634,6 +1826,178 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
     def trace_status():
         from workbench.tracing import tracing_status
         return tracing_status()
+
+    @app.post("/api/support/official-search")
+    async def official_support_search(request: Request):
+        from workbench.support_search import official_search_response
+        return await official_search_response(request)
+
+    @app.get("/api/skill-notices")
+    def skill_notices():
+        from workbench.official_skill_library import skill_notice_manifest
+        return skill_notice_manifest()
+
+    @app.get("/api/skill-notices/{provider}/{skill}/{relative_path:path}")
+    def skill_notice_page(provider: str, skill: str, relative_path: str, offset: int = 0,
+                          limit: int = Query(default=16000, ge=1, le=16000)):
+        try:
+            from workbench.official_skill_library import read_skill
+            return read_skill(provider, skill, relative_path, offset=offset, limit=limit)
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from None
+
+    @app.post("/api/support/ai-review")
+    def support_ai_review(body: SupportAIReviewBody):
+        if body.consent is not True:
+            raise HTTPException(403, "Explicit consent is required before sending run receipts to the selected AI model")
+        index = service.require()
+        runtime = service.runtime
+        if getattr(app.state, "hosted_request_authenticated", False):
+            from workbench.hosted import _CURRENT_AGENT_RUNTIMES
+            active = _CURRENT_AGENT_RUNTIMES.get()
+            if isinstance(active, dict):
+                runtime = active.get(str(service.root.resolve()), runtime)
+        routes = getattr(runtime, "role_models", None)
+        model = routes.get("validation") if isinstance(routes, dict) else None
+        if model is None:
+            raise HTTPException(409, "No existing selected validation model route is available; configure one first")
+        if not service.agent_slot.acquire(blocking=False):
+            raise HTTPException(409, "Another agent or writer action is active; wait before requesting AI review")
+        try:
+            from workbench.support_review import request_ai_review
+            pricing = app.state.model_price_rates.get()
+            return request_ai_review(service, body.run_id, index.model["package"]["sha256"], model,
+                                     pricing, body.review_id)
+        except LookupError as error:
+            raise HTTPException(404, str(error)) from None
+        except RuntimeError as error:
+            raise HTTPException(409, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        finally:
+            service.agent_slot.release()
+
+    @app.get("/api/support/ai-reviews/{run_id}/{review_id}")
+    def support_ai_review_saved(run_id: str, review_id: str):
+        index = service.require()
+        try:
+            from workbench.support_review import get_ai_review
+            return get_ai_review(service, run_id, review_id, index.model["package"]["sha256"])
+        except LookupError as error:
+            raise HTTPException(404, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "Saved AI review is unavailable; no new model request was made") from None
+
+    @app.post("/api/support/human-review", status_code=202)
+    def support_human_review(body: SupportHumanReviewBody):
+        if body.consent is not True:
+            raise HTTPException(403, "Explicit consent is required to share the selected run receipt for human review")
+        index = service.require()
+        try:
+            from workbench.support_workflow import current_identity, submit_human_review
+            return submit_human_review(service, current_identity(), body.run_id,
+                                       index.model["package"]["sha256"], app.state.model_price_rates.get())
+        except LookupError as error:
+            raise HTTPException(404, str(error)) from None
+        except RuntimeError as error:
+            raise HTTPException(409, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "The shared review queue is unavailable; private Volume staging may have completed") from None
+
+    @app.get("/api/support/human-review/queue")
+    def support_human_review_queue():
+        try:
+            from workbench.support_workflow import current_identity, pending_reviews
+            return pending_reviews(current_identity())
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "The shared human review queue is unavailable") from None
+
+    @app.get("/api/support/human-review/queue/{request_id}")
+    def support_human_review_detail(request_id: str):
+        try:
+            from workbench.support_workflow import current_identity, get_human_review
+            return get_human_review(current_identity(), request_id)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "The human review detail is unavailable") from None
+
+    @app.post("/api/support/human-review/queue/{request_id}/decision")
+    def support_human_review_decision(request_id: str, body: SupportHumanDecisionBody):
+        try:
+            from workbench.support_workflow import current_identity, decide_human_review
+            return decide_human_review(current_identity(), request_id, body.decision, body.comment)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "The human review decision was not confirmed") from None
+
+    @app.post("/api/support/skills", status_code=202)
+    def support_skill_submit(body: SupportSkillSubmitBody):
+        if body.consent is not True:
+            raise HTTPException(403, "Explicit consent is required to upload the skill for vetting")
+        try:
+            from workbench.support_workflow import current_identity, submit_skill
+            return submit_skill(current_identity(), body.filename, body.content.encode("utf-8"))
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "Skill upload was not confirmed; inspect your private Volume before retrying") from None
+
+    @app.get("/api/support/skills/pending")
+    def support_skills_pending():
+        try:
+            from workbench.support_workflow import current_identity, pending_skills
+            return pending_skills(current_identity())
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "Pending skill queue is unavailable") from None
+
+    @app.get("/api/support/skills/pending/{request_id}")
+    def support_skill_pending_detail(request_id: str):
+        try:
+            from workbench.support_workflow import current_identity, get_pending_skill
+            return get_pending_skill(current_identity(), request_id)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(404, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "Pending skill detail is unavailable") from None
+
+    @app.post("/api/support/skills/pending/{request_id}/promote")
+    def support_skill_promote(request_id: str, body: SupportSkillPromotionBody):
+        try:
+            from workbench.support_workflow import current_identity, promote_skill
+            return promote_skill(current_identity(), request_id, body.approved, body.review_note)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from None
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        except Exception:
+            raise HTTPException(503, "Skill promotion was not confirmed") from None
+
+    @app.get("/api/support/skills/approved")
+    def support_skills_approved():
+        try:
+            from workbench.support_workflow import current_identity, list_approved_skills
+            return list_approved_skills(current_identity())
+        except Exception:
+            return {"status": "unavailable", "items": [],
+                    "reason": "Approved-skill Volume access is not available to this identity."}
 
     @app.get("/api/overview")
     def overview():
@@ -2234,7 +2598,7 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
     def export_english():
         return FileResponse(service.require().directory / "english.md", media_type="text/markdown", filename="english.md")
 
-    def run_agent(initial, index, body, snapshot, cancellation_event):
+    def run_agent(initial, index, body, snapshot, cancellation_event, official_search_budget=None):
         record = dict(initial)
         failure_stage = "runtime"
         try:
@@ -2273,6 +2637,10 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                                          captured["documents"], captured["reviews"],
                                          cancellation_event=cancellation_event,
                                                       progress_callback=model_progress, **knowledge_options,
+                                                      **({"official_docs_consent": True}
+                                                          if body.official_docs_consent is True else {}),
+                                                      **({"official_search_budget": official_search_budget}
+                                                          if official_search_budget is not None else {}),
                                                       **({"pause_control": service.agent_pause_controls[record["id"]]}
                                                           if record["id"] in service.agent_pause_controls else {}))
             if not isinstance(output, dict):
@@ -2301,15 +2669,18 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                 # execution or deployment is implied.
                 from workbench.redesign import store_for
                 from workbench.spark_codegen import draft_agent_design
-                # One selected workflow/scenario, one final design, one writer.
-                # Earlier revisions stay in history and are never drafted here.
+                # Start with the latest original design; each verified revision
+                # can enqueue one new writer while earlier drafts stay intact.
                 selected_designs = [submitted for submitted in saved_redesigns
                     if submitted.get('workflow_id') == record['workflow_id']
                     and submitted.get('scenario') == record['scenario']
                     and submitted.get('package_hash') == record['package_hash']]
                 final_designs = [max(selected_designs, key=lambda submitted: submitted['version'])] if selected_designs else []
-                for design_ref in final_designs:
-                    record.update(phase="candidate_code_generation:1/1", phase_updated_at=_now())
+                pending_designs = deque((item, 0) for item in final_designs)
+                revision_stop = None
+                while pending_designs and not cancellation_event.is_set():
+                    design_ref, design_round = pending_designs.popleft()
+                    record.update(phase=f"candidate_code_generation:{design_round + 1}/3", phase_updated_at=_now())
                     service.update_record(record, agent=True)
                     draft_job = {"id": uuid4().hex, "kind": "spark_draft", "status": "running",
                                  "created_at": _now(), "started_at": _now(),
@@ -2318,7 +2689,11 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                                  "scenario": record["scenario"], "agent_run_id": record["id"],
                                  "input_version": record["input_version"], "advisory_only": True,
                                  "approved": False, "execution_allowed": False, "deployment_allowed": False}
-                    service.update_record(draft_job)
+                    with service.lock:
+                        if cancellation_event.is_set():
+                            revision_stop = "Cancellation requested; no further writer was started."
+                            break
+                        service.update_record(draft_job)
                     writer_started = _now()
                     record["writer_progress"] = {
                         "stage": "preparing", "status": "in_progress",
@@ -2331,17 +2706,32 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                     record["phase_updated_at"] = writer_started
                     service.update_record(record, agent=True)
                     try:
-                        exact_design = store_for(service).get(design_ref["id"], record["package_hash"],
-                                                               design_ref["version"])
-                        draft = draft_agent_design(service, exact_design, agent_run_id=record["id"],
-                                                   consent=record.get("consent") is True,
-                                                   budget=None)
+                        from workbench.spark_codegen import writer_observation, writer_status_event
+                        with writer_observation(service, draft_job["id"], record["package_hash"]):
+                            writer_status_event('writer', 'started')
+                            try:
+                                exact_design = store_for(service).get(design_ref["id"], record["package_hash"],
+                                                                       design_ref["version"])
+                                draft = draft_agent_design(service, exact_design, agent_run_id=record["id"],
+                                                           consent=record.get("consent") is True,
+                                                           **({"official_docs_consent": True,
+                                                               "official_search_budget": official_search_budget}
+                                                              if record.get("official_docs_consent") is True else {}),
+                                                           budget=None)
+                            except Exception as error:
+                                writer_status_event('writer', 'cancelled' if isinstance(error, agent_module.AgentRunCancelled)
+                                                    else 'failed', failure=error)
+                                raise
+                            writer_status_event('writer', 'failed' if draft.get('failure') else 'completed',
+                                                failure=draft.get('failure_diagnostic'))
                         manifest_path = service.root / draft["relative_directory"] / "manifest.json"
                         draft_job.update(status="completed", output={
                             "run_id": draft["run_id"], "relative_directory": draft["relative_directory"],
                             "manifest_status": draft["status"],
                             "failure": draft.get("failure"),
                             "failure_diagnostic": draft.get("failure_diagnostic"),
+                            "writer_skill_receipt": draft.get("writer_skill_receipt"),
+                            "design_correction_feedback": _redact(draft.get("design_correction_feedback")),
                             "task_statuses": [{"task_id": task.get("task_id"), "status": task.get("status"),
                                                "artifact_paths": task.get("artifact_paths", []),
                                                "blockers": task.get("blockers", [])}
@@ -2367,18 +2757,20 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                         writer_message = ("Candidate-code draft finished; inspect its manifest and review status."
                             if writer_state == "completed" else
                             "Candidate-code draft stopped. Inspect the sanitized failure details before retrying.")
-                        record["writer_progress"] = {
-                            **(record.get("writer_progress") or {}),
-                            "stage": "final_result", "status": writer_state,
-                            "message": writer_message, "updated_at": draft_job["finished_at"],
-                            **({"failure_stage": draft_job["failure_stage"]}
-                               if isinstance(draft_job.get("failure_stage"), str) else {}),
-                            **({"exception_class": draft_job["exception_class"]}
-                               if isinstance(draft_job.get("exception_class"), str) else {}),
-                        }
-                        record["phase_updated_at"] = draft_job["finished_at"]
                         try:
-                            service.update_record(record, agent=True)
+                            with service.lock:
+                                latest_parent = service.record(record["id"], agent=True)
+                                record["writer_progress"] = {
+                                    **(latest_parent.get("writer_progress") or {}),
+                                    "stage": "final_result", "status": writer_state,
+                                    "message": writer_message, "updated_at": draft_job["finished_at"],
+                                    **({"failure_stage": draft_job["failure_stage"]}
+                                       if isinstance(draft_job.get("failure_stage"), str) else {}),
+                                    **({"exception_class": draft_job["exception_class"]}
+                                       if isinstance(draft_job.get("exception_class"), str) else {}),
+                                }
+                                record["phase_updated_at"] = draft_job["finished_at"]
+                                service.update_record(record, agent=True)
                         except Exception as error:
                             from workbench.databricks_models import safe_failure_diagnostic
                             draft_job["progress_write_diagnostic"] = safe_failure_diagnostic(
@@ -2389,9 +2781,261 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                                 pass
                     candidate_drafts.append({"job_id": draft_job["id"], "status": draft_job["status"],
                                              "design_id": design_ref["id"], "design_version": design_ref["version"],
-                                             "manifest_status": (draft_job.get("output") or {}).get("manifest_status")})
+                                             "design_round": design_round,
+                                             "manifest_sha256": draft_job.get("manifest_sha256"),
+                                             "manifest_status": (draft_job.get("output") or {}).get("manifest_status"),
+                                             "writer_run_id": (draft_job.get("output") or {}).get("run_id"),
+                                             "design_correction_feedback": (draft_job.get("output") or {}).get("design_correction_feedback")})
+                    # Preserve every completed job independently of the original runtime output.
+                    record["candidate_draft_history"] = list(candidate_drafts)
+                    service.update_record(record, agent=True)
+                    if cancellation_event.is_set():
+                        revision_stop = "Cancellation requested; no further revision or writer was started."
+                        break
+                    if draft_job["status"] != "completed":
+                        revision_stop = "The candidate writer did not complete; no revision was started."
+                        break
+                    feedback = candidate_drafts[-1].get("design_correction_feedback") or {}
+                    if (feedback.get("final_review_status") == "review_ready"
+                            and feedback.get("final_review_fully_ai_reviewed") is True):
+                        revision_stop = "The final candidate review completed without open feedback."
+                        candidate_drafts[-1]["design_revision_preflight"] = {
+                            "status": "no_open_feedback", "revision_started": False,
+                            "reason": revision_stop, "execution_allowed": False, "deployment_allowed": False}
+                        record["candidate_draft_history"] = list(candidate_drafts)
+                        service.update_record(record, agent=True)
+                        break
+                    from workbench.design_revision import verify_committed_handoff
+                    observed = verify_committed_handoff(service, index, record["id"], draft_job["id"], snapshot)
+                    if (observed.get("status") == "unavailable"
+                            and feedback.get("final_review_fully_ai_reviewed") is False):
+                        observed = {**observed, "reason": "The candidate review is incomplete; correction eligibility could not be verified. Inspect the saved task review and Informatica task details."}
+                    candidate_drafts[-1]["design_revision_preflight"] = {
+                        key: value for key, value in observed.items() if key != "internal"}
+                    record["candidate_draft_history"] = list(candidate_drafts)
+                    service.update_record(record, agent=True)
+                    if design_round >= 2:
+                        if observed.get("status") == "revision_limit_reached":
+                            revision_stop = observed["reason"]
+                        else:
+                            revision_stop = "No further revision was started; eligible final review feedback could not be verified."
+                        break
+                    if observed.get("status") != "verified_not_started":
+                        revision_stop = observed.get("reason", "Exact design feedback could not be verified.")
+                        break
+                    internal = observed["internal"]
+                    if internal["next_round"] != design_round + 1:
+                        revision_stop = "The revision chain did not match the candidate round."
+                        break
+
+                    admitted = {}
+                    context = internal["revision_context"]
+                    def admit_revision(event):
+                        with service.lock:
+                            if cancellation_event.is_set():
+                                raise agent_module.AgentRunCancelled("Revision cancelled before admission")
+                            latest_parent = service.record(record["id"], agent=True)
+                            checked = verify_committed_handoff(service, index, record["id"], draft_job["id"], snapshot)
+                            checked_internal = checked.get("internal", {})
+                            if (latest_parent.get("status") != "running"
+                                    or latest_parent.get("consent") is not True
+                                    or latest_parent.get("generate_code") is not True
+                                    or any(latest_parent.get(k) != record.get(k) for k in
+                                           ("output", "revision_ledger", "redesign_refs", "input_hashes",
+                                            "input_versions", "input_version", "package_hash", "workflow_id", "scenario"))
+                                    or checked.get("status") != "verified_not_started"
+                                    or any(checked_internal.get(k) != internal.get(k) for k in
+                                           ("next_round", "selected_design", "handoff", "manifest_sha256",
+                                            "fresh_pins", "revision_context", "runtime_input_hashes"))
+                                    or event.get("event") != "runtime_admitted"
+                                    or not isinstance(event.get("run_id"), str)
+                                    or not _JOB_ID.fullmatch(event["run_id"])
+                                    or event.get("input_hashes") != internal["runtime_input_hashes"]):
+                                raise ValueError("Revision admission pins changed")
+                            ledger = record.get("revision_ledger") or {
+                                "schema_version": 1, "current_runtime_run_id": None, "entries": []}
+                            if (len(ledger["entries"]) != design_round
+                                    or event["run_id"] == internal["original_runtime_run_id"]
+                                    or any(item["runtime_run_id"] == event["run_id"] for item in ledger["entries"])):
+                                raise ValueError("Revision attempt is not a fresh sequential runtime")
+                            entry = {"round_index": design_round + 1, "runtime_run_id": event["run_id"],
+                                     "runtime_input_hashes": event["input_hashes"], "status": "admitted",
+                                     "context_sha256": _hash(context), "output_sha256": None}
+                            admission_summary = {
+                                "status": "admitted", "round_index": design_round + 1,
+                                "runtime_run_id": event["run_id"]}
+                            persisted = {**record,
+                                "revision_ledger": {**ledger, "current_runtime_run_id": event["run_id"],
+                                                    "entries": [*ledger["entries"], entry]},
+                                "candidate_draft_history": [*candidate_drafts[:-1],
+                                    {**candidate_drafts[-1], "design_revision_admission": admission_summary}],
+                                "phase": f"design_revision:{design_round + 1}/2", "phase_updated_at": _now()}
+                            service.update_record(persisted, agent=True)
+                            record.update(persisted)
+                            candidate_drafts[-1]["design_revision_admission"] = admission_summary
+                            admitted.update(entry)
+
+                    revised = service.runtime.run(index.model, body.workflow_id, body.scenario, safe_prompt,
+                        captured["documents"], captured["reviews"], cancellation_event=cancellation_event,
+                        progress_callback=model_progress, revision_context=context, admission_callback=admit_revision,
+                        **knowledge_options,
+                        **({"official_docs_consent": True} if body.official_docs_consent is True else {}),
+                        **({"official_search_budget": official_search_budget} if official_search_budget is not None else {}),
+                        **({"pause_control": service.agent_pause_controls[record["id"]]}
+                           if record["id"] in service.agent_pause_controls else {}))
+                    if not admitted:
+                        revision_stop = ("Cancellation requested before revision admission." if cancellation_event.is_set()
+                                         else "Revision was not admitted; no revision graph was invoked.")
+                        break
+                    revision_info = revised.get("revision") if isinstance(revised, dict) else None
+                    if (not isinstance(revised, dict) or revised.get("run_id") != admitted["runtime_run_id"]
+                            or revised.get("input_hashes") != admitted["runtime_input_hashes"]
+                            or revised.get("status") not in {"draft_available", "proposal_failed", "failed",
+                                                              "cancelled", "unavailable", "needs_information", "advisory"}
+                            or not isinstance(revision_info, dict)
+                            or revision_info.get("context") != context
+                            or revision_info.get("context_sha256") != admitted["context_sha256"]):
+                        revision_stop = "Admitted revision could not be sealed against its exact runtime output."
+                        break
+                    with service.lock:
+                        ledger = record["revision_ledger"]
+                        if ledger["entries"][-1] != admitted:
+                            raise ValueError("Revision admission changed before sealing")
+                        sealed = {**admitted, "status": revised["status"], "output_sha256": _hash(revised)}
+                        record["revision_ledger"] = {**ledger, "entries": [*ledger["entries"][:-1], sealed]}
+                        candidate_drafts[-1]["design_revision_admission"] = {
+                            "status": revised["status"], "round_index": design_round + 1,
+                            "runtime_run_id": admitted["runtime_run_id"], "output_sha256": sealed["output_sha256"]}
+                        record["candidate_draft_history"] = list(candidate_drafts)
+                        service.update_record(record, agent=True)
+                        resolved = _revision_runtime_provenance(service.root, record, admitted["runtime_run_id"])
+                        if resolved is None or resolved[1] != revised:
+                            raise ValueError("Revision runtime seal could not be verified")
+                    if cancellation_event.is_set() or revised["status"] != "draft_available":
+                        if cancellation_event.is_set():
+                            revision_stop = "Cancellation requested; the revision output was sealed without starting another writer."
+                        elif not revision_info.get("validation_review"):
+                            revision_stop = "The exact revised design was not independently reviewed with a recorded validation receipt; no revision was captured and no further writer was started."
+                        else:
+                            revision_stop = "The revision failed, has incomplete roles, or has unresolved findings or design items; no revision was captured and no further writer was started."
+                        break
+                    _, expected_roles = agent_module._revision_role_plan(context["responsible_agent"])
+                    role_receipts = revised.get("role_completion")
+                    if (revision_info.get("role_plan") != expected_roles or not isinstance(role_receipts, list)
+                            or len(role_receipts) != len(expected_roles)
+                            or any(not isinstance(item, dict) for item in role_receipts)
+                            or [item.get("role") for item in role_receipts] != expected_roles
+                            or any(item.get("status") != "completed" or item.get("missing_outputs") != []
+                                for item in role_receipts)):
+                        revision_stop = "A required revision role did not complete; no further writer was started."
+                        break
+                    indices = revision_info.get("author_submission_indices")
+                    submissions = revised.get("redesigns")
+                    if (not isinstance(indices, list) or not indices or not isinstance(submissions, list)
+                            or any(type(i) is not int or i < 0 or i >= len(submissions) for i in indices)
+                            or len(set(indices)) != len(indices)
+                            or indices != [i for i, item in enumerate(submissions)
+                                   if isinstance(item, dict)
+                                   and item.get("role") == revision_info.get("design_author")
+                                   and item.get("design_origin") == "agent_submitted"]
+                            or any(not isinstance(submissions[i], dict)
+                                or submissions[i].get("role") != revision_info.get("design_author")
+                                   or submissions[i].get("design_origin") != "agent_submitted" for i in indices)):
+                        revision_stop = "The revision author submission was missing or ambiguous."
+                        break
+                    chosen_index = indices[-1]
+                    chosen_design = submissions[chosen_index].get("design")
+                    review = revision_info.get("validation_review")
+                    target = revision_info.get("validation_target")
+                    findings = revised.get("findings")
+                    if (not isinstance(chosen_design, dict) or not isinstance(review, dict)
+                            or not isinstance(target, dict) or not isinstance(findings, list)
+                            or not findings or any(not isinstance(f, dict) or f.get("status") != "supported"
+                                                   or f.get("blockers") for f in findings)
+                            or chosen_design.get("blockers") or chosen_design.get("scoped_unresolved")
+                            or target != {"submission_index": chosen_index, "design_sha256": _hash(chosen_design)}
+                            or review.get("role") != "validation" or review.get("examined_exact_design") is not True
+                            or review.get("submission_index") != chosen_index
+                            or review.get("design_sha256") != target["design_sha256"]
+                            or type(review.get("finding_index")) is not int
+                            or not 0 <= review["finding_index"] < len(findings)
+                            or findings[review["finding_index"]].get("role") != "validation"
+                            or not findings[review["finding_index"]].get("evidence_ids")
+                            or not any(isinstance(task, dict) and task.get("id") == review.get("reviewed_task_id")
+                                       and task.get("purpose") == review.get("reviewed_task_purpose")
+                                       for task in chosen_design.get("tasks", []))):
+                        revision_stop = "The exact author design, its independent validation receipt, or unresolved findings and blockers could not be verified; no revision was captured and no further writer was started."
+                        break
+                    try:
+                        with service.lock:
+                            if cancellation_event.is_set():
+                                raise agent_module.AgentRunCancelled("Revision capture cancelled")
+                            parent_now = service.record(record["id"], agent=True)
+                            current = service.agent_inputs(index, record["workflow_id"], record["scenario"])
+                            if (parent_now.get("status") != "running"
+                                    or parent_now.get("consent") is not True
+                                    or parent_now.get("generate_code") is not True
+                                    or any(parent_now.get(k) != record.get(k) for k in
+                                           ("output", "revision_ledger", "redesign_refs", "input_hashes",
+                                            "input_versions", "input_version", "package_hash", "workflow_id", "scenario"))
+                                    or service.require().model["package"]["sha256"] != record["package_hash"]
+                                    or current.get("snapshot") != snapshot
+                                    or any(current.get(k) != record.get(k) for k in
+                                           ("input_version", "input_hashes", "input_versions"))):
+                                raise ValueError("Revision input pins changed")
+                            latest = store_for(service).get(design_ref["id"], record["package_hash"])
+                            if latest != internal["selected_design"]:
+                                raise ValueError("Revision design version changed")
+                            from workbench.design_revision import capture_revision_author
+                            chosen = capture_revision_author(service, index, {
+                                **record, "redesign_snapshot": captured,
+                                "redesign_expected_version": latest["version"]}, revised,
+                                chosen_index, revision_info["design_author"])
+                            revision_saved = [chosen]
+                            saved_redesigns.extend(revision_saved)
+                            record["redesign_refs"] = [{"id": item["id"], "version": item["version"]}
+                                                       for item in saved_redesigns]
+                            service.update_record(record, agent=True)
+                            if (chosen.get("source", {}).get("submission_index") != chosen_index
+                                    or chosen.get("source", {}).get("runtime_run_id") != admitted["runtime_run_id"]):
+                                raise ValueError("Captured design is not the chosen author submission")
+                            pending_designs.append((chosen, design_round + 1))
+                    except Exception:
+                        # The append may have succeeded before a later failure.
+                        # Retain any exact receipts instead of hiding them.
+                        with service.lock:
+                            existing = store_for(service).list(record["package_hash"], record["workflow_id"], record["scenario"])
+                            known = {(item["id"], item["version"]) for item in saved_redesigns}
+                            for item in reversed(existing):
+                                source = item.get("source", {})
+                                if (source.get("record_id") == record["id"]
+                                        and source.get("runtime_run_id") == admitted["runtime_run_id"]
+                                        and (item["id"], item["version"]) not in known):
+                                    saved_redesigns.append(item)
+                            record["redesign_refs"] = [{"id": item["id"], "version": item["version"]}
+                                                       for item in saved_redesigns]
+                            service.update_record(record, agent=True)
+                        revision_stop = ("Cancellation requested before revision capture." if cancellation_event.is_set()
+                                         else "Revision capture or current design authority could not be verified; no further writer was started.")
+                        break
+                if cancellation_event.is_set() and revision_stop is None:
+                    revision_stop = "Cancellation requested; no further revision or writer was started."
+                revision_entries = (record.get("revision_ledger") or {}).get("entries", [])
+                record["design_revision_status"] = {
+                    "rounds_admitted": len(revision_entries),
+                    "rounds_sealed": sum(item.get("status") != "admitted" for item in revision_entries),
+                    "revised_writers_started": sum(item.get("design_round", 0) > 0 for item in candidate_drafts),
+                    "reason": revision_stop or "No eligible candidate design was available.",
+                    "execution_allowed": False, "deployment_allowed": False}
             failure_stage = "delivery_summary"
             delivery_status, delivery_summary = _agent_delivery_status(output, candidate_drafts, body.generate_code)
+            if record.get("design_revision_status", {}).get("rounds_admitted"):
+                revision_entries = record["revision_ledger"]["entries"]
+                if (delivery_status == "completed" and (any(item.get("status") != "draft_available" for item in revision_entries)
+                        or len(candidate_drafts) <= record["design_revision_status"]["rounds_admitted"])):
+                    delivery_status = "partial"
+                    delivery_summary = "A required revision or its subsequent candidate writer did not complete."
+                delivery_summary += " Revision attempts and their stop reason are recorded separately; prior draft reviews remain unchanged."
             if cancellation_event.is_set() and delivery_status not in {"cancelled", "failed"}:
                 delivery_status = "cancelled"
                 delivery_summary = "Agent run stopped by user; any in-flight call completed before stop was observed."
@@ -2413,6 +3057,8 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                               error="Advisory runtime failed. No approval or executable changes were made.")
         finally:
             record["finished_at"] = _now()
+            if official_search_budget is not None:
+                record["official_docs_receipts"] = official_search_budget.receipt()
             if cancellation_event.is_set() and not record.get("cancellation_requested_at"):
                 try:
                     latest = service.record(record["id"], agent=True)
@@ -2422,6 +3068,9 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                     pass
             try:
                 if "observation_snapshot" not in record:
+                    # The revision provenance reader compares the complete saved
+                    # parent, including its finalized output, before observing it.
+                    service.update_record(record, agent=True)
                     record["observation_snapshot"] = _terminal_agent_observation(service.root, record)
                 service.update_record(record, agent=True)
                 with service.lock:
@@ -2462,6 +3111,7 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                       "redesign_expected_version": max((item["version"] for item in prior_redesigns), default=0),
                       "package_hash": index.model["package"]["sha256"], "created_at": _now(),
                       "consent": True, "generate_code": body.generate_code,
+                      "official_docs_consent": body.official_docs_consent is True,
                       "actor": "local-reviewer", "actor_authenticated": False,
                       **inputs,
                       "timeout_policy": service.runtime.status().get("timeout_policy", "no_elapsed_time_cutoff_manual_cancellation"),
@@ -2469,6 +3119,10 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
             if cohort_id is not None:
                 record['cohort_id'] = cohort_id
             cancellation_event = Event()
+            official_search_budget = None
+            if body.official_docs_consent is True:
+                from workbench.support_search import OfficialSearchBudget
+                official_search_budget = OfficialSearchBudget(maximum_pages=2)
             with service.lock:
                 service.agent_cancel_events[record["id"]] = cancellation_event
                 # Opt in only through a real explicit keyword parameter, never
@@ -2502,7 +3156,8 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
                 update_workflow(service, record['package_hash'], cohort_id, body.workflow_id,
                                 status='running', agent_run_id=record['id'],
                                 reason='Agent design is running. No code or deployment is authorized.')
-            service.agent_executor.submit(run_agent, record, index, body, snapshot, cancellation_event)
+            service.agent_executor.submit(run_agent, record, index, body, snapshot, cancellation_event,
+                                          official_search_budget)
         except Exception:
             with service.lock:
                 if "record" in locals():
@@ -2701,7 +3356,7 @@ def _create_package_app(data_dir=None, sample_path=None, agent_runtime=None, *,
     from workbench.oracle_federation import install_oracle_federation
     install_oracle_federation(app)
     from workbench.model_price_rates import install_model_pricing
-    install_model_pricing(app)
+    app.state.model_price_rates = install_model_pricing(app)
     from workbench.validation_campaigns import install_validation
     install_validation(app)
     from workbench.readiness import install_readiness

@@ -15,7 +15,7 @@ class CandidateRequest(BaseModel):
 
 
 def validate_request(service, parent_id, request):
-    """Prove ownership against the original typed submission, never checkpoints."""
+    """Prove ownership against the exact original or sealed revision submission."""
     from workbench.redesign import store_for
     from workbench.spark_codegen import ContractError, _approved
     if request.consent is not True:
@@ -34,7 +34,12 @@ def validate_request(service, parent_id, request):
         raise HTTPException(404, 'Unknown design in this package') from None
     scope = ('package_hash', 'workflow_id', 'scenario', 'input_version')
     source = saved.get('source', {})
-    output = parent.get('output') or {}
+    try:
+        from workbench.design_revision import _source_runtime
+        selected = _source_runtime(parent, saved, service.root)
+    except Exception:
+        selected = None
+    source_round, output = selected if selected is not None else (None, {})
     submissions = output.get('redesigns') or []
     number = source.get('submission_index')
     submission = (submissions[number] if type(number) is int and isinstance(submissions, list)
@@ -44,14 +49,17 @@ def validate_request(service, parent_id, request):
             or any(saved.get(key) != parent.get(key) for key in scope)
             or source.get('kind') != 'agent' or source.get('record_id') != parent_id
             or not output.get('run_id') or source.get('runtime_run_id') != output.get('run_id')
+            or source.get('runtime_input_hashes') != output.get('input_hashes')
             or source.get('input_version') != parent.get('input_version')
             or any(source.get(key) != parent.get(key) for key in ('input_hashes', 'input_versions'))
             or not isinstance(submission, dict)
             or submission.get('role') not in {'architecture', 'supervisor'}
             or submission.get('role') != saved.get('author_role')
             or submission.get('design') != saved['design']
-            or submission.get('retrieved_evidence_ids') != saved.get('retrieved_evidence_ids')):
-        raise HTTPException(409, 'Exact latest design is not proven by this parent original typed submission')
+            or submission.get('retrieved_evidence_ids') != saved.get('retrieved_evidence_ids')
+            or (source_round in (1, 2) and (submission.get('design_origin') != 'agent_submitted'
+                or source.get('design_origin') != 'agent_submitted'))):
+        raise HTTPException(409, 'Exact latest design is not proven by this parent typed submission')
     inputs = service.agent_inputs(index, saved['workflow_id'], saved['scenario'])
     changed = [key for key in ('input_hashes', 'input_versions') if inputs[key] != source.get(key)]
     if (request.current_input_version != inputs['input_version']
@@ -105,7 +113,9 @@ def run_candidate(service, initial, saved):
         job.update(status='completed', manifest_sha256=_digest(
             service.root / draft['relative_directory'] / 'manifest.json'), output={
                 key: draft.get(key) for key in ('run_id', 'relative_directory', 'status', 'failure',
-                                               'failure_diagnostic', 'validation')})
+                                               'failure_diagnostic', 'validation', 'writer_skill_receipt')})
+        from workbench.domain import _redact
+        job['output']['design_correction_feedback'] = _redact(draft.get('design_correction_feedback'))
         job['output'].update(manifest_status=draft['status'], artifact_approved=False,
                              execution_allowed=False, deployment_allowed=False,
                              task_statuses=[{key: task.get(key) for key in

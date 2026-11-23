@@ -7,6 +7,7 @@ requirements and runtime/bundle templates. No glob of the repository root.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -15,6 +16,17 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_SUFFIXES = {".js", ".css", ".html", ".svg", ".png", ".jpg", ".jpeg", ".woff", ".woff2", ".ico"}
+
+
+def official_skill_sources():
+    """Use the catalog's single reviewed source and safety policy for staging."""
+    spec = importlib.util.spec_from_file_location(
+        "_staged_official_skill_library", ROOT / "workbench" / "official_skill_library.py")
+    if spec is None or spec.loader is None:
+        raise ValueError("External skill catalog is unavailable")
+    library = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(library)
+    return library, library.packaging_sources()
 
 
 def origin(value):
@@ -45,13 +57,26 @@ def stage(destination, workspace_host, app_origin, catalog_prefix="orion_dev_", 
             raise ValueError("Packaging symlinks is forbidden")
         if not source.is_file() or source.stat().st_size > 10 * 1024 * 1024:
             raise ValueError("Invalid or oversized deployment source")
+    skill_library, official_sources = official_skill_sources()
     destination.mkdir(parents=True)
     try:
         for source in sources:
             target = destination / source.relative_to(ROOT)
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
+        for source, relative_target in official_sources:
+            target = destination / "workbench" / "official_skills" / relative_target
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # Revalidate on copy, preserve source bytes, and never execute skill code.
+            target.write_bytes(skill_library._read_bytes(source))
         shutil.copyfile(ROOT / "workbench" / "requirements.txt", destination / "requirements.txt")
+        provider_notices = ROOT / "workbench" / "skill_notices" / "databricks"
+        for notice_name in ("LICENSE", "NOTICE", "SOURCE.json"):
+            source = provider_notices / notice_name
+            data = skill_library._read_bytes(source)
+            target = destination / "workbench" / "official_skills" / "databricks" / notice_name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
         for filename in ("app.yaml", "databricks.yml"):
             config = (ROOT / "deployment" / "hosted" / filename).read_text(encoding="utf-8")
             for key, value in (("__WORKSPACE_HOST__", workspace_host), ("__APP_ORIGIN__", app_origin),
@@ -94,7 +119,8 @@ def main():
     parser.add_argument("--warehouse", default="e3a0fc2c08db05bb", help="Existing user-approved warehouse, never provisioned")
     args = parser.parse_args()
     manifest = stage(args.destination, args.workspace_host, args.app_origin, args.catalog_prefix, warehouse=args.warehouse)
-    print(f"HOSTED_PACKAGE=READY FILES={len(manifest)} DEPLOYED=NO")
+    official = sum(item["path"].startswith("workbench/official_skills/") for item in manifest)
+    print(f"HOSTED_PACKAGE=READY FILES={len(manifest)} OFFICIAL_SKILL_FILES={official} DEPLOYED=NO")
 
 
 if __name__ == "__main__":

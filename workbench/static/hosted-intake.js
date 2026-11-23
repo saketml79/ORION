@@ -395,8 +395,8 @@
     durable.bar.max = file.size; durable.bar.value = 0;
     const transport = meter(row, 'Transport: bytes sent, not persisted');
     transport.bar.max = file.size; transport.bar.value = 0;
-    const stage = meter(row, 'Staging: progress unknown');
-    const analysis = meter(row, 'Analysis: progress unknown');
+    const stage = meter(row, 'Staging: progress not reported');
+    const analysis = meter(row, 'Analysis: progress not reported');
     view.list.append(row);
     announce(view, `${file.name}: waiting for server state.`, false, 'Waiting');
     activity.transfer.bar.max = file.size || 1; activity.transfer.bar.value = 0;
@@ -527,7 +527,7 @@
           && SHA256.test(live.package_hash || '') && SHA256.test(live.workflow_id || '')) {
         document.dispatchEvent(new CustomEvent('orion:hosted-agent-accepted', {detail: {...live, operation_id: id}}));
       }
-      activity.phase.textContent = `Status: ${data.status || 'unknown'} · stage: ${data.progress?.stage || 'not reported'}`;
+      activity.phase.textContent = `Status: ${data.status || 'not reported'} · stage: ${data.progress?.stage || 'not reported'}`;
       const {completed, total, unit} = data.progress || {};
       activity.progressDetail.textContent = Number.isInteger(completed) && Number.isInteger(total)
         ? `Progress: ${completed} of ${total}${unit ? ` ${unit}` : ''}`
@@ -536,7 +536,8 @@
       const preparingAgent = path === '/api/agents/run' && ['provisioning', 'metadata_restore', 'artifact_files', 'audit_restore', 'preparing_package'].includes(data.progress?.stage);
       const explanation = preparingAgent ? ' Workspace setup is still in progress; the workflow agent has not started yet.' : '';
       const label = live?.state === 'accepted_in_process_not_committed' && path === '/api/agents/run'
-        ? 'Agent run accepted in the active app session; Delta commit is pending' : progressText(data);
+        ? data.progress?.stage === 'committing_delta' ? 'Saving the completed run to Delta'
+          : 'Agent run accepted; final save is not yet confirmed' : progressText(data);
       activityStatus(`${label}.${explanation}`, false, false,
         data.status === 'queued' ? 'Waiting' : data.status === 'running' ? 'Running' : '');
       const measured = Number.isInteger(completed) && Number.isInteger(total) && total > 0 && completed >= 0 && completed <= total;
@@ -558,7 +559,7 @@
     index_cache: 'Reusing verified package index', indexing_nodes: 'Indexing package nodes',
     indexing_edges: 'Indexing package links', preparing_package: 'Preparing package view',
     querying_inventory: 'Querying requested package view', building_proposals: 'Building proposal candidates',
-    responding: 'Returning verified result',
+    committing_delta: 'Saving the completed run to Delta', responding: 'Returning verified result',
     committed: 'Completed', failed: 'Failed', authentication_required: 'Authentication required',
     interrupted: 'Interrupted; no automatic replay',
     route_validate: 'Validate endpoint and saved settings', route_commit: 'Save scoped endpoint setting',
@@ -626,13 +627,13 @@
   function resultText(result) {
     const items = Array.isArray(result?.items) ? result.items : [];
     return [result?.status || 'operation completed', ...items.map(item =>
-      `${item.name || 'Package'}: ${item.status || 'unknown'}${item.error ? ` (${typeof item.error === 'string' ? item.error : 'error recorded'})` : ''}`)].join('; ');
+      `${item.name || 'Package'}: ${item.status || 'not reported'}${item.error ? ` (${typeof item.error === 'string' ? item.error : 'error recorded'})` : ''}`)].join('; ');
   }
   async function finish(record, row, options, reconnect = false) {
     const status = (meterRow, label) => data => {
       meterRow.bar.removeAttribute('value');
-      meterRow.caption.textContent = `${label}: ${data.status}, progress unknown`;
-      announce(row.view, `${record.name}: ${label.toLowerCase()} ${data.status}, progress unknown.`, false,
+      meterRow.caption.textContent = `${label}: ${data.status}, progress not reported`;
+      announce(row.view, `${record.name}: ${label.toLowerCase()} ${data.status}, progress not reported.`, false,
         data.status === 'queued' ? 'Waiting' : data.status === 'running' ? 'Running' : '');
     };
     let staged;
@@ -770,7 +771,7 @@
           guard(options);
           if (record.name) await finish(record, row, options, true);
           else {
-            const result = await poll(record.stage_operation_id, options, data => { row.message.textContent = `Operation: ${data.status}, progress unknown`; });
+            const result = await poll(record.stage_operation_id, options, data => { row.message.textContent = `Operation: ${data.status}, progress not reported`; });
             row.message.textContent = resultText(result);
             guard(options); if (options.refresh) await options.refresh(projectId, result);
           }

@@ -13,6 +13,28 @@ from fastapi import Query
 from fastapi.responses import Response
 
 
+def matches_log_origin(record, role):
+    """Keep exact agent filters and provide an explicit unattributed-app view."""
+    if not role:
+        return True
+    if role == "__application__":
+        return record.get("role") in (None, "")
+    return record.get("role") == role
+
+
+def _log_timestamp_sort_key(record):
+    """Sort known instants ahead of timestamps that cannot identify an instant."""
+    value = record.get("timestamp")
+    if isinstance(value, str):
+        try:
+            timestamp = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+            if timestamp.tzinfo is not None and timestamp.utcoffset() is not None:
+                return True, timestamp.astimezone(timezone.utc)
+        except (ValueError, OverflowError):
+            pass
+    return False, datetime.min.replace(tzinfo=timezone.utc)
+
+
 class AuditLog:
     def __init__(self, path):
         self.path = path
@@ -88,12 +110,15 @@ def install_audit(app, *, record_initialization=True):
     def selected(level, role, run_id):
         rows, valid = audit.records()
         return [r for r in rows if (not level or r.get("level") == level.upper())
-                and (not role or r.get("role") == role) and (not run_id or r.get("run_id") == run_id)], valid
+            and matches_log_origin(r, role) and (not run_id or r.get("run_id") == run_id)], valid
 
     @app.get("/api/logs")
     def logs(level: str = "", role: str = "", run_id: str = "", offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100)):
         rows, valid = selected(level, role, run_id)
+        # records() verifies the full chain in ascending database sequence.
+        # A stable timestamp sort after reversal keeps sequence descending for ties.
         rows.reverse()
+        rows.sort(key=_log_timestamp_sort_key, reverse=True)
         return {"items": rows[offset:offset + limit], "total": len(rows), "chain_valid": valid,
                 "storage": "local SQLite append-only API, hash chained; not UC/WORM storage", "offset": offset, "limit": limit,
                 "usage_status": "HTTP events only; model token usage is not yet instrumented"}

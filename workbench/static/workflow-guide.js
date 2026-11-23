@@ -46,7 +46,7 @@
   const guide = make('section', 'intake-guide');
   guide.setAttribute('aria-label', 'Package analysis workflow');
   guide.append(make('span', 'eyebrow', 'FROM LEGACY EXPORT TO REVIEWED DESIGN'), make('h3', '', 'What happens after upload?'),
-    make('p', 'muted', 'ORION reads Informatica packages incrementally, preserves their original logic and dependencies, and builds an evidence-linked model. Missing business context stays unknown, not guessed.'));
+    make('p', 'muted', 'ORION reads Informatica packages incrementally, preserves their original logic and dependencies, and builds an evidence-linked model. Missing business context is not guessed.'));
   const steps = [
     ['Project context', 'Choose the project that owns the Informatica packages and supporting documents.'],
     ['Select existing or optionally add artifacts', 'Select a completed XML already in the project. Upload another Informatica package (.xml) only if needed; supporting documents and owner knowledge can be added separately.'],

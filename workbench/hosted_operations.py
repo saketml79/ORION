@@ -58,7 +58,7 @@ _TERMINAL = {"completed", "failed", "authentication_required"}
 _PROGRESS_STAGES = {"queued", "running", "starting", "provisioning", "audit_restore", "metadata_restore", "reading_history", "artifact_files",
                     "verifying_artifact", "decoding_nodes", "decoding_edges", "index_cache",
                     "indexing_nodes", "indexing_edges",
-                    "preparing_package", "querying_inventory", "responding", "committed",
+                    "preparing_package", "querying_inventory", "committing_delta", "responding", "committed",
                     "failed", "authentication_required", "interrupted", "route_validate", "route_commit", "route_readback"}
 _PROGRESS_UNITS = {None, "files", "nodes", "edges", "objects", "bytes", "records"}
 _CURRENT_PROGRESS = ContextVar("hosted_operation_progress", default=None)

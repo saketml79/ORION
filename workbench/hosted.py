@@ -500,6 +500,7 @@ def install_hosted_models(app):
 
     def execution_request(method, path):
         return (method == "POST" and (path.startswith(("/api/agents/", "/api/loops/"))
+            or path == "/api/support/ai-review"
                 or "/design" in path or "/draft" in path))
 
     @app.middleware("http")
@@ -1157,6 +1158,9 @@ class HostedDispatcher:
                 "capability_inventory": capability_inventory(True), "generation_allowed": False,
                 "deployment_allowed": False})
             return await send_response(response)
+        if path == "/api/application-log-analytics/process" and scope["method"] == "GET":
+            from workbench.application_log_analytics import process_sample
+            return await send_response(JSONResponse(process_sample(), headers={"Cache-Control": "no-store"}))
         if path == "/api/models/workspace" and scope["method"] == "GET":
             return await send_response(JSONResponse({"workspace": identity.host, "mode": "obo", "profile": None,
                 "auth_check": "verified", "connected": False}))
@@ -1200,7 +1204,8 @@ class HostedDispatcher:
         return False
 
     async def _bounded_request(self, *, path, scope, headers, receive, artifact_read):
-        limit = (80 * 1024 * 1024 + 65536 if path == "/api/packages/upload" else
+        limit = (256 * 1024 + 4096 if path == "/api/support/skills" and scope["method"] == "POST" else
+                 80 * 1024 * 1024 + 65536 if path == "/api/packages/upload" else
                  160 * 1024 * 1024 + 65536 if path.endswith("/packages/upload") else
                  10 * 1024 * 1024 + 65536 if path.endswith("/documents") else 65536)
         if path.startswith("/api/hosted/uploads/") and scope["method"] == "PUT":
@@ -1448,6 +1453,15 @@ class HostedDispatcher:
                 return
             length, bounded_receive, artifact_body = await self._bounded_request(
                 path=path, scope=scope, headers=headers, receive=receive, artifact_read=artifact_read)
+            if path == "/api/support/official-search" and scope["method"] == "POST":
+                # This global, ephemeral search has no project data or durable
+                # state. Fresh OBO and the same-origin mutation checks ran above.
+                if headers.get("x-workbench-project") or headers.get("x-workbench-package"):
+                    raise HTTPException(400, "Official search does not accept project context")
+                from starlette.requests import Request
+                from workbench.support_search import official_search_response
+                response = await official_search_response(Request(clean_scope, bounded_receive))
+                return await response(clean_scope, bounded_receive, secure_send)
             if await self._early_data_read(path=path, scope=scope, headers=headers, identity=identity,
                 forwarded=forwarded, clean_scope=clean_scope, receive=receive, secure_send=secure_send,
                 authentication_seconds=authentication_seconds):

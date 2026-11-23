@@ -71,6 +71,9 @@
   billing.className = 'small muted';
   const privacy = element('p', 'Key stays in server memory for up to 1 hour, scoped to this project, package, and session. Never stored in browser. Select Databricks to clear it. Hosted access and Unity Catalog require Databricks sign-in.');
   privacy.className = 'small muted';
+  const noticePanel = element('section'); noticePanel.className = 'external-api-notice';
+  noticePanel.setAttribute('aria-label', 'External API billing and privacy');
+  noticePanel.append(element('strong', 'External API billing and privacy'), billing, privacy);
   const status = element('p', '', 'external-model-status'); status.className = 'external-status small';
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   const modeStatus = {
@@ -84,7 +87,7 @@
   }
   const refresh = element('button', 'Refresh provider status'); refresh.type = 'button'; refresh.className = 'secondary compact';
   $('model-provider-mode-mount').append(modeLabel, mode);
-  form.append(fields, billing, privacy, refresh, status); mount.append(form);
+  form.append(fields, noticePanel, refresh, status); mount.append(form);
 
   function workspaceBusy() {
     try { return panel.getAttribute('aria-busy') === 'true' || !!window.orionWorkspaceModelBusy?.(); }

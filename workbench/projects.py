@@ -719,9 +719,10 @@ def install_projects(app, factory, input_root, *, executor_factory=ThreadPoolExe
         if audit is None:
             raise HTTPException(503, "Project job audit log is unavailable")
         rows, valid = audit.records()
+        from workbench.audit import matches_log_origin
         rows = [row for row in rows if row.get("run_id") == job_id
                 and (not level or row.get("level") == level.upper())
-                and (not role or row.get("role") == role)]
+            and matches_log_origin(row, role)]
         rows.reverse()
         return {"items": rows[offset:offset + limit], "total": len(rows), "chain_valid": valid,
                 "storage": "local project import audit", "offset": offset, "limit": limit}

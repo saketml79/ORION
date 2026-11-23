@@ -22,6 +22,9 @@
 #external-models-mount [hidden] { display: none; }
 #external-models-mount .external-fields:disabled input { color: #667085; cursor: not-allowed; }
 #external-models-mount button { justify-self: start; white-space: normal; }
+#external-models-mount .external-api-notice { padding: 12px; border-radius: 9px; background: var(--surface); display: grid; gap: 7px; }
+#external-models-mount .external-api-notice strong { font-size: 13px; }
+#external-models-mount .external-api-notice p { margin: 0; line-height: 1.5; }
 #external-models-mount .external-status { display: grid; padding: 10px 12px; border-radius: 9px; background: var(--surface); overflow-wrap: anywhere; }
 #external-models-mount .external-status > span { grid-area: 1 / 1; }
 #external-models-mount .external-status > [aria-hidden="true"] { visibility: hidden; }

@@ -8,10 +8,10 @@
   const fetch = window.fetch.bind(window);
   const rows = value => Array.isArray(value) ? value : [];
   const safe = value => window.orionRedaction.text(String(value ?? 'Unknown'));
-  const human = value => String(value ?? 'unknown').replaceAll('_', ' ');
+  const human = value => String(value ?? 'not reported').replaceAll('_', ' ');
   const node = (tag, text, className = '') => {
     const n = document.createElement(tag);
-    if (text !== undefined) n.textContent = safe(text);
+    if (text !== undefined) n.textContent = safe(text ?? 'N/A');
     if (className) n.className = className;
     return n;
   };
@@ -165,13 +165,13 @@
   }
   function renderTable(table, grid) {
     const card = node('article', undefined, 'fm-table-card'); card.dataset.sourceId = table.id;
-    card.append(node('h3', table.name), node('p', `${table.database_type || 'Database type unknown'} · ${[table.database, table.owner].filter(Boolean).join(' / ') || 'Database / owner unknown'}`));
+    card.append(node('h3', table.name), node('p', `${table.database_type || 'Database type not reported'} · ${[table.database, table.owner].filter(Boolean).join(' / ') || 'Database / owner not reported'}`));
     facts(card, [ ['Acquisition evidence', human(table.acquisition_mode)],
       ['Fields declared', table.field_count], ['Data rows observed', table.row_count ?? 'Not observed'],
       ['Incremental queries', table.incremental_query_count], ['Initial / snapshot queries', table.initial_or_snapshot_query_count],
       ['Declared source keys (not verified CDC keys)', rows(table.declared_source_keys).join(', ') || 'None declared'],
-      ['Verified CDC keys', table.verified_cdc_keys == null ? 'Unknown' : JSON.stringify(table.verified_cdc_keys)],
-      ['Verified sequence', table.verified_sequence_by == null ? 'Unknown' : JSON.stringify(table.verified_sequence_by)],
+      ['Verified CDC keys', table.verified_cdc_keys == null ? 'Not reported' : JSON.stringify(table.verified_cdc_keys)],
+      ['Verified sequence', table.verified_sequence_by == null ? 'Not reported' : JSON.stringify(table.verified_sequence_by)],
       ['Snapshot completeness', table.snapshot_completeness], ['Source refresh contract', 'Not supplied / unverified'],
       ['Recommended change application', human(table.recommended_change_application)] ]);
     card.append(node('h4', 'Staging and change-application candidates'), node('p', 'Capture source projections and acquisition predicates; propose temporary staging views. No ingestion binding, CDC flow or target publication is verified.'));
@@ -224,9 +224,9 @@
     const inventory = panel('Scoped mappings, workflows and target definitions');
     const mappingRows = mappings();
     inventory.append(node('p', evidenceGraph ? 'Exact definitions from the generated folder graph. Co-membership is not execution or field lineage.' : 'The report supplies source-linked mapping names, not a complete mapping / target inventory. Explicit generation supplies the full captured graph, including unused mappings. Missing names are not guessed.'));
-    disclosure(inventory, `${evidenceGraph ? 'All mapping definitions' : 'Source-linked mappings'} (${mappingRows.length}; API mapping count ${plan.counts?.mapping ?? 'unknown'})`, d => list(d, mappingRows.map(m => `${m.name} [${m.id}]`)));
+    disclosure(inventory, `${evidenceGraph ? 'All mapping definitions' : 'Source-linked mappings'} (${mappingRows.length}; API mapping count ${plan.counts?.mapping ?? 'not reported'})`, d => list(d, mappingRows.map(m => `${m.name} [${m.id}]`)));
     disclosure(inventory, `Workflow definitions (${rows(plan.workflows).length})`, d => list(d, rows(plan.workflows).map(w => `${w.name} [${w.id}]`)));
-    disclosure(inventory, `Target definitions (${evidenceGraph ? graphNodes('target').length : 'names not supplied'}; API target count ${plan.counts?.target ?? 'unknown'})`, d => list(d, graphNodes('target').map(t => `${t.name} [${t.id}]`), 'Not supplied by this report. Generate files explicitly to read exact target names from captured evidence.'));
+    disclosure(inventory, `Target definitions (${evidenceGraph ? graphNodes('target').length : 'names not supplied'}; API target count ${plan.counts?.target ?? 'not reported'})`, d => list(d, graphNodes('target').map(t => `${t.name} [${t.id}]`), 'Not supplied by this report. Generate files explicitly to read exact target names from captured evidence.'));
     disclosure(inventory, `Workflow invocation evidence (${rows(plan.workflow_invocations).length})`, d => rows(plan.workflow_invocations).forEach(call => {
       d.append(node('h3', call.workflow_name || 'Workflow name not supplied'), node('p', `${human(call.resolution)}. ${call.resolution_reason || 'No resolution reason supplied'}`)); evidence(d, call);
     }));
@@ -234,7 +234,7 @@
     gaps.append(node('p', 'Choose and verify business keys, source refresh, ordering, snapshot completeness, deletion policy and target writer behavior before any runnable conversion. All generated files remain partial candidates.'));
     disclosure(gaps, 'All exact blockers', d => rows(plan.blockers).forEach(b => { d.append(node('h3', b.code), node('p', b.detail ?? b.message ?? 'No detail supplied')); evidence(d, b); }));
     disclosure(gaps, `SQL inventory (${rows(plan.sql_inventory).length})`, d => rows(plan.sql_inventory).forEach(s => {
-      const block = node('article'); block.append(node('h3', `${s.role}: ${s.property_name}`), node('p', `${s.status}. Dialect: ${s.source_dialect || 'unknown'}. Blockers: ${rows(s.blocker_codes).join(', ') || 'none reported, not semantic proof'}.`));
+      const block = node('article'); block.append(node('h3', `${s.role}: ${s.property_name}`), node('p', `${s.status}. Dialect: ${s.source_dialect || 'not reported'}. Blockers: ${rows(s.blocker_codes).join(', ') || 'none reported, not semantic proof'}.`));
       disclosure(block, `Exact SQL and evidence: ${s.id}`, detail => { detail.append(node('pre', s.original_sql, 'fm-evidence')); evidence(detail, s); }); d.append(block);
     }));
     disclosure(gaps, `Expression candidates (${rows(plan.expression_candidates).length})`, d => rows(plan.expression_candidates).forEach(c => { d.append(node('h3', c.name), node('p', `${human(c.status)}: ${human(c.translation_claim)}`)); evidence(d, c); }));

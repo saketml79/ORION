@@ -18,7 +18,7 @@
   const routeBadge=element('span','Route not checked','agent-observability-badge is-unknown');
   const routeName=element('strong','No saved model route confirmed.','agent-observability-route');
   const routeNote=element('p','A saved route is configuration only. This status check does not test inference or tool behavior.','agent-observability-note');
-  const gatewayLine=element('p','Unity Catalog AI Gateway status is unknown.','agent-observability-detail');
+  const gatewayLine=element('p','Unity Catalog AI Gateway status has not been checked.','agent-observability-detail');
   const modelSettings=element('a','Open model settings'); modelSettings.href='#workspace-model-panel'; modelSettings.className='agent-observability-link';
   routeCard.append(routeBadge,routeName,routeNote,gatewayLine,modelSettings);
   const traceCard=element('section',''); traceCard.className='agent-observability-card';
@@ -44,8 +44,8 @@
     context=next; epoch+=1; controller?.abort(); pending=null; refresh.disabled=false;
     routeBadge.textContent='Selection changed'; routeBadge.className='agent-observability-badge is-unknown';
     routeName.textContent='No saved route confirmed for the new selection.';
-    gatewayLine.textContent='Unity Catalog AI Gateway status is unknown until configuration is read.';
-    tracingStatus.textContent='Selection changed. Trace configuration is unknown until read.';
+    gatewayLine.textContent='Unity Catalog AI Gateway status is not established until configuration is read.';
+    tracingStatus.textContent='Selection changed. Trace configuration is not established until read.';
   }
   function renderRoute(data) {
     const rawRoutes=data?.model_routes && typeof data.model_routes==='object' ? Object.values(data.model_routes) : [];
@@ -63,13 +63,13 @@
   function renderRouteError(error) {
     routeBadge.textContent='Route status unavailable'; routeBadge.className='agent-observability-badge is-unknown';
     routeName.textContent='The saved model route could not be confirmed.';
-    gatewayLine.textContent=`Unity Catalog AI Gateway status is unknown. ${error?.message||''}`.trim();
+    gatewayLine.textContent=`Unity Catalog AI Gateway status could not be confirmed. ${error?.message||''}`.trim();
     document.dispatchEvent(new CustomEvent('orion:model-route-status',{detail:{status:'unknown',reason:'route_status_unavailable'}}));
   }
   function renderTracing(data) {
     const state=['server_key_required','explicit_project_required'].includes(data?.reason)?'Not configured':String(data?.state||'unknown').replaceAll('_',' ');
     const reasons={not_opted_in:'Server opt-in is off.',server_key_required:'A server-side LangSmith secret must be configured.',explicit_project_required:'An explicit LangSmith project is required.',endpoint_not_approved:'The configured trace destination is not approved.',not_probed:'Configured, but delivery has not been verified.'};
-    tracingStatus.textContent=`LangSmith: ${state}. ${reasons[data?.reason]||'Review server configuration.'}${data?.project?` Project: ${data.project}.`:''} No credentials are requested or stored by this UI.`;
+    tracingStatus.textContent=`LangSmith: ${state === 'unknown' ? 'not reported' : state}. ${reasons[data?.reason]||'Review server configuration.'}${data?.project?` Project: ${data.project}.`:''} No credentials are requested or stored by this UI.`;
     document.dispatchEvent(new CustomEvent('orion:tracing-status',{detail:data}));
   }
   async function load() {

@@ -4,11 +4,15 @@
   const steps = [
     ['01', 'Informatica package analyst', 'discovery', 'informatica-understanding', 'Examines the package, workflow and source evidence.'],
     ['02', 'Transformation semantics analyst', 'semantics', 'transformation-semantics', 'Reviews transformations, SQL and control behavior.'],
-    ['03', 'Lakeflow workflow designer', 'architecture', 'lakeflow-design', 'Proposes a task graph from the available evidence.'],
+    ['03', 'Databricks Lakeflow solution architect', 'architecture', 'lakeflow-design', 'Proposes a task graph from the available evidence.'],
     ['04', 'Independent validation analyst', 'validation', 'independent-validation', 'Reviews the design, coverage and unresolved questions.'],
-    ['05', 'Artifact requirements analyst', 'artifact', 'artifact-requirements', 'Reviews notebook, testing and delivery requirements; code drafting is a separate phase.'],
-    ['06', 'Lead migration design coordinator', 'supervisor', 'migration-coordination', 'Combines the migration handoffs and can submit or correct the Databricks design for code generation.'],
+    ['05', 'Notebook and delivery requirements analyst', 'artifact', 'artifact-requirements', 'Reviews notebook, testing and delivery requirements; code drafting is a separate phase.'],
+    ['06', 'Migration lead and coordinator', 'supervisor', 'migration-coordination', 'Combines the migration handoffs and can submit or correct the Databricks design for code generation.'],
   ];
+  const skillLabels = {'informatica-understanding': 'Informatica package analysis',
+    'transformation-semantics': 'Transformation and SQL analysis', 'lakeflow-design': 'Lakeflow solution design',
+    'independent-validation': 'Independent migration validation', 'artifact-requirements': 'Notebook and delivery requirements',
+    'migration-coordination': 'Migration design coordination'};
   const make = (tag, className, text) => {
     const el = document.createElement(tag); el.className = className; el.textContent = text; return el;
   };
@@ -24,8 +28,8 @@
     container.tabIndex = 0;
     container.setAttribute('role', 'region');
     container.setAttribute('aria-label', 'Agent communication graph. Scroll horizontally to view the complete diagram.');
-    const svg = svgNode('svg', {viewBox: '0 0 1120 1100', class: 'agent-communication-graph', role: 'img',
-      'aria-label': 'Configured migration flow: the workbench invokes six agents in order and passes their source analysis and migration handoffs to subsequent agents. The Lakeflow designer or lead coordinator submits a migration design. When requested, the Spark and SQL writer generates code from the selected design and source evidence. Checks and available AI review can send feedback for bounded revisions.'}, container);
+    const svg = svgNode('svg', {viewBox: '0 0 1120 1250', class: 'agent-communication-graph', role: 'img',
+      'aria-label': 'Configured migration flow: six agents analyze the source and propose a design. When requested, the Spark and SQL writer generates code. Static checks and an AI code reviewer can return feedback for corrections. After human review, data validation and CI/CD delivery are separate user-directed steps.'}, container);
     const defs = svgNode('defs', {}, svg);
     for (const [name, color] of [['call', 'var(--indigo)'], ['result', 'var(--teal)']]) {
       const marker = svgNode('marker', {id: `agent-flow-${index}-${name}`, viewBox: '0 0 10 10', refX: '9', refY: '5',
@@ -47,9 +51,11 @@
     line('M 526 832 V 900', 'call');
     line('M 266 936 H 220 V 796 H 266', 'call', true);
     line('M 786 936 H 850', 'result');
+    line('M 970 972 V 1010', 'result', true);
+    line('M 970 1082 V 1130', 'result', true);
     svgNode('text', {x: 560, y: 22, class: 'agent-communication-edge-label', 'text-anchor': 'middle'}, svg, 'Source analysis and migration handoffs inform the next agents');
     svgNode('text', {x: 520, y: 636, class: 'agent-communication-edge-label', 'text-anchor': 'middle'}, svg, 'Optional: lead AI agent requests focused follow-up');
-    svgNode('text', {x: 230, y: 870, class: 'agent-communication-edge-label', 'text-anchor': 'end'}, svg, 'Feedback → revise');
+    svgNode('text', {x: 230, y: 870, class: 'agent-communication-edge-label', 'text-anchor': 'end'}, svg, 'Review feedback → writer corrects');
     const box = (x, y, width, height, css, title, subtitle) => {
       const group = svgNode('g', {class: css}, svg);
       svgNode('rect', {x, y, width, height, rx: '12'}, group);
@@ -65,12 +71,14 @@
       svgNode('circle', {cx: 293, cy: y + 36, r: 17}, group);
       svgNode('text', {x: 293, y: y + 40, 'text-anchor': 'middle', class: 'agent-communication-number'}, group, number);
       svgNode('text', {x: 322, y: y + 25, class: 'agent-communication-title'}, group, label);
-      svgNode('text', {x: 322, y: y + 47, class: 'agent-communication-subtitle'}, group, `AI agent · Skill: ${skill.replaceAll('-', ' ')}`);
+      svgNode('text', {x: 322, y: y + 47, class: 'agent-communication-subtitle'}, group, `AI agent · Skill: ${skillLabels[skill]}`);
     });
     box(266, 665, 520, 72, 'agent-communication-writer', 'Databricks migration design', 'Selected design and source evidence guide code generation');
-    box(266, 760, 520, 72, 'agent-communication-writer', '07  Spark and SQL code writer', 'Skill: spark-code-writer  ·  generates migration code');
-    box(266, 900, 520, 72, 'agent-communication-writer', '08  Check and improve generated code', 'Static checks · AI review when available');
-    box(850, 900, 240, 72, 'agent-communication-hub result', 'Migration code', 'saved for user review');
+    box(266, 760, 520, 72, 'agent-communication-writer', 'Spark and SQL notebook code writer', 'Skill: Spark and SQL notebook coding  ·  generates migration code');
+    box(266, 900, 520, 72, 'agent-communication-writer', 'Check code and AI reviewer', 'Static checks · AI review when available · feedback to writer');
+    box(850, 900, 240, 72, 'agent-communication-hub result', 'Human review', 'inspect saved drafts');
+    box(850, 1010, 240, 72, 'agent-communication-hub result', 'Data validation', 'separate evidence checks');
+    box(850, 1130, 240, 72, 'agent-communication-hub result', 'CI/CD and delivery', 'DAB review · separate action');
     return container;
   }
   for (const [index, mount] of [...document.querySelectorAll('#agent-dialog [data-agent-team-flow]')].entries()) {
@@ -83,16 +91,16 @@
       const content = make('div', 'agent-team-step-content', '');
       content.append(make('strong', 'agent-team-name', label), make('span', 'agent-team-role', 'AI agent'),
         make('p', 'agent-team-call', 'Workbench → agent · prior migration handoffs included'),
-        make('p', 'agent-team-description', description), make('p', 'agent-team-skill', `Skill: ${skill}`));
+        make('p', 'agent-team-description', description), make('p', 'agent-team-skill', `Skill: ${skillLabels[skill]}`));
       item.append(badge, content); list.append(item);
     }
     const writer = make('aside', 'agent-team-writer', '');
-    writer.append(make('span', 'agent-team-number', '07'), make('div', '', ''));
+    writer.append(make('div', '', ''));
     writer.lastElementChild.append(make('strong', 'agent-team-name', 'Spark and SQL code writer'),
       make('span', 'agent-team-role', 'Separate code-generation phase'),
       make('p', 'agent-team-description', 'When code generation is requested and an eligible design is available, this writer generates migration notebooks and code using the configured artifact-role model.'),
-      make('p', 'agent-team-skill', 'Skill: spark-code-writer'));
-    const note = make('p', 'agent-team-note', 'Checks and available AI review can return feedback to the writer for bounded revisions. The user can review and change the generated code. Automatic scored optimization across multiple generated versions is planned separately.');
+      make('p', 'agent-team-skill', 'Skill: Spark and SQL notebook coding'));
+    const note = make('p', 'agent-team-note', 'AI-generated designs and code require human review. The AI reviewer checks the selected design and retrieved evidence and returns feedback to the writer for corrections. Review outcomes and unresolved issues are shown with the draft. Data validation and CI/CD delivery are separate user-directed steps; the diagram does not start them.');
     const details = make('details', 'agent-team-text-details', '');
     details.append(make('summary', '', 'AI agents and their responsibilities'), list, writer);
     mount.replaceChildren(intro, legend, graph(index), details, note);

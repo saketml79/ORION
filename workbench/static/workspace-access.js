@@ -204,7 +204,7 @@
       endpoints = Array.isArray(data.endpoints) ? data.endpoints : [];
       endpoint.replaceChildren(new Option('Choose a ready chat endpoint', ''));
       endpoints.forEach((item) => {
-        const option = new Option(`${item.name} · ${item.type} · ${item.state} · tools: ${item.tool_capability ?? 'unknown'}`, item.name);
+        const option = new Option(`${item.name} · ${item.type} · ${item.state} · tools: ${item.tool_capability ?? 'not reported'}`, item.name);
         option.disabled = item.type !== 'chat' || item.state !== 'READY'; endpoint.append(option);
       });
       const first = endpoints.find((item) => item.type === 'chat' && item.state === 'READY');
@@ -410,7 +410,7 @@
       } else {
         const label = node('label', '', 'check-label'), input = node('input', ''); input.type = 'checkbox'; input.value = item.path;
         input.addEventListener('change', () => { if (input.checked) selectedFiles.add(item.path); else selectedFiles.delete(item.path); syncVolume(); });
-        label.append(input, node('span', `${item.name} · ${item.size_bytes === null ? 'size unknown' : item.size_bytes + ' bytes'} · ${item.path}`)); files.append(label);
+        label.append(input, node('span', `${item.name} · ${item.size_bytes === null ? 'size not reported' : item.size_bytes + ' bytes'} · ${item.path}`)); files.append(label);
       }
     }
     volumeStatus.textContent = `${data.items.length} folders/XML files returned from Databricks.${limitNotice(data)} Select files, then click Stage selected XML files.`;

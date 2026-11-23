@@ -6,6 +6,358 @@ with checks pending; record those gaps clearly and never present them as passed.
 Passing regression tests is not a migration specification or runtime-parity
 certificate.
 
+## November 23 refresh and analytics testing release
+
+- Browser refresh now remembers the selected project, package and page in the
+	current tab's session storage. The project list and completed package are
+	re-read before restoring navigation; credentials, consent and run state are
+	not stored. Explicit user selection overrides a pending restoration. Local
+	desktop refresh was checked on Migration analytics and Proposals, including
+	the selected workflow. Other dynamic states and hosted refresh are unverified.
+- The desktop navigation links for 14 pages were opened locally. This confirms
+	page navigation only, not every page action or hosted behavior.
+- Recent-run timing and current list-price analysis-cost estimates were checked
+	against saved local runs. Five runs are available in a keyboard-focusable
+	scroll region; three complete rows are visible at the checked desktop width.
+	The estimate excludes writer, compute, cache and negotiated pricing. Human
+	review/rework time and Genie Code attribution remain untracked and show N/A.
+- No historical run or design was deleted. The app has no agent-run deletion
+	endpoint; deleting a design version also removes associated drafts. The user
+	intends to handle design versions separately.
+- The first authorized snapshot deployment, `01f1e788af5e1b81992096391c7bd51b`,
+	succeeded with traffic switched on November 23 at 22:07:17 UTC, but used an
+	unwanted ID-based release source folder. The user subsequently confirmed the
+	existing stable `orion-hosted` folder as the source. Its sync preview and
+	actual sync reported no deletions. A second deployment from that folder is in
+	progress; its final state is not yet confirmed. Source hashes for 195 files
+	and bundle validation passed. No test files or new model calls were run.
+
+## November 23 migration analytics, local only
+
+- Added a Migration analytics page immediately below Folder migration. It
+	reads the selected package's existing readiness and workflow-call summaries;
+	it does not create records, call a model, execute notebooks, or deploy.
+- Actual local Lumen desktop check: 243 workflows, 86 composite candidates,
+	157 standalone candidates, two currently assessed workflows, and two saved
+	current code-draft receipts in the bronze scenario. Literal workflow calls
+	are classification hints, not a complete dependency assessment. A saved
+	draft is not a verified conversion.
+- The existing data does not establish accepted-as-is counts, Genie Code
+	attribution, YAML re-edits, or verified conversion totals; those cards show
+	N/A. Notebook edit receipts exist, but do not identify Genie Code authorship.
+	These requested analytics require additional tracking and are not complete.
+- In the actual local desktop app, switching scenarios updated counts and a
+	global refresh retained all eight cards without replacing the content DOM.
+	The page polls while visible and retains the last snapshot on read failure;
+	hosted behavior and error/permission cases have not been independently tested.
+- The user-requested local Sonnet 5.5 run `f05465c373aa4cbda7595daecc3729cb`
+	finished completed after 24m31s. Writer `bf3fd661789c42cfb4996b4949acb76c`
+	saved a generation-complete candidate, review-ready and fully AI-reviewed.
+	Four notebooks were observed staged. No correction round was triggered, so
+	the correction loop remains unverified. Analysis estimate $15.56 excludes
+	writer and compute. Generated code was not executed.
+
+## November 23 missing-value wording, local only
+
+- User requested `0` for reported zero and `N/A` or an explicit unavailable
+	message for values not returned. UI display wording was changed; internal
+	state identifiers, count values and service contracts were retained.
+- In the actual local desktop app, saved run `f798e284be634a8a85a3b55aef65b1e4`
+	showed recorded counts and `N/A` for unavailable call counts. Saved run
+	`f361853526bd4491884dd7b507b7c2c8` retained its recorded zero and failure
+	counts and displayed `Ended`, rather than the previous 72% indicator. The
+	latest saved run was reselected after this check. Nine desktop navigation
+	pages were visited; this did not exercise every dynamic or error state.
+- No model inference, test files, hosted browser, or new deployment was used.
+	Missing values supplied dynamically by other responses may still need
+	wording review; historical stored records were not modified.
+
+## November 23 hosted testing release in progress
+
+- The user requested deployment to the existing hosted app for testing. The
+	single snapshot deployment was started from the new staged release
+	`orion-hosted-review-5c9bf4e8a73c4244a5bd9024b099ef79`. Its terminal result
+	and traffic switch were not yet confirmed when this entry was written.
+- The local writer now requests missing task XML and SQL pages before review,
+	with two feedback opportunities and existing budgets. It does not mark
+	unread pages as read and does not guarantee that the model retrieves every
+	page. Review remains incomplete if the required material is not retrieved.
+	This change and the design-revision path have not been exercised by a new
+	model run. Historical drafts and review records were not modified.
+- The real local desktop app was restarted while idle. The saved partial run
+	reopened showing 8,255,937 recorded tokens, 6/6 completed analysis results,
+	and the clarified incomplete-review message. The API billing and privacy
+	notice was checked at desktop size. No mobile check or new model run occurred.
+- Python `py_compile` passed for app, agents, writer, reviewer, revision,
+	candidate retry, hosted operations, and staging modules. `node --check`
+	passed for app, arena, external models, hosted intake, and team flow.
+	`git -c core.whitespace=cr-at-eol diff --check` passed. No test files ran.
+	Staging verified 193 workbench source hashes; bundle validation passed.
+	Hosted behavior, isolation, live corrections, and executable correctness
+	remain unverified.
+
+## November 23 local run and desktop follow-up
+
+- The authorized local Opus 5.5 run `f798e284be634a8a85a3b55aef65b1e4`
+	started 10:10:02 and finished 10:47:28 PST with a partial delivery status.
+	Writer job `ba95a4fcf34749c3a132c60e37e2bcea` saved design v42 and a
+	generation-complete candidate. Four of five tasks had complete AI review;
+	`check_tgt_rows_lt_35` did not. No design revision round was admitted.
+	The analysis estimate was $52.50, excluding writer and compute costs.
+- The saved writer checkpoint shows one source request for the affected task:
+	12 of 206 records returned at offset zero, with next offset 12 and no
+	omissions on that page. No subsequent source-page request for that task was
+	recorded. The exact cause of the missing follow-up is not established.
+	The saved manifest and draft directory are present. No source or review gate
+	was weakened and no historical record was changed.
+- The shared local browser was restored from 900 × 390 to 1440 × 900 and the
+	left navigation was visibly restored. The idle local app was restarted and
+	the same saved run reopened. Its recorded 8,255,937 tokens, 6/6 completed
+	agent results and 40 citations displayed. A labeled API billing and privacy
+	card was visually checked at desktop size. No mobile checks were performed.
+- Source changes display a verified partial token subtotal, retain the parent
+	run start/finish times during writer work, and clarify future incomplete-review
+	preflight messages. The live partial-token and writer-phase time changes have
+	not been exercised by a fresh run; historical results retain their original
+	preflight message. Node syntax checks, Python syntax and editor diagnostics,
+	and scoped Git whitespace checks passed. No test files were run.
+- A real correction cycle and hosted behavior remain unverified. No deployment,
+	additional model invocation, generated notebook execution, or cloud job was
+	performed in this follow-up.
+
+## Writer visibility and post-review diagram, local changes
+
+- The process-local writer-event path no longer deliberately excludes hosted
+	execution. Local and hosted use the same validated job/package/execution-root
+	key; hosted execution roots belong to separately authenticated sessions.
+	The event buffer is bounded and lost on restart. Hosted multi-user isolation
+	and live hosted event delivery have not been independently exercised.
+- The actual local help diagram was opened and checked at desktop and mobile
+	widths: data validation and CI/CD delivery now follow human review as
+	separate user-directed steps. The idle local app was restarted to load the
+	backend changes, clearing process-local event history. The saved Opus run
+	was then opened and still displayed its completed status and `$40.65`
+	analysis estimate. No new model call or test file was run.
+- The two-round design-to-agent correction path was subsequently added in
+	local source; it has not been validated by a live correction run. Hosted
+	deployment and a hosted end-to-end run remain unverified.
+
+## Two-round writer correction, local work in progress
+
+- Local source now contains a bounded two-round design-revision path: an
+	attributed design opinion is checked against the exact saved review and
+	candidate, routed to a selected role, and followed by a design-author and
+	validation handoff before a new writer. A revision ledger pins each runtime;
+	prior drafts are retained. The local run-detail page shows recorded rounds.
+	These statements describe implemented code paths, not a successful live
+	correction. The path has not been exercised end to end and must not be
+	treated as ready for hosted deployment on syntax checks alone.
+- After restarting the idle local app, a completed pre-change Opus run was
+	reopened in the actual shared app. Its status and historical candidate were
+	displayed. This checks compatibility of that saved-run view only; it does
+	not exercise reviewer feedback, either revision round or hosted isolation.
+- Python parsing, JavaScript syntax, editor diagnostics, and scoped Git
+	whitespace checks passed. No test files or new model calls were run.
+
+- The writer now retains actionable review feedback instead of treating an
+	unchanged review scope as accepted, and can request up to two additional
+	correction passes in its existing writer checkpoint. The manifest records
+	the number of distinct feedback scopes sent for correction. Unresolved
+	review issues remain visible, and saved historical drafts are unchanged.
+- Writer-side correction and the later-added design-to-agent route have not
+	been exercised by a real correction run.
+- Reviewer issues now optionally report whether the problem concerns code or
+	design and which agent may be responsible. This is advisory, not a verified
+	assignment. The new handoff and revision chain attempt to preserve exact
+	per-round provenance; those paths still require end-to-end verification.
+- The agent-help diagram was checked in the shared local app and now includes
+	a concise AI-generated-content and human-review notice. Python syntax,
+	JavaScript syntax, editor diagnostics and scoped whitespace checks passed.
+	No `test_*.py` files or new model calls were run.
+- Do not describe the requested feedback loop as verified or deploy this work
+	as a finished feature until its real correction behavior is validated. Hosted
+	remains unchanged.
+
+## Active hosted run and local fixes, 2026-11-23 UTC
+
+- Hosted run `60a1d5da56fb4780a5b3f7a00ae6bf25` was reported running,
+	with its separate Spark/SQL writer in generated-code review. The hosted
+	app and run were not stopped, replayed, or accessed through a browser.
+- The deployed operation reporter rejected `committing_delta` before the
+	final snapshot save. The two deployed Python files were exported read-only
+	and hash-matched to the local sources before correction. The local fix adds
+	this existing phase to the operation-progress allowlist; it cannot change
+	an operation already executing in the deployed process.
+- The live cost adapter recognized only Opus 5.5. Local changes also parse
+	the independently validated official Sonnet 5.5 standard Azure Premium
+	pricing row, identify missing rates or token usage, and visibly label partial
+	estimates. These estimates exclude writer and shared-compute costs.
+- The global button shadow rule suppressed the agent tile's shadow pulse.
+	The local correction uses an in-flight outline animation with a static
+	reduced-motion indication. The official-documentation checkbox is locked
+	with the other run settings and reflects a selected active run's recorded
+	consent; it resets on completion. The accepted-run message no longer says
+	that a Delta flush is underway during agent execution. The skills grid has
+	six desktop columns and clearer labels.
+- One consolidated local check passed JavaScript syntax, Python parsing,
+	progress-phase validation, current public price parsing for both models,
+	and scoped CRLF-aware whitespace checks. The actual shared local app was
+	restarted only after local jobs were checked idle; a saved run showed six
+	cards per row and its existing `$54.94` analysis estimate. Its actual
+	pricing route returned both Opus and Sonnet. No model was invoked. Live
+	pulse, active consent behavior, Sonnet usage accounting, and the hosted
+	final save have not been verified end to end.
+- Deployment remains on hold while the hosted writer is running and until
+	the run's terminal outcome and preservation of its work are established.
+	No new deployment was made for these changes.
+- A read-only Apps log lookup found an agent-request 503 at
+	`2026-11-23T01:05:46Z`, diagnostic `79564d1233d64f0bac108c0bedb97c58`,
+	with frames at the final-save progress callback and progress validator.
+	The log contains no run ID, so attribution to the user's run is unverified.
+	Its presence is evidence of the deployed bug, not of this run's outcome.
+	The local summary now identifies an active writer separately from the six
+	analysis agents and updates its stale-phase warning even when the response
+	body has not changed. The warning does not assert a hang.
+
+## Support and official-search local verification, 2026-11-22
+
+- The idle local workbench was restarted to load the pending local changes.
+	Python compilation, JavaScript syntax checks for 34 files, and the
+	CRLF-aware Git whitespace check passed before the latest implementation.
+	At that earlier point the controls were disabled. After the local API/UI
+	changes the actual page was reloaded and now shows explicit consent controls,
+	a saved-run-gated AI and human request button, skill upload, and an
+	administrator queue. No live model or user submission was invoked.
+- A single consented search for “Lakeflow jobs” in the actual Support page
+	returned 15 URL-path matches and retrieved two Databricks AWS documentation
+	pages with SHA-256 receipts. Apache Spark's sitemap was available and
+	Informatica's was unavailable. The search is path matching, not full-text;
+	AWS documentation is not evidence that a feature is available on Azure.
+	Consent reset after the search, and clicking again without consent displayed
+	the consent requirement. A narrow local viewport showed no horizontal
+	overflow in the visible Support page. These observations do not establish
+	complete search coverage, agent use, hosted behavior, or future availability.
+- Two managed Volumes were created at the user's explicit request using the
+	existing `labs` profile as `ssuman@bpcs.com`: approved-library
+	`orion_dev_ssuman.workbench.orion_support` (ID
+	`807d1ec5-4714-450d-a480-b647571d72cf`) and pending-submissions
+	`orion_dev_ssuman.workbench.orion_support_submissions` (ID
+	`12d773a6-5ca9-4de5-b60a-dfaa8f3ff61d`). Their expected directory layout was
+	created. No sharing grant succeeded. The existing app ACL lists `ssuman@bpcs.com`
+	and workspace group `admins`; Unity Catalog rejected both workspace-local
+	`users` and `admins` as grant principals. No grant was applied. Ask for the
+	Unity Catalog account-group name before enabling shared submissions/library
+	access. Individual OBO owner access remains intact.
+- Local Support code now includes one-consent AI review of bounded saved-run
+	findings/activity and analysis pricing estimates, human request/decision
+	endpoints, skill upload/vetting/promotion endpoints, approved-skill on-demand
+	reads, and default-off agent/writer documentation search. Search is path-token
+	matching (not full-text), at most two public pages and three agent queries per
+	run, with exact source-name filters and URL/hash receipts. Search queries and
+	page text are not placed in run receipts. The API changes are not deployed;
+	local AI review was only checked with a no-network fake model and synthetic
+	receipt, not with a live inference. Human queue/promotion require the missing
+	Unity Catalog group grant. No actual user skill upload, promotion, model run,
+	hosted browser, push, or deployment occurred.
+- After the final code reload, the actual local Support page at 390 px had zero
+	horizontal overflow. All four consent boxes started unchecked; AI and human
+	review buttons stayed disabled with no saved run selected. An owner-scoped
+	read of the human queue and pending skill queue returned zero items. The
+	approved-skill registry read is available and empty for this owner. A second
+	consented “Lakeflow jobs” search returned 15 path matches, two retrieved AWS
+	Databricks pages with hashes, and no Informatica sitemap; consent reset after
+	the request. Local AI-review, human-review and skill-upload POSTs with
+	`consent:false` all returned HTTP 403 before action. No live model call or
+	upload submission was performed.
+- `compileall` for `workbench` and `deployment`, `node --check` for all 34 static
+	JavaScript files, CRLF-aware `git diff --check`, and editor diagnostics for
+	the changed Python/JS/HTML files passed. Focused no-network checks verified
+	Markdown/secret/path rejection, the shared search page/query budget, approved
+	skill receipt projection, price arithmetic, and that reuse of one AI review
+	idempotency key causes exactly one fake-model invocation. No `test_*.py` suite
+	was run. No deployment or hosted Databricks browser was used.
+- Eleven dated one-off fix/implementation reports were consolidated into this
+	ledger or the docs index and removed. Release histories, unresolved blockers,
+	conversion evidence and durable architecture/operations references remain.
+
+## Pending local analytics and writer-limit changes
+
+- Analytics cards and log panels now use a consistent 12 px vertical gap
+	between headings, values, controls, status messages and charts. In the actual
+	shared local app, measured gaps were 12 px at 1440 px and 390 px, with no
+	horizontal overflow. The desktop viewport was restored. The CSS check and
+	`git diff --check` passed. This remains local and is not deployed.
+- The Databricks CLI reports 34 installed skills in the complete Cursor
+	skill directory; all seven previously identified Claude-directory copies
+	match their Cursor counterparts by hash. With 19 Anthropic entries, the
+	updated local catalog reports 53 of 53 available and named. A temporary
+	stage included all 53 skill instructions and matched 860 release-preview
+	file hashes; it was removed after verification. A fresh agent run has not
+	verified discovery or reads. The official Databricks provider LICENSE and
+	NOTICE are now included in the release package with pinned upstream commit
+	`ed2c66be443e4c16502a0f7cb93c4edf60e93e94` and SHA-256 provenance. Agent
+	Activity has a temporary, dismissible banner beside Invoke Agents with
+	expandable license/notice text. The installed skill sources do not expose
+	standalone licenses for 33 Databricks entries or Anthropic `doc-coauthoring`;
+	the banner reports these gaps and makes no claim that those skills are
+	independently licensed. Hosted review of the banner is pending deployment.
+- Application Log Analytics was opened in the shared local app. CPU, memory
+	and I/O are current-process samples; the 50-row log chart and the selected
+	saved run's 65 recorded analysis-model calls were displayed. Writer calls,
+	all-user totals, fleet history and hosted behavior are not established.
+- The writer's per-file limit now uses the existing aggregate byte budget.
+	Oversized task-owned evidence can be fetched in ordered JSON chunks, with
+	its original page position recorded and citation credit applied only after
+	the last chunk. A focused in-memory check reconstructed a large Unicode
+	record, verified its hash and rejected out-of-order access. Aggregate, text,
+	identifier and model-context bounds are unchanged and not justified yet.
+- On-demand external-skill catalog and writer receipts remain unverified in a
+	new model run. The downloaded skill instructions include operational commands;
+	they are reference data, not permission to execute commands. Redistribution
+	terms for some installed skill folders remain unverified. No new deployment,
+	model invocation, old test suite or runtime-parity claim was made.
+
+## Active agent tiles and compact skills, local changes
+
+- Agent tiles now highlight and gently pulse only when a verified in-flight
+	model or tool call identifies that agent. Reduced-motion mode retains a
+	static highlight. Selection alone does not mean an agent is running.
+- The skill/guidance panel displays four cards per desktop row and two on
+	narrow screens. The shared production conversion document is labeled
+	“Migration conversion guidelines” and identified as shared guidance, not a
+	technical skill. Original paths remain available as card tooltips.
+- In the actual shared local app, the completed run showed all 13 recorded
+	analysis-agent stickers, four columns at 1440 px, two at 390 px, no clipped
+	cards or document overflow, and no active agent pulse for the completed run.
+	The available saved writer manifest contains a skill-directory digest and
+	99 events, but no writer skill-load events; it cannot establish a historical
+	per-skill access receipt. The panel explicitly states that the separate writer
+	is not included. No model run was started, so an active agent pulse remains
+	unverified in a live run. JavaScript syntax and diff checks passed; the
+	existing Safari backdrop-filter advisory remains. Not pushed or deployed.
+
+## Earlier explicit model-picker implementation, historical
+
+- The package-independent workspace model picker separates endpoint metadata
+	discovery from route application and inference. Hosted discovery uses fresh
+	OBO; local discovery uses the explicit labs profile. Selecting a route remains
+	an explicit user action, with tool compatibility confirmation. A prior local
+	16-module batch passed 346 tests; its follow-up measurements and scope limits
+	are preserved in the 2026-11-09 model-picker history. This entry is historical,
+	not proof of current hosted latency or route behavior.
+
+## Historical single-fix notes consolidated
+
+- The saved-writer provider request timeout correction remains in
+	`databricks_models.py`: selected Sonnet 4.6 analysis roles use the recorded
+	180-second request timeout, while other routes retain their prior value and
+	provider retry stays disabled. A prior local seven-module batch reported 218
+	passes; this is historical and does not verify current hosted latency.
+- The writer tool-message correction preserves model/tool message fields while
+	normalizing the Databricks ChatOpenAI wire payload. Its previous one-module
+	check reported 10 passes. This does not establish that every provider or a
+	new hosted writer run has been verified.
+
 ## Hosted release 2026-11-22, diagnostics and presentation
 
 - Deployment `01f1e6b669a213f796ef16e1797c6851` was created at
@@ -26,6 +378,28 @@ certificate.
 - Before switching traffic, the current user's committed run history reported
 	no active run; other users and uncommitted in-memory operations were not
 	proven idle. The user explicitly requested deployment after the heading fix.
+
+## Hosted Agent license-banner release, 2026-11-23 UTC
+
+- At the user's explicit request, snapshot deployment
+	`01f1e6d2884c1f3e9e329bc0464363df` was created at `00:12:12Z` and traffic
+	switched successfully at `00:23:31Z`. The existing app ID remained
+	`cfada07d-ffa6-4018-9080-293f5e577083`, state RUNNING/ACTIVE, one instance,
+	MEDIUM compute, and the six previously configured OBO scopes. The active
+	source is `/Workspace/Users/ssuman@bpcs.com/ORION-releases/orion-hosted-agent-license-banner-39e0b8b8152b402bb993f5082e10cbb7`.
+- The 871-file staged snapshot passed `databricks bundle validate`. Workspace
+	SOURCE exports of the root HTML, Agent license-banner JS, app JS/CSS, Support
+	JS, official-search code, and staged LICENSE/NOTICE/SOURCE.json exactly
+	matched the staged SHA-256 values before deployment. No deployment resources,
+	scopes, or replicas were added.
+- Read-only app metadata confirms the deployment. Direct HTTP GETs to the app
+	URL returned HTTP 200 but served Databricks sign-in HTML for both `/` and the
+	new banner asset. Therefore authenticated hosted health, static assets, banner
+	visibility, and Support behavior remain unverified. No hosted browser/sign-in,
+	AI inference, user upload, review submission, or customer Job was run. The user
+	should sign in through their usual route and test the hosted UI. No claim is
+	made that the license banner or full new Support flow was visible in hosted
+	traffic.
 
 ## Migration run heading, local change
 
@@ -533,6 +907,13 @@ certificate.
 - No `test_*.py` files were edited or run. No model inference, customer Job, fixture DDL, or hosted browser smoke was run. The user will perform hosted UI testing. Deployment success is not a regression, latency, or workflow-parity result.
 
 ## Proactive UI integrity checks
+
+- The desktop left navigation no longer scrolls. Its workspace label/footer and
+	item sizing adapt at shorter heights so all 14 destinations fit. In the actual
+	shared local browser, checked 1152 px width at heights 1127, 800, 700, 500,
+	460, 400, 320 and 240 px: the sidebar and navigation had zero scroll range,
+	all 14 buttons stayed inside the pane, and no items overlapped. Reduced-height
+	mode hides the icons at 460 px and below while keeping button names and actions.
 
 The maintained release checklist covers these categories on every tab, not only
 items a user reports. Each category requires observed evidence; unchecked is not

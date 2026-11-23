@@ -9,7 +9,7 @@
   const items = value => Array.isArray(value) ? value : [];
   const safe = value => window.orionRedaction.text(value ?? 'Unknown');
   const node = (tag, text = '', className = '') => {
-    const element = document.createElement(tag); element.textContent = safe(text); element.className = className; return element;
+    const element = document.createElement(tag); element.textContent = safe(text ?? 'N/A'); element.className = className; return element;
   };
   // Presentation only: explicit languages, no HTML parsing or source execution.
   const codePatterns = {
@@ -30,7 +30,7 @@
     const source = portableText ? String(text ?? '') : safe(text ?? '');
     const name = String(language || 'unknown').toLowerCase();
     pre.dataset.language = Object.prototype.hasOwnProperty.call(codePatterns, name) ? name : 'unknown';
-    pre.tabIndex = 0; pre.setAttribute('aria-label', `${pre.dataset.language} source code`);
+    pre.tabIndex = 0; pre.setAttribute('aria-label', pre.dataset.language === 'unknown' ? 'Source code, language not reported' : `${pre.dataset.language} source code`);
     if (pre.dataset.language === 'unknown') { pre.textContent = source; return pre; }
     const pattern = codePatterns[name]; pattern.lastIndex = 0;
     const fragment = document.createDocumentFragment();
@@ -353,7 +353,7 @@
         if (select === catalog) catalogForeign = select.selectedOptions[0]?.dataset.foreign === 'true';
         clearFrom(level);
         status.textContent = select === catalog && select.value && !catalogForeign
-          ? 'Catalog type is unknown. Its connection type is not observed; schemas cannot be explored as foreign.'
+          ? 'Catalog type is not established. Its connection type is not observed; schemas cannot be explored as foreign.'
           : 'Selection changed. Explicitly load the next metadata level.';
         sync();
       });
@@ -393,7 +393,7 @@
             ? 'The exact table was reported not found; no wider absence is established.'
             : result.status === 'not_foreign_catalog'
             ? 'This catalog was reported as not foreign; no schemas were inspected.'
-            : 'Metadata unknown or unavailable, including possible permission denial. Absence and connection type are not established.';
+            : 'Metadata unavailable, including possible permission denial. Absence and connection type are not established.';
           return;
         }
         if (operation === 'table') {
@@ -403,12 +403,12 @@
               || item?.full_name !== [selection.catalog, selection.schema, selection.table].join('.') || !Array.isArray(item.columns))
             throw new Error('Invalid table metadata');
           const format = item.oracle_format === true ? 'Oracle format observed' : item.oracle_format === false
-            ? 'Non-Oracle format observed' : 'Table format unknown';
+            ? 'Non-Oracle format observed' : 'Table format not reported';
           status.textContent = `${format}. Metadata is not a source binding or approval.`;
           output.append(node('h4', `Table: ${item.full_name}`));
           if (!item.columns.length) output.append(node('p', 'No columns returned in this table metadata.', 'small muted'));
           for (const column of item.columns) output.append(node('p',
-            `${column.name} · ${column.type_text} · ${column.nullable === true ? 'nullable' : column.nullable === false ? 'not nullable' : 'nullability unknown'}`, 'small muted'));
+            `${column.name} · ${column.type_text} · ${column.nullable === true ? 'nullable' : column.nullable === false ? 'not nullable' : 'nullability not reported'}`, 'small muted'));
           return;
         }
         if (result.offset !== offset || result.limit !== 20 || typeof result.has_more !== 'boolean'
@@ -419,8 +419,8 @@
           if (typeof item.name !== 'string' || !item.name) throw new Error('Invalid metadata item');
           if (operation === 'schemas' && item.catalog_name !== selection.catalog) throw new Error('Schema identity mismatch');
           if (operation === 'tables' && (item.catalog_name !== selection.catalog || item.schema_name !== selection.schema)) throw new Error('Table identity mismatch');
-          const suffix = operation === 'catalogs' ? (item.foreign === true ? 'foreign, connection type unknown' : 'catalog type unknown')
-            : operation === 'tables' ? (item.oracle_format === true ? 'Oracle format observed' : item.oracle_format === false ? 'non-Oracle format observed' : 'format unknown') : '';
+          const suffix = operation === 'catalogs' ? (item.foreign === true ? 'foreign, connection type not reported' : 'catalog type not established')
+            : operation === 'tables' ? (item.oracle_format === true ? 'Oracle format observed' : item.oracle_format === false ? 'non-Oracle format observed' : 'format not reported') : '';
           const option = new Option(safe(`${item.name}${suffix ? ` (${suffix})` : ''}`), item.name);
           if (operation === 'catalogs') option.dataset.foreign = item.foreign === true ? 'true' : 'unknown';
           select.append(option);
@@ -432,7 +432,7 @@
           clearFrom(operation === 'catalogs' ? 0 : operation === 'schemas' ? 1 : operation === 'tables' ? 2 : 3);
           status.textContent = /HTTP (401|403)\b/.test(error.message || '')
             ? 'Metadata request denied or authentication unavailable. Access and absence are not established.'
-            : 'Metadata unavailable or response invalid. Access, absence, and connection type remain unknown.';
+            : 'Metadata unavailable or response invalid. Access, absence, and connection type are not established.';
         }
       } finally { if (active()) { pending = false; sync(); } }
     }
@@ -719,7 +719,7 @@
           workflow_id: ticket.scope.workflow, expected_version: version, consent: true, check_select: true
         });
         if (!current(ticket)) return;
-        note.textContent = `UC observation: ${safe(result.status)}; schema compatible: ${result.schema_compatible === null ? 'unknown' : String(result.schema_compatible)}; zero-row SELECT: ${safe(result.data_access_status || 'not tested')}. Write permission and data contents are not tested. Observation is not retained or approved; empty fixtures do not prove parity.`;
+        note.textContent = `UC observation: ${safe(result.status ?? 'N/A')}; schema compatible: ${result.schema_compatible === null ? 'N/A' : String(result.schema_compatible)}; zero-row SELECT: ${safe(result.data_access_status || 'not tested')}. Write permission and data contents are not tested. Observation is not retained or approved; empty fixtures do not prove parity.`;
       } catch (error) { if (current(ticket)) note.textContent = `UC verification unavailable: ${safe(error.message)}. No approval inferred.`; }
       finally { if (current(ticket) && form.isConnected) { form.disabled = false; if (version !== null) verify.disabled = false; } }
     });
@@ -807,7 +807,7 @@
         const headers = ticket.scope.project ? {'X-Workbench-Project': ticket.scope.project, 'X-Workbench-Package': ticket.scope.package} : {};
         const outcome = await window.orionHostedIntake.submit(`/api/cohorts/${result.id}/draft`,
           {consent: true, workspace_root: draftRoot.value.trim()}, headers);
-        if (current(ticket)) progress.textContent = `Cohort drafting: ${safe(outcome?.status || 'unknown')}. ${outcome?.workflow_id ? `Workflow: ${safe(outcome.workflow_id)}. ` : ''}${outcome?.operation_id ? `Operation: ${safe(outcome.operation_id)}. Inspect the claim before continuing. ` : ''}Bundles are unverified drafts, not execution or deployment approval.`;
+        if (current(ticket)) progress.textContent = `Cohort drafting: ${safe(outcome?.status || 'not reported')}. ${outcome?.workflow_id ? `Workflow: ${safe(outcome.workflow_id)}. ` : ''}${outcome?.operation_id ? `Operation: ${safe(outcome.operation_id)}. Inspect the claim before continuing. ` : ''}Bundles are unverified drafts, not execution or deployment approval.`;
       } catch (error) {
         if (current(ticket)) progress.textContent = `Drafting stopped: ${safe(error.message)}. Inspect the saved operation before continuing.`;
       } finally { if (current(ticket) && draftStart.isConnected) { cohortPending = false; syncCohort(); } }
@@ -833,7 +833,7 @@
           const saved = await request(`/api/cohorts/${result.id}`, ticket);
           if (current(ticket)) {
             showCohort(saved);
-            cohortOutput.prepend(node('p', `Server worker: ${safe(outcome?.status || 'unknown')}. ${outcome?.workflow_id ? `Workflow: ${safe(outcome.workflow_id)}. ` : ''}${outcome?.operation_id ? `Operation: ${safe(outcome.operation_id)}. ` : ''}${outcome?.reason ? `${safe(outcome.reason)} ` : ''}Review saved records and inspect any uncertain operation before continuing.`, 'notice'));
+            cohortOutput.prepend(node('p', `Server worker: ${safe(outcome?.status || 'not reported')}. ${outcome?.workflow_id ? `Workflow: ${safe(outcome.workflow_id)}. ` : ''}${outcome?.operation_id ? `Operation: ${safe(outcome.operation_id)}. ` : ''}${outcome?.reason ? `${safe(outcome.reason)} ` : ''}Review saved records and inspect any uncertain operation before continuing.`, 'notice'));
           }
           return;
         }
@@ -952,7 +952,7 @@
           && window.orionHostedIntake?.read && await window.orionHostedIntake.probe()) {
         const data = await window.orionHostedIntake.read(path, headers, operation => {
           if (current(ticket) && !controller.signal.aborted)
-            status.textContent = `Reading saved redesign metadata: ${safe(operation.status)}. No model invocation.`;
+            status.textContent = `Reading saved redesign metadata: ${safe(operation.status ?? 'N/A')}. No model invocation.`;
         }, {signal: controller.signal});
         if (!current(ticket) || controller.signal.aborted) throw new DOMException('Selection changed', 'AbortError');
         return data;
@@ -1023,7 +1023,7 @@
       };
       const line = (label, text) => {
         const paragraph = node('p', '', 'workflow-scope-note-line');
-        paragraph.append(node('strong', `${label}: `), document.createTextNode(safe(text)));
+        paragraph.append(node('strong', `${label}: `), document.createTextNode(safe(text ?? 'N/A')));
         note.append(paragraph);
       };
       note.replaceChildren();
@@ -1148,8 +1148,12 @@
         const origin = row.source?.kind === 'agent' ? 'agent-submitted' : 'source not confirmed as agent';
         const entry = node('li'); (index < 3 ? versionList : olderList).append(entry);
         const open = button('', '', entry); open.removeAttribute('id'); open.classList.add('saved-design-version');
+        const recorded = typeof row.created_at === 'string' ? new Date(row.created_at) : null;
+        const recordedLabel = recorded && !Number.isNaN(recorded.getTime())
+          ? `${new Intl.DateTimeFormat(undefined, {year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'}).format(recorded)} (local)`
+          : 'N/A';
         open.append(node('span', row.design?.title || member.name || member.workflow_id, 'saved-design-version-title'),
-          node('span', `Version ${row.version} · ${String(row.status || 'status not reported').replaceAll('_', ' ')}${row.stale ? ' · stale' : ''} · ${origin}`, 'saved-design-version-meta'));
+          node('span', `Version ${row.version} · ${String(row.status || 'status not reported').replaceAll('_', ' ')}${row.stale ? ' · stale' : ''} · ${origin} · Created ${recordedLabel}`, 'saved-design-version-meta'));
         open.addEventListener('click', () => {
           if (!current(ticket) || busy || loading || detailLoading) return;
           selectedCohortWorkflow = row.workflow_id; versions.value = JSON.stringify([row.id, row.version]); selectVersion();
@@ -1223,7 +1227,7 @@
       const taskCount = data.behavior_explanation?.coverage?.task_count;
       capturedTaskCount = Number.isInteger(taskCount) && taskCount >= 0 ? taskCount : null; controls();
       understanding.replaceChildren(node('h3', 'Captured Informatica workflow understanding'),
-        node('p', `${data.node?.name ?? workflowId} · ${capturedTaskCount ?? 'Unknown'} task instances · ${data.behavior_explanation?.coverage?.control_link_count ?? 'Unknown'} control links · ${data.behavior_explanation?.semantic_parity ?? 'unverified'}`, 'disclosure'),
+        node('p', `${data.node?.name ?? workflowId} · ${capturedTaskCount ?? 'N/A'} task instances · ${data.behavior_explanation?.coverage?.control_link_count ?? 'N/A'} control links · ${data.behavior_explanation?.semantic_parity ?? 'unverified'}`, 'disclosure'),
         node('p', 'Source: canonical XML evidence. Exported enabled state and on-demand settings do not prove current production activity.', 'small muted'),
         node('p', 'XML evidence and live Unity Catalog observations are separate. The metadata check below reads selected-workflow direct source fixtures only, not called children. Verified fixtures are not automatically approved production bindings.', 'small muted'));
       const packageContext = node('section', '', 'proposal-review-section');
@@ -1259,8 +1263,8 @@
           for (const source of items(result.sources)) {
             const card = node('article', '', 'proposal-review-card');
             card.append(node('h4', source.actual_full_name || source.expected_full_name || source.source_id), readableFields({
-              status: String(source.status).replaceAll('_', ' '), table_exists: source.exists === null ? 'Unknown' : source.exists,
-              schema_exists: source.schema_exists === null ? 'Unknown' : source.schema_exists,
+              status: String(source.status).replaceAll('_', ' '), table_exists: source.exists === null ? 'N/A' : source.exists,
+              schema_exists: source.schema_exists === null ? 'N/A' : source.schema_exists,
               production_binding: 'Not approved', error: source.error
             }));
             const evidence = node('details'); evidence.append(node('summary', 'Full metadata and mapping evidence'), readableFields(source));
@@ -1276,7 +1280,7 @@
           const details = node('details'); details.append(node('summary', 'Observation identity and unresolved targets'), readableFields(result)); observation.append(details);
         } catch (error) {
           if (current(ticket) && serial === understandingTicket && fixturePanel.isConnected)
-            observation.replaceChildren(node('p', `Metadata check failed: ${error.message}. Existence remains unknown, not missing.`, 'notice'));
+            observation.replaceChildren(node('p', `Metadata check failed: ${error.message}. Existence is not established; absence is not confirmed.`, 'notice'));
         } finally { if (fixturePanel.isConnected) check.disabled = false; }
       });
       fixturePanel.append(check, observation); understanding.append(fixturePanel);
@@ -1291,7 +1295,7 @@
       const evidenceList = node('ul');
       for (const id of items(explanation.evidence_ids)) evidenceList.append(node('li', id));
       technicalEvidence.append(evidenceList); understanding.append(technicalEvidence);
-      section('Scope and unknowns', explanation.coverage ? [explanation.coverage] : [], understanding);
+      section('Scope and unresolved questions', explanation.coverage ? [explanation.coverage] : [], understanding);
     } catch (error) {
       if (current(ticket) && serial === understandingTicket)
         understanding.replaceChildren(node('h3', 'Captured Informatica workflow understanding'),
@@ -1610,7 +1614,7 @@
             const source = Array.isArray(cell.source) ? cell.source.join('') : String(cell.source ?? '');
             const block = node('details', '', `notebook-cell notebook-cell-${cell.cell_type === 'code' ? language : 'markdown'}`);
             block.open = showStagedSource && cell.cell_type === 'code';
-            block.append(node('summary', `Notebook cell ${index + 1} (${language})`), originalText(source, language));
+            block.append(node('summary', `Notebook cell ${index + 1} (${language === 'unknown' ? 'language not reported' : language})`), originalText(source, language));
             if (runCandidate && cell.cell_type === 'code'
                 && ['t_wait.ipynb', 't_counter.ipynb', 't_child_launch.ipynb', 't_email.ipynb'].includes(path.split('/').pop())) {
               attachCellRunner({block, path, notebook, cellNumber: index + 1, runCandidate, active});
@@ -1952,7 +1956,7 @@
       const row = node('tr');
       for (const value of values) {
         const cell = node('td');
-        if (value instanceof HTMLElement) cell.append(value); else cell.textContent = safe(value);
+        if (value instanceof HTMLElement) cell.append(value); else cell.textContent = safe(value ?? 'N/A');
         row.append(cell);
       }
       body.append(row);
@@ -1972,7 +1976,7 @@
     const svgNode = (tag, attrs, text) => {
       const el = document.createElementNS(ns, tag);
       for (const [name, value] of Object.entries(attrs)) el.setAttribute(name, String(value));
-      if (text !== undefined) el.textContent = safe(text); return el;
+      if (text !== undefined) el.textContent = safe(text ?? 'N/A'); return el;
     };
     const levels = new Map(), pending = new Map(tasks.map(task => [task.task_key, task]));
     while (pending.size) {
@@ -2576,7 +2580,7 @@
               const summary = receiptSummary(result);
               const writerReport = node('details');
               writerReport.append(node('summary', 'Generation diagnostics (technical)'), node('p',
-                `Original saved generation state: ${safe(result.manifest.status || 'unknown')}${result.manifest.failure ? ` · ${safe(result.manifest.failure)}` : ''}. Historical records have not been rewritten.`, 'small muted'));
+                `Original saved generation state: ${safe(result.manifest.status || 'not reported')}${result.manifest.failure ? ` · ${safe(result.manifest.failure)}` : ''}. Historical records have not been rewritten.`, 'small muted'));
               output.append(writerReport);
               if (result.migration_evaluation?.workflow_id === value.workflow_id
                   && result.migration_evaluation.design_version === value.version) {
@@ -2586,7 +2590,7 @@
                   `Direct source-task coverage: ${evaluation.task_coverage_count}/${evaluation.direct_task_count}. `
                   + `Workflow variables: ${evaluation.workflow_variable_count}; mapping variables: ${evaluation.mapping_variable_count}. `
                   + `Generated Jobs YAML: ${evaluation.native_job_available ? 'available' : 'not available'}.`, 'small'));
-                report.append(node('p', `AI code review: ${safe(evaluation.ai_review_status)}. Parameter translation, business-logic correctness and runtime parity are not independently verified.`, 'notice'));
+                report.append(node('p', `AI code review: ${safe(evaluation.ai_review_status ?? 'N/A')}. Parameter translation, business-logic correctness and runtime parity are not independently verified.`, 'notice'));
                 workflowTable('Original task dispositions', ['Source task', 'Type', 'Disposition', 'Proposed tasks'],
                   items(evaluation.tasks).map(task => [task.name, task.source_type, task.disposition,
                     items(task.proposed_tasks).join(', ') || 'None']), report);
@@ -2773,7 +2777,7 @@
                   if (!active()) return;
                   if (inventory.job_id !== id || !Array.isArray(inventory.bundles)) throw new Error('Bundle inventory scope mismatch.');
                   jobMessage.textContent = inventory.bundles.length
-                    ? inventory.bundles.map(item => `${safe(item.bundle_id)}: ${safe(item.status)}`).join(' · ')
+                    ? inventory.bundles.map(item => `${safe(item.bundle_id ?? 'N/A')}: ${safe(item.status ?? 'N/A')}`).join(' · ')
                     : 'No saved bundles found. An interrupted operation still requires inspection before retrying.';
                   let firstSaved = null;
                   for (const saved of inventory.bundles) {
@@ -3050,7 +3054,7 @@
       } catch (error) {
         if (current(ticket) && serial === detailTicket) {
           record = null; status.textContent = error.name === 'AbortError'
-            ? 'Review interrupted. Outcome unknown. Refresh actual records before retrying.' : safe(error.message);
+            ? 'Review interrupted. Outcome not confirmed. Refresh actual records before retrying.' : safe(error.message);
         }
       } finally {
         if (current(ticket) && serial === detailTicket) { busy = false; controls(); syncReview(); }

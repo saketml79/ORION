@@ -4,6 +4,17 @@ This is the single working checklist of open work and unverified outcomes, compi
 
 ## 1. Agent improvement and evaluation
 
+- [ ] **Next: investigate run cost and latency, without running it now.** For
+	the local `wkf_Load_tblcircuits_temp` run `12a6273b9e004a8f828d1f5f81d49c29`,
+	the UI displayed an estimated $54.94 and elapsed 00:31:49 for one drafted
+	notebook. Verify the estimate's pricing source and whether it excludes writer
+	or compute charges. Trace the actual plan, analysis-agent handoffs, writer and
+	validation model calls, tool calls, retries, token usage, durations and source
+	retrievals. Assess which calls were justified by evidence, whether the plan
+	was reused, and where duplication or cost can be reduced without weakening
+	accuracy, approvals or safety. Mark missing telemetry unknown; do not assume
+	that one notebook implies a simple workflow or that every call was necessary.
+	Do not rerun inference or change routing/budgets as part of this TODO entry.
 - [ ] **Automated hill climbing:** Define and implement a bounded code-generation, evaluation, comparison, and selection loop that seeks the best result within the configured time, token, and iteration budget. Preserve run scope, approval boundaries, and a durable trail of versions and reasons. The existing [hill-climb comparison](../workbench/loops.py) compares completed advisory runs; it does not automatically generate and select code versions. The existing writer feedback loop is separate.
 - [ ] **Quality measures:** Establish labeled reference cases or calibrated evaluators for groundedness, citation correctness, source-to-target mapping, business behavior, and parity. Operational call counts are not quality scores. See [agent evaluation scorecard](agent-evaluation-scorecard.md).
 - [ ] **Named skills:** Evaluate the seven enhanced specialist/writer skills with a fresh, explicitly requested visible run. Verify actual loaded/read receipts and outcomes. Historical generic skill paths remain available; changed skill fingerprints can make earlier designs appear stale. See [release ledger](current-release-verification-ledger.md).
@@ -35,6 +46,52 @@ This is the single working checklist of open work and unverified outcomes, compi
 
 ## 4. User experience and operational transparency
 
+- [x] **Support, AI review, local implementation:** One explicit consent and
+	confirmation sends bounded recorded findings and analysis activity to the
+	already-selected validation route. Available analysis token/list-price
+	estimates are labeled as estimates; writer and review-call charges remain
+	unknown. Opening Support never invokes a model. The action is not deployed or
+	exercised with a live model.
+- [ ] **Support, human review, shared access:** The local app has a durable
+	request endpoint, per-user Volume staging, and an approver-only queue/decision
+	view. Shared submission requires a Unity Catalog group, but the workspace
+	`users` and `admins` names are not recognized by the selected UC principal
+	API. No grant was applied. A private staging receipt is not a queued request.
+	The designated initial approver is
+	`ssuman@bpcs.com`; verify their identity from the current authenticated OBO
+	principal, not a client-supplied name. The user selected the existing
+	`orion_dev_ssuman` catalog. Managed Volume
+	`orion_dev_ssuman.workbench.orion_support` now exists (ID
+	`807d1ec5-4714-450d-a480-b647571d72cf`), but has no verified sharing grants
+	or application sharing. No service-principal fallback is used.
+- [ ] **Skill submissions:** The local app now validates bounded UTF-8 Markdown,
+	stages it to the requestor's own Volume, supports approver vetting and stores
+	promoted skills in a separate read-only-intended registry Volume. Uploaded
+	instructions never execute. Shared queue submission and other-user reads are
+	blocked until a valid Unity Catalog group is named and granted access.
+	`orion_dev_ssuman.workbench.orion_support_submissions` is the pending Volume;
+	`orion_dev_ssuman.workbench.orion_support` is the approved library.
+- [x] **Official documentation search, local implementation:** The Support
+	page can, after
+	explicit per-search consent, match URL-path tokens in official sitemaps and
+	read at most two matched pages. This is not full-text search, and the current
+	Databricks source is AWS documentation. Informatica was unavailable in the
+	local check. A separate unchecked per-run consent now exposes it to analysis
+	agents and the writer, with a two-page/three-query run budget, source-identifier
+	filters, URL/hash receipts and untrusted-content disclosure. This integration
+	has not been exercised by a model run; do not infer use from availability.
+- [ ] **Application log analytics:** The local tab shows current-process CPU,
+	memory and I/O samples, a 50-row audit sample and analysis-model calls for a
+	selected saved run; the app/unattributed filter is also available locally.
+	Hosted behavior is unverified. Complete genuine app-wide endpoint and writer
+	metrics, durable retention and fleet visibility with explicit access controls.
+	Do not present the sampled view as enterprise-grade or invent missing values.
+- [ ] **Writer limits and complete evidence:** The local writer can now retrieve
+	oversized source records in ordered chunks and the per-file content limit is
+	aligned to the existing aggregate byte limit. The aggregate artifact cap and
+	other text, identifier and model-context bounds remain unchanged. Establish
+	measured, end-to-end safe limits and prove large-workflow behavior before
+	claiming those remaining limits have been increased or are justified.
 - [ ] **Hosted user review:** Review the deployed agent communication graph, labels, animated arrows, skills, context panel, typography, and disclosures with real hosted data. The graph illustrates configured flow; recorded activity must remain distinguishable.
 - [ ] **Live and historical states:** Check loading, empty, stale, permission, failure, cancellation, and partial-result views. Verify the elapsed timer through the transition from analysis to candidate writing.
 - [ ] **Project selection:** Confirm the XML list and neighboring project card remain stable during hosted loading, and verify project creation feedback without altering existing project data unnecessarily.
@@ -51,11 +108,18 @@ This is the single working checklist of open work and unverified outcomes, compi
 
 - [ ] **Regression pass:** Complete the requested comprehensive regression passes and record exact commands, failures, skips, and environment limitations. The user currently requested avoiding `test_*.py` files; do not run them unless that instruction changes.
 - [ ] **Fresh visible conversions:** Run and inspect authorized, workflow-independent end-to-end examples in the actual shared app when requested. Preserve receipts; do not change a running prompt or infer parity from prior drafts.
-- [ ] **Architecture source of truth:** Restore or locate the missing agentic blueprint documents and PDF before making larger agent-mesh, unified-memory, intervention, or governance changes. The referenced blueprint directory is absent from this checkout.
-- [ ] **Official Anthropic skills:** Review the separately downloaded official repository, its individual licenses, bundled scripts, dependencies, and suitability before any activation. It is not currently wired into ORION; do not imply it supplies Informatica migration skills.
+- [x] **Architecture references:** The repository contains design and agent
+	responsibility documents. They are context, not a prerequisite for the Support
+	features requested here.
+- [ ] **External skills:** Finish and verify task-specific, on-demand access to
+	the downloaded Anthropic and installed Databricks skill catalogs, including
+	actual per-run read receipts, attribution, packaging and documented boundaries.
+	Skills do not gain shell, credential or deployment authority. Existing local
+	Informatica migration skills remain separate. Do not equate available, loaded,
+	read and reasoned-with; older runs cannot acquire new historical receipts.
 - [ ] **Review this checklist:** Reconcile items against new evidence, owners, and user priorities after each substantial change. Keep completed items distinguishable from unmeasured outcomes.
 
 ## Sources and interpretation
 
-- [Current release verification ledger](current-release-verification-ledger.md), [hosted workbench](databricks-hosted-workbench.md), [agent engineering review](agent-engineering-eight-source-review-2026-11-17.md), [local visible agent consistency](local-visible-agent-consistency-2026-11-16.md), and [proposal-first design](proposal-first-deepagents-lakeflow-plan.md).
+- [Current release verification ledger](current-release-verification-ledger.md), [hosted workbench](databricks-hosted-workbench.md), [agent engineering review](agent-engineering-eight-source-review-2026-11-17.md), and [local visible agent consistency](local-visible-agent-consistency-2026-11-16.md).
 - Earlier reports can describe superseded deployments or local-only fixes. Verify current source and deployment before using an older issue as evidence of a current defect.

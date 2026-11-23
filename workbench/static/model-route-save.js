@@ -45,7 +45,7 @@
           // once, never submit a new operation or replay the mutation.
           onStatus({operation_id: record.id, status: 'reconciling'});
           try { first = await request(`${API}/${record.id}`, 'GET', null, scope); }
-          catch { throw new Error(`Operation ${record.id}: ${error.message} Save status unknown. Reconnect to this recorded operation; no save was replayed.`); }
+          catch { throw new Error(`Operation ${record.id}: ${error.message} Save status is not confirmed. Reconnect to this recorded operation; no save was replayed.`); }
         }
       }
       try {

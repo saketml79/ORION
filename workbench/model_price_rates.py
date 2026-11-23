@@ -25,6 +25,8 @@ PAGE_URL = "https://" + HOST + PAGE_PATH
 CARDS_URL = "https://" + HOST + CARDS_PATH
 ENDPOINT = "databricks-claude-opus-5-5"
 MODEL = "Claude Opus 5.5"
+SONNET_ENDPOINT = "databricks-claude-sonnet-5-5"
+SONNET_MODEL = "Claude Sonnet 5.5"
 MAX_BYTES = 2 * 1024 * 1024
 TIMEOUT_SECONDS = 5
 SUCCESS_TTL_SECONDS = 900
@@ -208,7 +210,7 @@ def _objects(value):
             yield from _objects(item)
 
 
-def _parse(page, cards):
+def _parse(page, cards, *, model=MODEL, endpoint=ENDPOINT):
     sections = [item for item in _objects(page)
                 if item.get("fieldTitle") == "Proprietary Foundation Model Serving DBU rates"
                 and item.get("fieldItem", {}).get("entity", {}).get("fieldPricingVendors") == ["anthropic"]]
@@ -231,7 +233,7 @@ def _parse(page, cards):
     if len(tables) != 1:
         raise _InvalidPricing()
     rows = [cells for section, cells in tables[0][2:] if section == "tbody" and cells
-            and cells[0][3] in (MODEL, MODEL + " ⌖")]
+            and cells[0][3] in (model, model + " ⌖")]
     if len(rows) != 1 or len(rows[0]) != 7:
         raise _InvalidPricing()
     row = rows[0]
@@ -244,8 +246,8 @@ def _parse(page, cards):
         input_usd = format(input_dbu * card, "f")
         output_usd = format(output_dbu * card, "f")
     return {
-        "endpoint": ENDPOINT,
-        "model": MODEL,
+        "endpoint": endpoint,
+        "model": model,
         "currency": "USD",
         "input_usd_per_1m_tokens": input_usd,
         "output_usd_per_1m_tokens": output_usd,
@@ -278,8 +280,16 @@ class ModelPriceRates:
             try:
                 page = _get_asset(PAGE_PATH)
                 cards = _get_asset(CARDS_PATH)
-                rate = _parse(page, cards)
-                result.update(status="available", rates=[rate],
+                rates = []
+                for model, endpoint in ((MODEL, ENDPOINT), (SONNET_MODEL, SONNET_ENDPOINT)):
+                    try:
+                        rates.append(_parse(page, cards, model=model, endpoint=endpoint))
+                    except _InvalidPricing:
+                        # A missing or ambiguous row cannot invalidate another verified model.
+                        continue
+                if not rates:
+                    raise _InvalidPricing()
+                result.update(status="available", rates=rates,
                               retrieved_at=datetime.now(timezone.utc).isoformat())
                 ttl = SUCCESS_TTL_SECONDS
             except Exception:

@@ -1,0 +1,20 @@
+{
+  "provider": "Databricks",
+  "repository": "https://github.com/databricks/databricks-agent-skills",
+  "commit": "ed2c66be443e4c16502a0f7cb93c4edf60e93e94",
+  "files": {
+    "LICENSE": "https://raw.githubusercontent.com/databricks/databricks-agent-skills/ed2c66be443e4c16502a0f7cb93c4edf60e93e94/LICENSE",
+    "NOTICE": "https://raw.githubusercontent.com/databricks/databricks-agent-skills/ed2c66be443e4c16502a0f7cb93c4edf60e93e94/NOTICE"
+  },
+  "upstream_sha256": {
+    "LICENSE": "df8afbfd34830a45f85dff044550a913a3355be1c61ab756417e7670cb48fa1c",
+    "NOTICE": "47ac32ae3de2167f76f457bccf12349e1017582aecab77044b37e3ed7244a08b"
+  },
+  "packaged_sha256": {
+    "LICENSE": "86408496680ace2c89ad54bfa7e8570327da702f46bc407fb8dcb0a5f14e3094",
+    "NOTICE": "2aa43469d253f8360fcd1d35f15bd2141da57d7101a56d7b70c1f914bf38fd31"
+  },
+  "line_endings": "Windows CRLF; upstream raw files are LF",
+  "retrieved_at": "2026-11-22",
+  "skill_source_revision": "unknown"
+}

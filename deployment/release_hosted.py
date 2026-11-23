@@ -191,6 +191,19 @@ def code_preview(host, app_origin, prefix, warehouse):
         checked_path(source)
         require(source.is_file() and source.stat().st_size <= 10 * 1024 * 1024)
         entries[source.relative_to(ROOT).as_posix()] = {"sha256": bootstrap.file_hash(source), "size": source.stat().st_size}
+    skill_library, official_sources = stage_hosted.official_skill_sources()
+    for source, relative_target in official_sources:
+        data = skill_library._read_bytes(source)
+        key = (Path("workbench") / "official_skills" / relative_target).as_posix()
+        require(key not in entries, "Duplicate official skill package path")
+        entries[key] = {"sha256": bootstrap.sha256(data).hexdigest(), "size": len(data)}
+    for name in ("LICENSE", "NOTICE", "SOURCE.json"):
+        source = ROOT / "workbench" / "skill_notices" / "databricks" / name
+        checked_path(source)
+        data = skill_library._read_bytes(source)
+        key = (Path("workbench") / "official_skills" / "databricks" / name).as_posix()
+        require(key not in entries, "Duplicate Databricks provider notice path")
+        entries[key] = {"sha256": bootstrap.sha256(data).hexdigest(), "size": len(data)}
     requirements = ROOT / "workbench/requirements.txt"
     checked_path(requirements)
     entries["requirements.txt"] = {"sha256": bootstrap.file_hash(requirements), "size": requirements.stat().st_size}

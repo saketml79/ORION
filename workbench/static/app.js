@@ -33,7 +33,7 @@
   overviewProgressHeading.className = 'package-progress-heading';
   overviewProgressHeading.textContent = 'Package understanding';
   const overviewProgressBar = document.createElement('progress');
-  overviewProgressBar.setAttribute('aria-label', 'Loading package understanding: progress unknown');
+  overviewProgressBar.setAttribute('aria-label', 'Loading package understanding: progress not reported');
   const overviewProgressDescription = document.createElement('span');
   overviewProgressDescription.className = 'package-progress-description';
   overviewProgressDescription.textContent = 'Loading selected XML understanding. Progress is not reported.';
@@ -71,9 +71,9 @@
   const array = (value) => Array.isArray(value) ? value : [];
   const text = (value) => value == null ? 'Not supplied' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
   const human = (value) => String(value).replace(/_/g, ' ');
-  const roleLabel = value => ({supervisor: 'Lead migration design coordinator', discovery: 'Informatica package analyst',
-    semantics: 'Transformation semantics analyst', architecture: 'Lakeflow workflow designer',
-    validation: 'Independent validation analyst', artifact: 'Artifact requirements analyst'})[value] || human(value);
+  const roleLabel = value => ({supervisor: 'Migration lead and coordinator', discovery: 'Informatica package analyst',
+    semantics: 'Transformation semantics analyst', architecture: 'Databricks Lakeflow solution architect',
+    validation: 'Independent validation analyst', artifact: 'Notebook and delivery requirements analyst'})[value] || human(value);
   const roleSkillDescription = value => ({
     supervisor: 'Brings together the other AI agents’ analysis and can submit or correct the migration design. A separate Spark and SQL code writer generates the code.',
     discovery: 'Inspects scoped Informatica objects, source contracts, and discovery gaps.',
@@ -118,6 +118,8 @@
   let legacyJobStatus = '';
   let initializingNavigation = true;
   let startupUserPage = '';
+  let restoredPage = null;
+  let restoreSelectionCancelled = false;
   const iconPaths = Object.freeze({
     grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     graph: 'M4 4h5v5H4z M15 15h5v5h-5z M15 4h5v5h-5z M9 6.5h6 M6.5 9v8.5H15',
@@ -181,7 +183,7 @@
     const [glyph, tone] = styles[key] ?? ['info', 'neutral'];
     const badge = el('span', `status-pill semantic-status ${tone}${key === 'queued' || key === 'running' ? ' is-ongoing' : ''}`);
     badge.dataset.status = key;
-    badge.append(icon(glyph), el('span', '', key === 'generation_complete' ? 'Generation complete' : human(status ?? 'Status unknown')));
+    badge.append(icon(glyph), el('span', '', key === 'generation_complete' ? 'Generation complete' : human(status ?? 'Status not reported')));
     return badge;
   }
   function recordHeader(node, label, status, timestamp) {
@@ -421,7 +423,7 @@
     if (!data) return diagnostic.message;
     const warehouse = data.warehouse;
     const warehouseLabel = warehouse?.availability === 'available' && warehouse.state
-      ? `Warehouse: ${warehouse.state}` : 'Warehouse state unknown (unavailable)';
+      ? `Warehouse: ${warehouse.state}` : 'Warehouse state unavailable';
     const elapsed = typeof data.elapsed_seconds === 'number' && Number.isFinite(data.elapsed_seconds)
       ? `Elapsed: ${formatClockDuration(data.elapsed_seconds)}` : 'Elapsed: not reported';
     const exception = data.exception_class || warehouse?.exception_class;
@@ -473,7 +475,7 @@
         }
       } catch (error) {
         if (!current()) return;
-        diagnostic.data = null; diagnostic.message = 'Loading diagnostics unavailable; backend stage unknown';
+        diagnostic.data = null; diagnostic.message = 'Loading diagnostics unavailable; backend stage not reported';
       } finally {
         if (current()) {
           updateActivity();
@@ -494,7 +496,8 @@
     const legacyActive = state.jobId && ['queued', 'running'].includes(legacyJobStatus);
     const jobs = activeJobs.length + (legacyActive ? 1 : 0) + activeRuns.length;
     const hostedBusy = state.hosted && hostedActivity?.busy === true;
-    const busy = state.requests > 0 || jobs > 0 || hostedBusy;
+    const agentUnconfirmed = state.agentRunning || state.agentSubmitting;
+    const busy = state.requests > 0 || jobs > 0 || hostedBusy || agentUnconfirmed;
     const requests = [...requestActivity.values()].filter((item) => item.epoch === state.epoch
       && (!item.inventory || item.inventoryTicket === state.inventoryTicket)
       && (!item.readOnly || item.overview || item.page === state.page
@@ -551,11 +554,12 @@
       overviewProgressBar.setAttribute('aria-label', `${count(operationCompleted)} of ${count(operationTotal)} ${operationProgress.unit || 'records'}`);
     }
     if (Number.isInteger(verified) && Number.isInteger(total) && verified >= 0 && total >= verified) loadingDiagnosticText.textContent += ` · ${verified} of ${total} artifact files verified`;
-    const prominent = jobs > 0 || foreground.length > 0 || hostedBusy;
+    const prominent = jobs > 0 || foreground.length > 0 || hostedBusy || agentUnconfirmed;
     const packageTarget = selectedCompletedPackage()?.name || state.overview?.package?.name || 'selected package';
     const label = (hostedBusy && hostedActivity.message) || diagnosticLabel || (activeRead
       ? (activeRead.history ? activeRead.label : `Reading saved package information for ${packageTarget}`)
-      : jobs ? `${count(jobs)} active ${jobs === 1 ? 'job' : 'jobs'}` : foreground.length ? foreground[0].label : requests.length ? 'Refreshing logs' : 'Idle');
+      : jobs ? `${count(jobs)} active ${jobs === 1 ? 'job' : 'jobs'}` : agentUnconfirmed ? 'Agent run active or status unconfirmed'
+        : foreground.length ? foreground[0].label : requests.length ? 'Refreshing logs' : 'Idle');
     const activity = clear($('activity-status'));
     activity.classList.toggle('is-active', busy && prominent);
     activity.append(icon(prominent ? 'running' : requests.length ? 'file' : 'check'), el('span', '', label));
@@ -930,7 +934,10 @@
     } catch (error) { if (epoch === state.epoch) formStatus(form, `Submission not confirmed. ${error.message}`, 'error'); }
     finally { if (id === state.projectId) { state.projectSubmitting = false; updateControls(); } }
   }
-  $('project-select').addEventListener('change', () => switchProject($('project-select').value));
+  $('project-select').addEventListener('change', () => {
+    restoreSelectionCancelled = true; restoredPage = null;
+    switchProject($('project-select').value);
+  });
   function selectProjectPackage(hash) {
     if (hash && !array(state.project?.packages).some((member) => member.sha256 === hash && member.status === 'completed')) return;
     $('project-package').value = hash;
@@ -939,8 +946,14 @@
     if (state.projectJobs.some((job) => ['queued', 'running'].includes(job.status))) { clearTimeout(state.projectTimer); state.projectTimer = setTimeout(() => pollProjectJobs(state.projectId, state.epoch), 2000); }
     if (state.page === 'logs') loadLogs();
   }
-  $('project-package').addEventListener('change', () => selectProjectPackage($('project-package').value));
-  packagePicker.addEventListener('change', () => selectProjectPackage(packagePicker.value));
+  $('project-package').addEventListener('change', () => {
+    restoreSelectionCancelled = true; restoredPage = null;
+    selectProjectPackage($('project-package').value);
+  });
+  packagePicker.addEventListener('change', () => {
+    restoreSelectionCancelled = true; restoredPage = null;
+    selectProjectPackage(packagePicker.value);
+  });
   $('refresh-projects').addEventListener('click', () => { loadProjects(); if (state.projectId) loadProject(); });
   $('refresh-inputs').addEventListener('click', loadInputs);
   $('project-form').addEventListener('submit', async (event) => {
@@ -1112,14 +1125,14 @@
             const header = el('div', 'record-heading');
             const severity = record.dataset.severity;
             const badge = el('span', `event-severity ${severity}`);
-            badge.append(icon(severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'), el('span', '', human(item.level ?? 'Unknown level')));
+            badge.append(icon(severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'), el('span', '', human(item.level ?? 'Level not reported')));
             header.append(el('strong', 'record-title', text(item.event)), badge, logCopyButton(item));
             record.append(header, el('small', 'record-time', text(item.timestamp)));
             paragraph(record, text(item.message), 'prose');
             const metadata = el('details', 'event-metadata');
             metadata.append(el('summary', '', 'Event reference, AI agent & token usage'));
             rows(metadata, { sequence: item.sequence, level: item.level, role: item.role, run_id: item.run_id, package_hash: item.package_hash, correlation_id: item.correlation_id,
-              input_tokens: item.input_tokens ?? 'Unknown', output_tokens: item.output_tokens ?? 'Unknown', total_tokens: item.total_tokens ?? 'Unknown', usage_status: item.usage_status ?? 'Unknown' });
+              input_tokens: item.input_tokens ?? 'N/A', output_tokens: item.output_tokens ?? 'N/A', total_tokens: item.total_tokens ?? 'N/A', usage_status: item.usage_status ?? 'N/A' });
             record.append(metadata);
             jsonDetails(record, 'Event integrity hashes', { previous_hash: item.previous_hash, event_hash: item.event_hash });
             jsonDetails(record, 'Complete service event', item);
@@ -1140,7 +1153,7 @@
           }
         }
       }
-      const summary = `${count(data.total)} events · Log integrity: ${data.chain_valid === true ? 'valid' : data.chain_valid === false ? 'invalid' : 'unknown'} · ${state.projectId ? `Project: ${state.project?.name || 'Selected project'} · XML: ${selectedCompletedPackage()?.name || 'Not selected'}` : 'Legacy workspace events'}`;
+      const summary = `${count(data.total)} events · Log integrity: ${data.chain_valid === true ? 'valid' : data.chain_valid === false ? 'invalid' : 'N/A'} · ${state.projectId ? `Project: ${state.project?.name || 'Selected project'} · XML: ${selectedCompletedPackage()?.name || 'Not selected'}` : 'Legacy workspace events'}`;
       if ($('logs-summary').textContent !== summary) $('logs-summary').textContent = summary;
       $('logs-prev').disabled = state.logsOffset === 0;
       $('logs-next').disabled = state.logsOffset + items.length >= data.total;
@@ -1284,9 +1297,9 @@
     try { localStorage.setItem('lakeflow-studio-theme', theme); } catch { /* In-memory theme still works. */ }
   });
 
-  const pageNames = { projects: 'New or existing project', estate: 'Estate', 'folder-migration': 'Folder migration', readiness: 'Readiness', explorer: 'Pipeline explorer', proposals: 'Agentic Migration Proposals', evidence: 'Legacy Data Integration Artifacts', agents: 'Agent activity', validate: 'Validate', release: 'CI CD (DAB + Github)', logs: 'Logs', evolution: 'Evolution roadmap' };
+  const pageNames = { projects: 'New or existing project', estate: 'Estate', 'folder-migration': 'Folder migration', 'migration-analytics': 'Migration analytics', readiness: 'Readiness', explorer: 'Pipeline explorer', proposals: 'Agentic Migration Proposals', evidence: 'Legacy Data Integration Artifacts', agents: 'Agent activity', validate: 'Validate', release: 'CI CD (DAB + Github)', logs: 'Logs', 'application-log-analytics': 'Application Log Analytics', support: 'Support', evolution: 'Evolution roadmap' };
   function navigationPrerequisite(page) {
-    if (['projects', 'logs', 'evolution'].includes(page)) return '';
+    if (['projects', 'logs', 'application-log-analytics', 'support', 'evolution'].includes(page)) return '';
     // Keep the selected package's Estate page available as its progress view;
     // data actions on that page remain gated while loading.
     if (page === 'estate' && state.projectId && selectedCompletedPackage()) return '';
@@ -1371,14 +1384,16 @@
     }
   }
   all('[data-page]').forEach((button) => button.addEventListener('click', () => {
-    if (initializingNavigation && ['projects', 'logs', 'evolution'].includes(button.dataset.page)) startupUserPage = button.dataset.page;
+    restoreSelectionCancelled = true;
+    restoredPage = null;
+    if (initializingNavigation && ['projects', 'logs', 'application-log-analytics', 'support', 'evolution'].includes(button.dataset.page)) startupUserPage = button.dataset.page;
     navigate(button.dataset.page, true);
   }));
   all('[data-go]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.go, true)));
   window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
 
   function loadPage(page, force = false) {
-    if ((initializingNavigation && !['projects', 'logs', 'evolution'].includes(page)) || navigationPrerequisite(page)) return;
+    if ((initializingNavigation && !['projects', 'logs', 'application-log-analytics', 'support', 'evolution'].includes(page)) || navigationPrerequisite(page)) return;
     if (page === 'projects') {
       if (force || (!state.projectsLoaded && !state.projectsLoading)) loadProjects();
       if (force || (!state.inputsLoaded && !state.inputsLoading)) loadInputs();
@@ -1418,6 +1433,9 @@
     const folderPage = $('page-folder-migration');
     for (const [key, value] of Object.entries({ projectId: state.projectId, packageHash: selectedPackageHash, packageReady: agentPackageReady }))
       if (folderPage.dataset[key] !== value) folderPage.dataset[key] = value;
+    const analyticsPage = $('page-migration-analytics');
+    for (const [key, value] of Object.entries({ projectId: state.projectId, packageHash: selectedPackageHash, packageReady: agentPackageReady }))
+      if (analyticsPage.dataset[key] !== value) analyticsPage.dataset[key] = value;
     for (const id of ['page-agents', 'page-proposals'])
       if ($(id).dataset.packageHash !== selectedPackageHash) $(id).dataset.packageHash = selectedPackageHash;
     if ($('page-agents').dataset.packageReady !== agentPackageReady) $('page-agents').dataset.packageReady = agentPackageReady;
@@ -1435,6 +1453,14 @@
     // Do not redirect from the requested deep link using the temporary empty
     // pre-startup state; enforce prerequisites after initialization completes.
     if (!initializingNavigation && !state.overviewLoading && navigationPrerequisite(state.page)) navigate(navigationFallback(), false, false);
+    if (!initializingNavigation && restoredPage && !restoreSelectionCancelled
+        && state.projectId === restoredPage.project && state.memberHash === restoredPage.package
+        && !navigationPrerequisite(restoredPage.page)) {
+        const {page, project, package: packageHash} = restoredPage;
+      restoredPage = null;
+        queueMicrotask(() => { if (!restoreSelectionCancelled && state.projectId === project
+          && state.memberHash === packageHash) navigate(page); });
+    }
     const ingesting = state.jobBusy || Boolean(state.jobId);
     $('load-sample').disabled = ingesting || Boolean(state.projectId);
     $('package-form').querySelector('button').disabled = ingesting || Boolean(state.projectId);
@@ -1470,7 +1496,7 @@
     $('download-object').disabled = !packageActionReady || !state.object;
     // A hosted settings write must not freeze the next workflow choice. The
     // invocation button remains gated by hostedOperationBusy below.
-    all('#agent-workflow, #agent-scenario, #agent-review-scope, #agent-prompt')
+    all('#agent-workflow, #agent-scenario, #agent-review-scope, #agent-prompt, #agent-official-search-consent')
       .forEach((control) => { control.disabled = packageBusy || !assessmentReady() || state.agentRunning || state.agentSubmitting; });
     for (const page of ['explorer', 'readiness', 'proposals', 'evidence', 'validate', 'release']) {
       const section = $(`page-${page}`);
@@ -1520,7 +1546,7 @@
         || live.workflow_id !== $('agent-workflow').value || !/^[a-f0-9]{32}$/.test(live.run_id || '')) return;
     if (state.submittedRunId === live.run_id) return;
     state.submittedRunId = live.run_id;
-    formStatus($('agent-form'), `Run ${live.run_id} accepted in the active app session. Live status is shown below; the Delta commit is pending.`);
+    formStatus($('agent-form'), `Run ${live.run_id} accepted in the active app session. The run is in progress; the final save is not yet confirmed.`);
     selectRun(live.run_id);
   });
   document.addEventListener('orion:external-model-state', updateControls);
@@ -1721,7 +1747,7 @@
       const assessed = document.getElementById('capability-assessed-at');
       if (assessed) {
         const date = new Date(inventory.assessed_at);
-        assessed.textContent = Number.isNaN(date.getTime()) ? 'Assessment time unknown' : `Assessed ${date.toLocaleString()} (server implementation, not deployment date)`;
+        assessed.textContent = Number.isNaN(date.getTime()) ? 'Assessment time not reported' : `Assessed ${date.toLocaleString()} (server implementation, not deployment date)`;
         assessed.dateTime = Number.isNaN(date.getTime()) ? '' : inventory.assessed_at;
       }
       for (const row of entries) {
@@ -1757,7 +1783,7 @@
     }
     if (state.healthCapabilities) capabilities = { ...(capabilities || {}), ...state.healthCapabilities };
     const entries = capabilities && typeof capabilities === 'object' ? Object.entries(capabilities) : [];
-    if (!entries.length) { message($('capabilities'), 'The API has not reported capabilities. Availability is unknown.'); return; }
+    if (!entries.length) { message($('capabilities'), 'The API has not reported capabilities. Availability is N/A.'); return; }
     const availableCount = entries.filter(([, value]) => value === true || value?.available === true || value?.supported === true).length;
     const overview = el('div', 'capability-overview');
     overview.append(icon('grid'), el('strong', 'stat-emphasis', count(availableCount)), el('span', '', `of ${count(entries.length)} capabilities reported available. Execution gates still apply.`));
@@ -2397,7 +2423,7 @@
         }
         for (const source of array(result.sources)) {
           heading(output, source.actual_full_name || source.expected_full_name || source.source_id, 'h4');
-          paragraph(output, `${human(source.status)}. Table exists: ${source.exists === null ? 'unknown' : source.exists}. Schema exists: ${source.schema_exists === null ? 'unknown' : source.schema_exists}. Observed: ${source.observed_at || 'not read'}.`);
+          paragraph(output, `${human(source.status)}. Table exists: ${source.exists === null ? 'N/A' : source.exists}. Schema exists: ${source.schema_exists === null ? 'N/A' : source.schema_exists}. Observed: ${source.observed_at || 'not read'}.`);
           if (source.error) paragraph(output, `Metadata error: ${source.error}. Not treated as missing.`);
           jsonDetails(output, 'Actual columns, expected schema and package fixture source information', source);
         }
@@ -2405,7 +2431,7 @@
         jsonDetails(output, 'Scoped metadata observation and unresolved targets', result);
       } catch (error) {
         if (epoch === state.epoch && ticket === state.objectTicket && panel.isConnected)
-          message(output, `Metadata read failed: ${error.message}. Existence remains unknown, no approval inferred.`);
+          message(output, `Metadata read failed: ${error.message}. Existence was not established; no approval inferred.`);
       } finally {
         if (panel.isConnected) button.disabled = false;
       }
@@ -2466,7 +2492,7 @@
     paragraph(parent, `${contract.referenced_children.total} outward referenced child scopes: ${contract.referenced_children.source_count_sum} source uses and ${contract.referenced_children.target_count_sum} target uses. The wider cohort below also includes callers and connected siblings.`, 'small muted');
     paragraph(parent, `${contract.cohort.total} workflows in the connected invocation cohort. ${contract.cohort.direct_source_count_sum} source uses and ${contract.cohort.direct_target_count_sum} target uses across workflow scopes; shared definitions may repeat.`, 'small muted');
     const members = el('details'); members.append(el('summary', '', `Review cohort members (${contract.cohort.items.length} returned of ${contract.cohort.total})`));
-    list(members, array(contract.cohort.items).map(w => `${w.name || 'Workflow name not supplied'} (${w.scope?.repository || 'repository unknown'} / ${w.scope?.folder || 'folder unknown'}): ${count(w.direct_sources)} direct sources, ${count(w.direct_targets)} direct targets, ${count(w.unresolved_references)} unresolved references. Readiness not assessed.`));
+    list(members, array(contract.cohort.items).map(w => `${w.name || 'Workflow name not supplied'} (${w.scope?.repository || 'repository not reported'} / ${w.scope?.folder || 'folder not reported'}): ${count(w.direct_sources)} direct sources, ${count(w.direct_targets)} direct targets, ${count(w.unresolved_references)} unresolved references. Readiness not assessed.`));
     parent.append(members);
     const children = array(contract.referenced_children.items);
     if (children.length) {
@@ -2480,7 +2506,7 @@
     heading(parent, 'Invocation and completion boundaries', 'h4');
     paragraph(parent, `${contract.invocations.total} captured invocation sites in the cohort. Async launches are not completion dependencies. External callers and runtime routing remain unverified.`, 'small muted');
     const calls = el('details'); calls.append(el('summary', '', `Review inward, outward and cohort invocation details (${contract.invocations.items.length} returned)`));
-    list(calls, array(contract.invocations.items).map(r => `${human(r.direction || 'direction unknown')}: ${r.caller_name || 'Caller name unknown'} → ${array(r.candidate_names).filter(Boolean).join(', ') || r.workflow_name || 'unresolved child'}. Command definition: ${r.command_name || 'not supplied'}. Launch mode: ${r.wait_mode === 'nowait' ? 'nowait, asynchronous launch, not child completion' : r.wait_mode === 'wait' ? 'wait requested, runtime completion unverified' : 'unknown or not specified'}. ${r.resolution === 'scoped_literal_candidate' ? 'Exact export candidate; runtime repository routing unverified.' : `${human(r.resolution_reason || r.resolution || 'resolution unknown')}; requires review.`}`), 'No literal pmcmd invocation captured. External callers remain unknown.');
+    list(calls, array(contract.invocations.items).map(r => `${human(r.direction || 'direction not reported')}: ${r.caller_name || 'Caller name not reported'} → ${array(r.candidate_names).filter(Boolean).join(', ') || r.workflow_name || 'unresolved child'}. Command definition: ${r.command_name || 'not supplied'}. Launch mode: ${r.wait_mode === 'nowait' ? 'nowait, asynchronous launch, not child completion' : r.wait_mode === 'wait' ? 'wait requested, runtime completion unverified' : 'not specified'}. ${r.resolution === 'scoped_literal_candidate' ? 'Exact export candidate; runtime repository routing unverified.' : `${human(r.resolution_reason || r.resolution || 'resolution not reported')}; requires review.`}`), 'No literal pmcmd invocation captured. External callers were not established.');
     parent.append(calls);
     heading(parent, 'Keep external explicitly', 'h4'); paragraph(parent, contract.keep_external_explicitly);
     heading(parent, 'Coverage blockers and human questions', 'h4');
@@ -3108,7 +3134,8 @@
     if (!state.proposals.length) { paragraph($('release-blockers'), 'No proposals returned for the selected scenario. This is not a release approval.'); return; }
     paragraph($('release-blockers'), `Scenario: ${human($('scenario').value)}. ${state.proposals.length} structural proposals. Exact reviewed native bundles can be exported separately below. GitHub publication, general deployment and source-output parity are not established.`);
     const unique = [...new Set(state.proposals.flatMap((proposal) => array(proposal.blockers).map(text)))];
-    list($('release-blockers'), unique, 'No proposal blockers returned. Adapter and verification gates still apply.');
+    list($('release-blockers'), unique.map(item => item === 'Lifecycle and operational activity are unknown; owner evidence is required.'
+      ? 'Lifecycle and operational activity were not reported; owner confirmation is required.' : item), 'No proposal blockers returned. Adapter and verification gates still apply.');
     jsonDetails($('release-blockers'), 'Per-proposal gate states', state.proposals.map((proposal) => ({ id: proposal.id, name: proposal.name, version: proposal.version, blockers: proposal.blockers, generation_allowed: proposal.generation_allowed, deployment_allowed: proposal.deployment_allowed })));
   }
 
@@ -3239,7 +3266,8 @@
     formStatus(form, 'Submitting the explicitly requested agent run…');
     let responseFailure = null;
     try {
-      const run = await post('/api/agents/run', { workflow_id: $('agent-workflow').value, scenario: $('agent-scenario').value, prompt: $('agent-prompt').value, consent: true, generate_code: true });
+      const officialDocsConsent = $('agent-official-search-consent')?.checked === true;
+      const run = await post('/api/agents/run', { workflow_id: $('agent-workflow').value, scenario: $('agent-scenario').value, prompt: $('agent-prompt').value, consent: true, generate_code: true, official_docs_consent: officialDocsConsent });
       if (epoch !== state.epoch) return;
       if (!run.id) throw new Error('The service did not return a run ID. Refresh recorded runs before submitting again.');
       formStatus(form, `Run ${run.id} submitted. Actual status: ${text(run.status)}. Design and candidate-code drafting are part of this run; execution and deployment are not.`, 'success');
@@ -3259,6 +3287,7 @@
       }
     }
     finally {
+      if (epoch === state.epoch && !state.agentRunning && $('agent-official-search-consent')) $('agent-official-search-consent').checked = false;
       if (epoch === state.epoch) { state.agentSubmitting = false; updateControls(); }
         if (responseFailure && epoch === state.epoch && state.hosted && responseFailure.failureId
           && (!responseFailure.status || ['503','502','504'].includes(String(responseFailure.status)))) {
@@ -3276,7 +3305,7 @@
             const note = el('section', 'hosted-run-failure', 'hosted-run-failure');
             note.setAttribute('role','alert');
             heading(note, 'Hosted run response failed', 'h3');
-            paragraph(note, `Phase: ${human(event.phase || failure.phase || 'unknown')}. HTTP ${text(event.status_code)} · ${text(event.error_type)}.`, 'small');
+            paragraph(note, `Phase: ${human(event.phase || failure.phase || 'not reported')}. HTTP ${text(event.status_code)} · ${text(event.error_type)}.`, 'small');
             if (event.error?.resource_name) paragraph(note, `Unity Catalog object denied: ${text(event.error.resource_name)}.`, 'small');
             paragraph(note, 'Because the run endpoint did not return an accepted run ID, do not invoke again until the saved run list and committed result have been checked.', 'small muted');
             runPanel.prepend(note);
@@ -3305,11 +3334,11 @@
         !terminal.has(String(run.status).toLowerCase()) && !activeRunStatuses.has(String(run.status).toLowerCase())
         || (run.candidate_writer && !terminal.has(String(run.candidate_writer.status).toLowerCase())
           && !activeRunStatuses.has(String(run.candidate_writer.status).toLowerCase()))))
-        throw new Error('Persisted run status is unknown.');
+        throw new Error('Persisted run status is unavailable.');
       // Older local servers do not expose a whole-history active indicator.
       // A truncated page without that indicator cannot establish an idle slot.
       if (!prefetch && data.truncated && typeof data.active_run_present !== 'boolean')
-        throw new Error('Active-run status is unknown beyond this history page.');
+        throw new Error('Active-run status is unavailable beyond this history page.');
       recordedRunStates.clear();
       array(data.items).forEach((run) => recordedRunStates.set(run.id, runState(run, epoch)));
       state.agentRunning = Boolean(state.submittedRunId) || data.active_run_present || array(data.items).some(activeRun);
@@ -3435,7 +3464,7 @@
       const start = Date.parse(node.dataset.agentTurnStart);
       node.textContent = Number.isFinite(start)
         ? `Pending · client elapsed ${Math.max(0, (Date.now() - start) / 1000).toFixed(1)}s · completion not recorded`
-        : 'Pending · elapsed unknown · completion not recorded';
+        : 'Pending · elapsed time N/A · completion not recorded';
     });
   }
   function renderAgentUsageCharts(run, completed, previous) {
@@ -3444,14 +3473,14 @@
     panel.dataset.runId = run.id;
     panel.setAttribute('aria-label', 'Agent token consumption and model-call durations');
     heading(panel, 'Agent tokens & model turns', 'h3');
-    if (completed) paragraph(panel, 'Historical observation, not live. Recorded token series and model-call durations are frozen; missing completions remain unknown.', 'small muted');
-    paragraph(panel, 'Each turn is one actual model call in recorded start order, not an inferred agent iteration or retry loop. Counts are provider-reported; unknown is not zero.', 'small muted');
+    if (completed) paragraph(panel, 'Historical observation, not live. Recorded token series and model-call durations are frozen; missing completions are not reported.', 'small muted');
+    paragraph(panel, 'Each turn is one actual model call in recorded start order, not an inferred agent iteration or retry loop. Counts are provider-reported; N/A means not reported.', 'small muted');
     const aggregate = observedTokenMetrics(run).filter(metric => metric.key !== 'total_tokens');
     const legend = el('p', 'small agent-token-legend');
     legend.append(el('span', 'agent-input-key', 'Input tokens'), el('span', 'agent-output-key', 'Output tokens'));
     panel.append(legend);
     const aggregateRow = el('article', 'agent-token-row agent-aggregate-tokens');
-    const aggregateLabel = aggregate.map(metric => `${human(metric.key)}: ${metric.value === null ? 'unknown'
+    const aggregateLabel = aggregate.map(metric => `${human(metric.key)}: ${metric.value === null ? 'N/A'
       : `${metric.value.toLocaleString()}${metric.partial ? ' (partial, recorded subtotal)' : ''}`}`).join(' | ');
     aggregateRow.append(el('strong', '', 'Run aggregate token consumption'));
     if (aggregate.some(metric => metric.value !== null)) aggregateRow.append(activityBar(
@@ -3473,7 +3502,7 @@
       && actualCounter(role[`known_${key}`]) ? role[`known_${key}`] : null;
     const tokenLabel = (role, key) => {
       const value = tokenValue(role, key), unknown = role[`${key}_unknown_calls`];
-      return `${key === 'input_tokens' ? 'Input' : 'Output'}: ${value === null ? 'unknown' : value.toLocaleString()}${actualCounter(unknown) && unknown > 0 ? ` · partial, ${unknown} call(s) unknown` : ''}`;
+      return `${key === 'input_tokens' ? 'Input' : 'Output'}: ${value === null ? 'N/A' : value.toLocaleString()}${actualCounter(unknown) && unknown > 0 ? ` · partial, ${unknown} call(s) not reported` : ''}`;
     };
     const maximum = Math.max(0, ...roles.flatMap(role => tokenKeys.map(key => tokenValue(role, key) ?? 0)));
     for (const role of roles) {
@@ -3484,7 +3513,7 @@
         el('span', 'small', tokenKeys.map(key => tokenLabel(role, key)).join(' | ')));
       panel.append(row);
     }
-    if (!roles.length) paragraph(panel, 'No model starts recorded. Per-agent consumption is unknown.', 'small muted');
+    if (!roles.length) paragraph(panel, 'No model starts recorded. Per-agent consumption is N/A.', 'small muted');
     const disclosure = el('details', 'agent-model-turns');
     disclosure.open = previous ? previous.open : true;
     disclosure.append(el('summary', '', `Model-call turns (${receipt.turns.length}, all recorded turns)`));
@@ -3503,11 +3532,11 @@
       paragraph(row, `Started: ${activityTime(turn.started_at)} | ${turn.status === 'failed' ? 'Failed' : 'Completed'}: ${activityTime(turn.failed_at ?? turn.completed_at)}`, 'small muted');
       const elapsed = el('span', 'small agent-turn-elapsed');
       if (turn.status === 'started' && !completed) elapsed.dataset.agentTurnStart = turn.started_at;
-      elapsed.textContent = duration === null ? `${turn.status === 'started' ? 'Pending, completion not recorded' : 'Duration unknown'}`
+      elapsed.textContent = duration === null ? `${turn.status === 'started' ? 'Pending, completion not recorded' : 'Duration N/A'}`
         : `${human(turn.status)} · ${(duration / 1000).toFixed(3)}s · ${turn.duration_source === 'recorded_monotonic' ? 'recorded elapsed duration' : 'recorded timestamp difference'}`;
       row.append(elapsed);
       if (duration !== null) row.append(activityBar([duration], durationMaximum, `Turn ${turn.turn}: ${(duration / 1000).toFixed(3)} seconds, ${turn.status}`));
-      paragraph(row, tokenKeys.map(key => `${key === 'input_tokens' ? 'Input' : 'Output'}: ${actualCounter(turn[key]) ? turn[key].toLocaleString() : 'unknown'}`).join(' | '), 'small');
+      paragraph(row, tokenKeys.map(key => `${key === 'input_tokens' ? 'Input' : 'Output'}: ${actualCounter(turn[key]) ? turn[key].toLocaleString() : 'N/A'}`).join(' | '), 'small');
       turns.append(row);
     }
     disclosure.append(turns);
@@ -3543,7 +3572,7 @@
     if (observation?.ledgerReadback) paragraph(toolNotes,
       'Separate ledger readback for the same verified public and runtime run IDs. This is not part of the immutable historical snapshot; the historical observation is unchanged.', 'small muted agent-tool-ledger-readback');
     if (!recorded) {
-      paragraph(toolNotes, 'Tool-call list unavailable from this receipt or older backend. Missing tool activity is unknown, not zero.', 'small muted agent-tool-unavailable');
+      paragraph(toolNotes, 'Tool-call list unavailable from this receipt or older backend. N/A means activity was not reported, not zero.', 'small muted agent-tool-unavailable');
       return disclosure;
     }
     paragraph(toolNotes, 'One actual tool call per row. Rejected is not failed. Retry status is explicit; repeated tool names do not establish retries.', 'small muted');
@@ -3565,11 +3594,11 @@
       const duration = status !== 'started' && status !== 'Status unknown'
         && typeof turn.duration_ms === 'number' && Number.isFinite(turn.duration_ms) && turn.duration_ms >= 0
         ? turn.duration_ms : null;
-      paragraph(row, duration === null ? 'Duration unknown, no terminal duration recorded'
+      paragraph(row, duration === null ? 'Duration N/A, no terminal duration recorded'
         : `Duration: ${duration} ms · ${turn.duration_source === 'recorded_monotonic' ? 'recorded elapsed duration'
-          : turn.duration_source === 'recorded_timestamps' ? 'recorded timestamp difference' : 'duration source unknown'}`, 'small');
+          : turn.duration_source === 'recorded_timestamps' ? 'recorded timestamp difference' : 'duration source not reported'}`, 'small');
       paragraph(row, turn.retry_status === 'not_recorded'
-        ? 'Retry status: not_recorded (retries unknown)' : 'Retry status: unknown', 'small');
+        ? 'Retry status: not recorded' : 'Retry status: N/A', 'small');
       turns.append(row);
     }
     if (!tools.tool_turns.length) paragraph(turns, 'No tool calls recorded in this verified receipt.', 'small muted');
@@ -3624,6 +3653,7 @@
   let liveRunClock = null;
   let liveRunObservation = null;
   let renderedRunId = null, renderedRunSignature = null;
+  let displayedRunDocsConsentId = null;
   const agentEvaluationSnapshots = new Map();
   function recordedFailureCount(kind, counts, live, completed) {
     const explicit = counts?.[`${kind}_failed`];
@@ -3748,7 +3778,7 @@
     const panel = el('section', 'agent-evaluation-trend agentic-evaluation-panel');
     panel.setAttribute('aria-label', 'Advanced agentic evaluation for the selected run');
     heading(panel, 'ADVANCED AGENTIC EVALS', 'h3');
-    paragraph(panel, 'Evaluate the complete run trajectory: the selected case, evidence retrieval, agent outputs, tool decisions, generated drafts and human review. Operational counters are supporting trace data, not quality scores.', 'small muted');
+    paragraph(panel, 'Review what happened in this run: Informatica task details, AI agent and tool activity, the code draft and its review.', 'small muted');
 
     const receipt = agentObservationReceipt(run);
     const verified = receipt?.status === 'verified';
@@ -3757,6 +3787,9 @@
     const count = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
     const display = value => count(value) === null ? 'Not recorded' : count(value).toLocaleString();
     const roles = ['supervisor', 'discovery', 'semantics', 'architecture', 'validation', 'artifact'];
+    const roleResultsAvailable = Array.isArray(run.output?.role_completion);
+    const findingsAvailable = Array.isArray(run.output?.findings);
+    const referencesAvailable = Array.isArray(run.evidence_references);
     const roleRows = array(run.output?.role_completion).filter(item => isRecord(item) && roles.includes(item.role));
     const completedRoles = new Set(roleRows.filter(item => item.status === 'completed').map(item => item.role));
     const findings = array(run.output?.findings).filter(isRecord);
@@ -3784,16 +3817,21 @@
     caseBar.append(caseIdentity, traceStatus); panel.append(caseBar);
 
     const flowHeading = el('div', 'agentic-eval-section-heading');
-    flowHeading.append(el('h4', '', 'Evaluation path'),
-      el('span', 'small muted', 'Trace evidence shown; quality verdicts require an evaluator or reference set.'));
+    flowHeading.append(el('h4', '', 'What the run recorded'),
+      el('span', 'small muted', 'Correctness still needs independent review and testing.'));
     panel.append(flowHeading);
     const flow = el('ol', 'agentic-eval-flow');
     const stages = [
       {title: 'Case & scope', value: scopePinned ? `${text(workflow)} · ${text(scenario)} · package pin recorded` : 'Workflow, scenario or package pin unavailable', detail: 'Check the exact source package, workflow, scenario and version before grading.', state: scopePinned ? 'Scope recorded' : 'Scope incomplete'},
-      {title: 'Evidence grounding', value: sourceReferences.length
-        ? `${resolvedCitationCount} / ${citedIds.size} cited IDs resolve to captured source records`
-        : `${citedIds.size} cited IDs · source-reference catalog unavailable`, detail: 'ID resolution is structural only; whether each claim is supported is not scored here.', state: findings.length ? 'Citations observed' : 'No findings to grade'},
-      {title: 'Agent collaboration', value: `${completedRoles.size} / ${roles.length} required agent outputs recorded`, detail: 'Output completion does not prove consistent handoffs or agreement across agents.', state: roleRows.length ? 'Output trace recorded' : 'Outputs unavailable'},
+      {title: 'Informatica references', value: !findingsAvailable
+        ? 'Analysis results not available yet'
+        : referencesAvailable ? `${resolvedCitationCount} / ${citedIds.size} references match saved XML details`
+        : `${citedIds.size} references recorded · XML details not available here`,
+        detail: 'Matching a reference does not check whether the analysis is correct.',
+        state: !findingsAvailable ? 'Results unavailable' : findings.length ? 'References recorded' : 'No analysis findings recorded'},
+      {title: 'AI agent results', value: roleResultsAvailable
+        ? `${completedRoles.size} / ${roles.length} AI agent results completed` : 'AI agent results not available yet',
+        detail: 'Results appear when the analysis output is saved.', state: roleResultsAvailable ? 'Results recorded' : 'Results unavailable'},
       {title: 'Tool decisions', value: `${display(toolsStarted)} started · ${display(toolsFinished)} completed · ${display(toolsRejected)} rejected · ${display(toolsFailed)} failed`, detail: 'Evaluate tool choice, arguments, result use and recovery against an expected trace.', state: verified ? 'Tool trace recorded' : 'Tool trace unavailable'},
       {title: 'Draft & human review', value: writer ? `${human(writer.status || 'status unavailable')}${writer.manifest_status ? ` · ${human(writer.manifest_status)}` : ''}` : 'No candidate-writer record', detail: `${tasks.length ? `${draftedTasks} / ${tasks.length} task dispositions drafted. ` : ''}Artifact correctness, runtime behavior and approval remain separate checks.`, state: writer ? 'Draft receipt recorded' : 'Draft not recorded'}
     ];
@@ -4067,13 +4105,140 @@
     const numbered = /^candidate_code_generation:(\d+)\/(\d+)$/.exec(phase);
     return {phase, label: numbered ? `Preparing draft ${numbered[1]} of ${numbered[2]}` : labels[phase] || human(phase)};
   }
+  function renderDesignRevisionStatus(run, writerActive) {
+    const history = Array.isArray(run.candidate_draft_history) ? run.candidate_draft_history
+      : array(run.output?.candidate_code_drafts);
+    const entries = array(run.revision_ledger?.entries);
+    const summary = run.design_revision_status;
+    if (run.generate_code !== true && !history.length && !entries.length && !summary) return null;
+
+    const panel = el('section', 'agent-writer-progress');
+    panel.setAttribute('aria-label', 'Design correction and candidate status');
+    heading(panel, 'Design correction and candidate status', 'h3');
+    panel.append(el('p', 'small muted', 'AI-generated designs and code require human review. The original candidate may be followed by up to two design revision rounds.'));
+
+    const reasons = new Set([
+      'Cancellation requested; no further writer was started.',
+      'Cancellation requested; no further revision or writer was started.',
+      'The candidate writer did not complete; no revision was started.',
+      'The final candidate review completed without open feedback.',
+      'No further revision was started; eligible final review feedback could not be verified.',
+      'Exact design feedback could not be verified.',
+      'The revision chain did not match the candidate round.',
+      'Cancellation requested before revision admission.',
+      'Revision was not admitted; no revision graph was invoked.',
+      'Admitted revision could not be sealed against its exact runtime output.',
+      'Cancellation requested; the revision output was sealed without starting another writer.',
+      'The exact revised design was not independently reviewed with a recorded validation receipt; no revision was captured and no further writer was started.',
+      'The revision failed, has incomplete roles, or has unresolved findings or design items; no revision was captured and no further writer was started.',
+      'A required revision role did not complete; no further writer was started.',
+      'The revision author submission was missing or ambiguous.',
+      'The exact author design, its independent validation receipt, or unresolved findings and blockers could not be verified; no revision was captured and no further writer was started.',
+      'Cancellation requested before revision capture.',
+      'Revision capture or current design authority could not be verified; no further writer was started.',
+      'No eligible candidate design was available.',
+      'Verified eligible design feedback remains after two revision rounds.',
+      'The exact review attributes design issues to multiple roles; no role was selected.',
+      'Exact committed review or source pins could not be verified.',
+      'The candidate review is incomplete; correction eligibility could not be verified. Inspect the saved task review and Informatica task details.',
+      'More than 128 eligible design issues cannot fit in one exact revision context; no revision was started.',
+      'The exact design or review issues exceed the revision context limit; no revision was started.',
+      'The exact revision context requires redaction and cannot be passed unchanged; no revision was started.'
+    ]);
+    const preflightLabels = {
+      no_open_feedback: 'Final candidate review reported no open feedback; no revision started from this candidate.',
+      verified_not_started: 'Feedback verified at preflight; admission requires a separate recheck.',
+      revision_limit_reached: 'Revision limit reached: eligible feedback remains after two revision rounds.',
+      ambiguous_role: 'Feedback attributed to multiple roles; no role selected.',
+      unavailable: 'Committed review or source pins could not be verified.',
+      context_limit: 'The exact design or feedback exceeded the revision context limit.',
+      context_unsafe: 'The exact revision context could not be passed unchanged safely.'
+    };
+    const writerStates = new Set(['queued', 'running', 'cancelling', 'completed', 'failed', 'cancelled']);
+    const manifestStates = new Set(['generation_complete', 'drafts_saved', 'blocked']);
+    const reviewStates = new Set(['review_ready', 'needs_correction', 'needs_information', 'unavailable']);
+    const revisionStates = new Set(['admitted', 'draft_available', 'proposal_failed', 'failed',
+      'cancelled', 'unavailable', 'needs_information', 'advisory']);
+    const roles = new Set(['architecture', 'supervisor', 'semantics', 'discovery', 'validation', 'artifact']);
+    const stages = el('ol');
+    const stage = (label, lines) => {
+      const item = el('li');
+      item.append(el('strong', '', label));
+      for (const line of lines) item.append(el('p', 'small muted', line));
+      stages.append(item);
+    };
+    const renderCandidate = (draft, label) => {
+      const version = Number.isSafeInteger(draft.design_version) && draft.design_version > 0
+        ? `v${draft.design_version}` : 'version not recorded';
+      const writer = writerStates.has(draft.status) ? human(draft.status) : 'not recorded or unrecognized';
+      const manifest = manifestStates.has(draft.manifest_status) ? human(draft.manifest_status) : 'not recorded or unrecognized';
+      const feedback = draft.design_correction_feedback;
+      const lines = [`Candidate design: ${version}. Writer: ${writer}. Result: ${manifest}.`];
+      if (feedback && typeof feedback === 'object') {
+        const review = reviewStates.has(feedback.final_review_status) ? human(feedback.final_review_status) : 'not recorded or unrecognized';
+        const coverage = feedback.final_review_fully_ai_reviewed === true ? 'reported fully AI-reviewed'
+          : feedback.final_review_fully_ai_reviewed === false ? 'not reported as fully AI-reviewed' : 'AI review coverage not recorded';
+        lines.push(`Final candidate review: ${review}; ${coverage}.`);
+      } else lines.push('Review details are not included in this run summary.');
+      const preflight = draft.design_revision_preflight;
+      if (preflight && typeof preflight === 'object') {
+        const label = preflight.status === 'unavailable' && feedback?.final_review_fully_ai_reviewed === false
+          ? 'The AI review is incomplete; correction eligibility and saved source verification are unconfirmed.'
+          : Object.hasOwn(preflightLabels, preflight.status) ? preflightLabels[preflight.status] : 'Status not recorded or unrecognized.';
+        lines.push(`Revision preflight: ${label}`);
+        if (roles.has(preflight.responsible_agent)) lines.push(`Preflight responsible role: ${roleLabel(preflight.responsible_agent)} (${preflight.responsible_agent}).`);
+      } else if (draft.design_round !== undefined || entries.length) lines.push('Revision preflight: not recorded.');
+      stage(label, lines);
+    };
+    for (const draft of history.filter(item => item && (item.design_round === 0
+      || (item.design_round === undefined && entries.length === 0)))) renderCandidate(draft, 'Original candidate');
+    for (const entry of entries) {
+      if (!entry || !Number.isSafeInteger(entry.round_index) || ![1, 2].includes(entry.round_index)) continue;
+      const source = typeof entry.runtime_run_id === 'string' && /^[a-f0-9]{32}$/.test(entry.runtime_run_id)
+        ? history.find(draft => draft && draft.design_round === entry.round_index - 1
+        && draft.design_revision_admission?.round_index === entry.round_index
+        && draft.design_revision_admission?.runtime_run_id === entry.runtime_run_id) : null;
+      const role = source?.design_revision_preflight?.responsible_agent;
+      const status = revisionStates.has(entry.status) ? human(entry.status) : 'not recorded or unrecognized';
+      const lines = [`Runtime status: ${status}${entry.status === 'admitted' ? ' (terminal result not yet recorded)' : ''}.`,
+        roles.has(role) ? `Responsible role from matching preflight: ${roleLabel(role)} (${role}).` : 'Responsible role: not recorded in the matching preflight.'];
+      stage(`Revision round ${entry.round_index}`, lines);
+      for (const draft of history.filter(item => item && item.design_round === entry.round_index))
+        renderCandidate(draft, `Candidate after revision round ${entry.round_index}`);
+    }
+    for (const draft of history.filter(item => item && (item.design_round !== 0
+      && !(item.design_round === undefined && entries.length === 0)
+      && !entries.some(entry => entry && [1, 2].includes(entry.round_index) && entry.round_index === item.design_round))))
+      renderCandidate(draft, 'Candidate with unmatched revision round');
+    if (stages.children.length) panel.append(stages);
+    else panel.append(el('p', 'small muted', 'No candidate or admitted revision round is recorded in this response.'));
+
+    if (writerActive && !history.some(draft => draft?.job_id && draft.job_id === run.candidate_writer?.id)) {
+      const phase = /^candidate_code_generation:([1-3])\/3$/.exec(String(run.phase || ''));
+      panel.append(el('p', 'small muted', `Current writer: ${phase ? phase[1] === '1' ? 'original candidate' : `candidate after revision round ${Number(phase[1]) - 1}` : 'candidate round not recorded'}; writer result pending.`));
+    }
+    if (summary && typeof summary === 'object') {
+      const counters = [['Revision rounds admitted', summary.rounds_admitted], ['Revision rounds sealed', summary.rounds_sealed],
+        ['Revised candidate writers recorded', summary.revised_writers_started]]
+        .filter(([, value]) => Number.isSafeInteger(value) && value >= 0)
+        .map(([label, value]) => `${label}: ${value}`);
+      if (counters.length) panel.append(el('p', 'small muted', counters.join(' · ')));
+      const incompleteReview = history.some(draft => draft?.design_correction_feedback?.final_review_fully_ai_reviewed === false);
+      const outcome = incompleteReview && summary.reason === 'Exact committed review or source pins could not be verified.'
+        ? 'The AI review is incomplete; correction eligibility and saved source verification are unconfirmed.'
+        : reasons.has(summary.reason) ? summary.reason : 'Reason not recorded or not recognized.';
+      panel.append(el('p', 'small muted', `Outcome: ${outcome}`));
+    } else if (entries.length || history.some(draft => draft?.design_round !== undefined))
+      panel.append(el('p', 'small muted', 'Final revision outcome is not recorded yet or is unavailable for this run.'));
+    return panel;
+  }
   function renderWriterProgress(run, writerActive, completed) {
     const writer = run.candidate_writer;
     if (!writer) return null;
     const panel = el('section', 'agent-writer-progress');
     panel.setAttribute('aria-label', 'Candidate code generation progress');
     const header = el('div', 'agent-writer-progress-header');
-    heading(header, 'Candidate code generation', 'h3');
+    heading(header, 'Spark and SQL notebook code writer', 'h3');
     const status = semanticStatus(writer.status || 'unknown');
     status.classList.add('agent-writer-progress-status');
     header.append(status); panel.append(header);
@@ -4111,6 +4276,7 @@
         ['Model requests started', progress.model_calls_started],
         ['Writer tools started', progress.tool_calls_started],
         ['Files staged', progress.files_staged],
+        ['Notebooks staged', progress.notebooks_staged],
         ['Task records staged', progress.task_records_staged]
       ].filter(([, value]) => Number.isSafeInteger(value) && value >= 0);
       for (const [labelText, value] of counts) {
@@ -4120,6 +4286,23 @@
         progressCounts.append(item);
       }
       if (progressCounts.children.length) panel.append(progressCounts);
+    }
+
+    const writerEvents = writer.writer_recent_events;
+    if (writerEvents && Array.isArray(writerEvents.events)) {
+      const history = el('details', 'agent-writer-event-history');
+      history.append(el('summary', '', `Writer model, tool and review events (${writerEvents.events.length} shown)`));
+      paragraph(history, 'Process-local observations, newest first. Staged notebooks are not final saved artifacts. Event history is lost if the app restarts.', 'small muted');
+      const list = el('ol');
+      for (const event of [...writerEvents.events].reverse()) {
+        const detail = [event.timestamp, event.stage, event.status, event.role, event.endpoint, event.tool,
+          event.review_status && `review: ${human(event.review_status)}`,
+          Number.isSafeInteger(event.tasks_reviewed) && Number.isSafeInteger(event.tasks_total)
+            ? `AI-reviewed tasks: ${event.tasks_reviewed}/${event.tasks_total}` : '',
+          Number.isSafeInteger(event.issue_count) ? `issues: ${event.issue_count}` : '', event.failure_class].filter(Boolean).join(' · ');
+        list.append(el('li', '', detail));
+      }
+      history.append(list); panel.append(history);
     }
 
     const steps = el('ol', 'agent-writer-steps');
@@ -4199,11 +4382,25 @@
       clock.setAttribute('aria-label', `Elapsed ${elapsed === null ? 'time unavailable' : formatClockDuration(elapsed)}. Last successful status check ${age === null ? 'unavailable' : `${formatClockDuration(age)} ago`}${observed.pending ? '. Status request pending.' : ''}`);
     }
     const summaryElapsed = document.querySelector('#run-detail .agent-run-elapsed');
-    if (summaryElapsed) summaryElapsed.textContent = elapsed === null ? 'unknown' : formatClockDuration(elapsed);
+    if (summaryElapsed) summaryElapsed.textContent = elapsed === null ? 'N/A' : formatClockDuration(elapsed);
     for (const phaseAgeNode of document.querySelectorAll('#run-detail .agent-writer-phase-age[data-phase-updated-at]')) {
       const stamp = Number(phaseAgeNode.dataset.phaseUpdatedAt);
-      if (Number.isFinite(stamp))
-        phaseAgeNode.textContent = `Last writer stage update ${formatClockDuration(Math.max(0, (now - stamp) / 1000))} ago`;
+      if (Number.isFinite(stamp)) {
+        const age = Math.max(0, Math.floor((now - stamp) / 1000));
+        phaseAgeNode.textContent = `Last writer stage update ${formatClockDuration(age)} ago`;
+        const panel = phaseAgeNode.closest('.agent-writer-progress');
+        const phase = phaseAgeNode.closest('.agent-writer-current-phase');
+        const note = panel?.querySelector('.agent-writer-progress-note');
+        phase?.classList.toggle('is-stale', age >= 300);
+        const label = phase?.querySelector('.agent-writer-phase-label');
+        if (label) label.textContent = age >= 300 ? 'Last persisted writer stage' : 'Latest persisted writer stage';
+        if (note) {
+          note.classList.toggle('is-stale', age >= 300);
+          note.textContent = age >= 300
+            ? `No writer phase has been persisted for ${formatClockDuration(age)}. This may be a long model/tool request or a stalled worker; status alone cannot distinguish them. The app does not auto-stop the run.`
+            : 'A running status confirms only the last saved state. No automatic hang action is performed.';
+        }
+      }
     }
     for (const writerElapsed of document.querySelectorAll('#run-detail .agent-writer-elapsed[data-writer-started-at]')) {
       const stamp = Number(writerElapsed.dataset.writerStartedAt);
@@ -4275,6 +4472,14 @@
       const writerActive = activeWriter(run);
       const commitPending = state.hosted && state.agentSubmitting;
       const completed = parentTerminal && !writerActive && !commitPending;
+      const docsConsent = $('agent-official-search-consent');
+      if (docsConsent && (!parentTerminal || writerActive) && typeof run.official_docs_consent === 'boolean') {
+        docsConsent.checked = run.official_docs_consent;
+        displayedRunDocsConsentId = run.id;
+      } else if (docsConsent && completed && displayedRunDocsConsentId === run.id) {
+        docsConsent.checked = false;
+        displayedRunDocsConsentId = null;
+      }
       const live = agentObservationReceipt(run);
       recordAgentEvaluationSnapshot(run, live, completed);
       const renderSignature = JSON.stringify([run, agentEvaluationSnapshots.get(run.id)?.length || 0,
@@ -4344,12 +4549,15 @@
       } : null;
       const oldSkills = $('run-detail').querySelector('.agent-skill-stats');
       const previousSkillsOpen = oldSkills?.dataset.runId === run.id ? oldSkills.querySelector('details')?.open : false;
+      const previousWriterEventsOpen = $('run-detail').querySelector('.agent-writer-event-history')?.open ?? false;
       clear($('run-detail'));
       const activeAgentRoles = [...new Set(array(live?.active_calls).map(call => String(call?.role || '').trim()).filter(Boolean))];
+      const activeAgents = activeAgentRoles.map(roleLabel);
+      if (writerActive) activeAgents.push('Spark and SQL notebook code writer (writer job reported active)');
       const configuredRoles = $('agent-roles')?.textContent?.match(/^Configured AI agents:\s*(.*)$/i)?.[1]?.trim();
       const runSummary = el('section', 'agent-run-summary');
-      runSummary.setAttribute('aria-label', 'AGENTic MIGRATION RUN DETAILS');
-      heading(runSummary, 'AGENTic MIGRATION RUN DETAILS', 'h3');
+      runSummary.setAttribute('aria-label', 'AGENTIC MIGRATION RUN DETAILS');
+      heading(runSummary, 'AGENTIC MIGRATION RUN DETAILS', 'h3');
       if (completed) paragraph(runSummary, `Historical observation, not live.${saved ? ` Snapshot captured ${activityTime(saved.captured_at)}.` : ' No terminal snapshot was saved for this older run.'} Elapsed time is frozen at the recorded finish.`, 'small muted');
       runSummary.append(semanticStatus(run.status));
       if (run.delivery_summary) paragraph(runSummary, run.delivery_summary,
@@ -4357,18 +4565,18 @@
       rows(runSummary, {
         agent: 'ORION multi-agent migration workflow',
         configured_agents: configuredRoles || 'Not reported',
-        active_agent_role: activeAgentRoles.length ? activeAgentRoles.map(roleLabel).join(', ')
+        active_agent_role: activeAgents.length ? activeAgents.join(', ')
           : completed ? 'No active agent, run finished' : 'Not reported by service',
         id: run.id, workflow: workflowName, status: run.status,
         candidate_writer: run.candidate_writer
           ? `${run.candidate_writer.status}${run.candidate_writer.manifest_status ? ` · ${run.candidate_writer.manifest_status}` : ''}`
           : 'none recorded',
         phase: phase || 'Phase unavailable',
-        started_at: historyTime(writerActive ? run.candidate_writer.started_at || run.candidate_writer.created_at : run.started_at),
-        finished_at: (writerActive ? run.candidate_writer.finished_at : run.finished_at)
-          ? historyTime(writerActive ? run.candidate_writer.finished_at : run.finished_at)
+        started_at: historyTime(run.started_at),
+        finished_at: run.finished_at
+          ? historyTime(run.finished_at)
           : completed ? 'Not recorded' : 'Not finished',
-        elapsed_seconds: elapsedSeconds === null ? 'unknown' : formatClockDuration(elapsedSeconds)
+        elapsed_seconds: elapsedSeconds === null ? 'N/A' : formatClockDuration(elapsedSeconds)
       }, key => key === 'active_agent_role' ? 'ACTIVE AI AGENT'
         : key === 'elapsed_seconds' ? 'ELAPSED TIME' : human(key).toUpperCase());
       const elapsedValue = [...runSummary.querySelectorAll('.detail-row')]
@@ -4384,8 +4592,14 @@
           semanticStatus(run.candidate_writer.manifest_status));
       }
       $('run-detail').append(runSummary);
+      const revisionStatus = renderDesignRevisionStatus(run, writerActive);
+      if (revisionStatus) $('run-detail').append(revisionStatus);
       const writerProgress = renderWriterProgress(run, writerActive, completed);
-      if (writerProgress) $('run-detail').append(writerProgress);
+      if (writerProgress) {
+        const writerHistory = writerProgress.querySelector('.agent-writer-event-history');
+        if (writerHistory) writerHistory.open = previousWriterEventsOpen;
+        $('run-detail').append(writerProgress);
+      }
       let logPanel;
       if (live?.status === 'verified' && live.public_run_id === run.id) {
         logPanel = el('section', 'agent-live-logs');
@@ -4429,7 +4643,7 @@
           const value = key === 'tool_failed' ? recordedFailureCount('tool', counts, live, completed)
             : key === 'model_failed' ? recordedFailureCount('model', counts, live, completed) : counts[key];
           return [label, key === 'tool_rejected' && value === undefined ? 'Not separately recorded'
-            : Number.isSafeInteger(value) && value >= 0 ? value : 'unknown'];
+            : Number.isSafeInteger(value) && value >= 0 ? value : 'N/A'];
         })));
         const rowStates = [
           ['model_started', null], ['model_completed', 'clear'], ['model_failed', 'model'],
@@ -4467,7 +4681,7 @@
         logPanel = el('section', 'agent-live-logs agent-observation-unavailable');
         logPanel.setAttribute('aria-label', 'Recorded agent and tool activity');
         heading(logPanel, 'RECORDED AGENT AND TOOL ACTIVITY', 'h3');
-        paragraph(logPanel, 'A verified event/count receipt is not available for this run. Missing activity data is unknown, not zero.', 'small muted');
+        paragraph(logPanel, 'A verified event/count receipt is not available for this run. Missing activity data is N/A, not zero.', 'small muted');
       }
       const activitySeparator = el('hr', 'agent-live-separator');
       const evaluationLayout = el('div', 'agent-observation-layout');
@@ -4482,14 +4696,14 @@
           if (metric.value !== null) fact(stats, label, metric.value);
           else {
             const item = el('div', 'inventory-fact');
-            item.append(el('strong', '', 'Unknown'), el('span', '', label));
+            item.append(el('strong', '', 'N/A'), el('span', '', label));
             stats.append(item);
           }
         }
         $('run-detail').append(stats);
         if (usageMetrics.some(metric => metric.partial)) paragraph($('run-detail'),
-          'Partial token counts are recorded provider-reported subtotals. Pending or unreported usage is unknown, not zero.', 'small muted');
-      } else paragraph($('run-detail'), 'Token usage: Unknown. No usage counts returned by the service.', 'small muted');
+            'Partial token counts are recorded provider-reported subtotals. Pending or unreported usage is N/A, not zero.', 'small muted');
+          } else paragraph($('run-detail'), 'Token usage: N/A. No usage counts returned by the service.', 'small muted');
       $('run-detail').append(renderAgentUsageCharts(run, completed, previousCharts));
       $('run-detail').append(renderAgentSkills(run, previousSkillsOpen));
       if (!completed && run.cancellation_requested_at) {
@@ -4729,10 +4943,18 @@
     proposalListFlight = null;
     await loadOverview();
     loadPage(state.page, state.page !== 'explorer');
+    if (state.page === 'migration-analytics') document.dispatchEvent(new CustomEvent('orion:migration-analytics-refresh'));
     if (assessmentReady() && state.object && state.page === 'explorer') selectObject(state.object.node.id, undefined, true);
     if (state.jobId) { clearTimeout(state.jobTimer); pollJob(); }
   });
   window.addEventListener('pagehide', () => {
+    try {
+      if (/^[a-f0-9]{32}$/.test(state.projectId) && /^[a-f0-9]{64}$/.test(state.memberHash)
+          && selectedCompletedPackage() && Object.hasOwn(pageNames, state.page)) {
+        sessionStorage.setItem('orion-tab-context-v1', JSON.stringify({project: state.projectId,
+          package: state.memberHash, page: state.page}));
+      } else sessionStorage.removeItem('orion-tab-context-v1');
+    } catch { /* Browser storage is optional; no credentials or run state are saved. */ }
     clearTimeout(state.overviewTimer); clearTimeout(state.jobTimer); clearTimeout(state.runTimer); clearTimeout(searchTimer);
     clearTimeout(state.projectTimer); clearTimeout(state.logsTimer);
   });
@@ -4746,7 +4968,13 @@
   });
   async function initialize() {
     const requestedPage = location.hash.slice(1);
-    const navIcons = { projects: 'plus', estate: 'grid', readiness: 'help', explorer: 'graph', proposals: 'draft', evidence: 'file', agents: 'partial', validate: 'check', release: 'arrow', logs: 'file', evolution: 'draft' };
+    let savedContext = null;
+    try {
+      const candidate = JSON.parse(sessionStorage.getItem('orion-tab-context-v1') || 'null');
+      if (/^[a-f0-9]{32}$/.test(candidate?.project || '') && /^[a-f0-9]{64}$/.test(candidate?.package || '')
+          && Object.hasOwn(pageNames, candidate?.page)) savedContext = candidate;
+    } catch { /* Storage is optional and malformed hints are ignored. */ }
+    const navIcons = { projects: 'plus', estate: 'grid', 'migration-analytics': 'graph', readiness: 'help', explorer: 'graph', proposals: 'draft', evidence: 'file', agents: 'partial', validate: 'check', release: 'arrow', logs: 'file', 'application-log-analytics': 'file', support: 'help', evolution: 'draft' };
     all('[data-page]').forEach((button) => {
       const glyph = button.querySelector('span[aria-hidden]');
       if (glyph) clear(glyph).append(icon(navIcons[button.dataset.page]));
@@ -4776,8 +5004,21 @@
     state.legacyWorkspaceSelected = false;
     $('connection-status').textContent = 'API connected · choose a project';
     $('workspace-scope').textContent = 'Choose a project and completed XML package to load package understanding. Nothing is selected automatically.';
+    if (savedContext && !restoreSelectionCancelled && !startupUserPage) {
+      await loadProjects();
+      if (!restoreSelectionCancelled && !startupUserPage && state.projectsLoaded
+          && [...$('project-select').options].some(option => option.value === savedContext.project)) {
+        await switchProject(savedContext.project, savedContext.package);
+        if (!restoreSelectionCancelled && state.projectId === savedContext.project
+            && state.memberHash === savedContext.package && selectedCompletedPackage()) {
+          const desiredPage = Object.hasOwn(pageNames, requestedPage) ? requestedPage : savedContext.page;
+          restoredPage = {project: savedContext.project, package: savedContext.package, page: desiredPage};
+        }
+      }
+    }
     initializingNavigation = false;
     navigate(startupUserPage || requestedPage || 'projects');
+    updateControls();
   }
   initialize();
 })();

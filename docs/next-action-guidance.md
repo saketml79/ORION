@@ -1,7 +1,8 @@
 # Page and action-scoped next-action guidance
 
 Current deployment and final 639-pass regression evidence:
-[ORION full app preview release, 2026-11-08 UTC](orion-guidance-release-2026-11-08.md).
+The current release and verification state is maintained in
+[current-release-verification-ledger.md](current-release-verification-ledger.md).
 
 Presentation only. One eligible existing action receives a slow 3.2-second shadow
 halo and a non-live “Suggested next step” description. Reduced motion keeps a

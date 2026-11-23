@@ -97,7 +97,7 @@
       candidate('[data-export][href="/api/export/english"]', 'Review the structural report. Delivery and execution still require separate approval.', canExplore),
     ],
     logs: [
-      candidate('#logs-refresh', 'Read recorded events for the current context. Missing usage remains unknown.'),
+      candidate('#logs-refresh', 'Read recorded events for the current context. Missing usage remains unavailable.'),
       candidate('#logs-export', 'Download recorded events for offline inspection.'),
     ],
     evolution: [

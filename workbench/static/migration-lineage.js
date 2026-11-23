@@ -77,7 +77,7 @@
     for (const [x, text] of [[30, 'SOURCE PACKAGE / WORKFLOW / TASK'], [635, 'EXPLICIT CORRESPONDENCE'], [930, 'LAKEFLOW JOB / TASK / ARTIFACTS']]) svg.append(svgNode('text', {x, y: 26, class: 'lineage-column'}, text));
     svg.append(svgNode('text', {x: 30, y: 55}, example ? 'Reference XML' : 'Selected XML'),
       svgNode('text', {x: 30, y: 80}, title), svgNode('text', {x: 930, y: 55}, example ? example.job.name : trace.job.design_title ? `Design: ${trace.job.design_title}` : 'Not generated'),
-      svgNode('text', {x: 930, y: 80, class: 'lineage-kind'}, example ? 'Generated MOCK / historical success, not live status' : 'Proposed or recorded draft / runtime unknown'));
+      svgNode('text', {x: 930, y: 80, class: 'lineage-kind'}, example ? 'Generated MOCK / historical success, not live status' : 'Proposed or recorded draft / runtime not confirmed'));
     const alternative = $('lineage-trace-text'); alternative.replaceChildren();
     rows.forEach((row, i) => {
       const y = 120 + i * 112, targets = row.targets || [], mapped = targets.length > 0;
@@ -97,7 +97,7 @@
       technical(detail, 'Target tasks, artifacts and columns', targets); alternative.append(detail);
     });
     if (!rows.length) svg.append(svgNode('text', {x: 30, y: 160}, 'No task instances returned. No correspondence invented.'));
-    const status = example ? `${example.status}. ${example.execution_note} ${example.task_mapping_note}` : 'Selected-workflow trace. Source derived versus proposed / saved draft receipts. Execution result unknown. Not a whole-package conversion.';
+    const status = example ? `${example.status}. ${example.execution_note} ${example.task_mapping_note}` : 'Selected-workflow trace. Source derived versus proposed / saved draft receipts. Execution result not confirmed. Not a whole-package conversion.';
     $('lineage-trace-status').textContent = status;
     $('lineage-graph-caption').textContent = example ? `${rows.length} explicit reference table counterparts. ${example.excerpt_note}` : `${rows.length}/${data.page.total} task rows, offset ${data.page.offset}. Continue with Previous/Next records. ${trace.design_truncated ? 'Saved design projection is bounded; incomplete target coverage is not a conversion claim.' : ''} Red dashed placeholders mean Not mapped, not a migration connector.`;
     if (example) {
@@ -195,7 +195,7 @@
     }
     const targetPanel = $('lineage-proposed'); targetPanel.replaceChildren();
     const trace = data.transformation_trace;
-    $('lineage-proposed-status').textContent = trace?.job.design_title ? `Saved design: ${trace.job.design_title}. Not a deployed Job name. Runtime unknown. Source-to-task links require explicit saved coverage.` : 'Not generated in this projection. No current explicit source-to-Databricks correspondence. Destinations unassigned, not fabricated.';
+    $('lineage-proposed-status').textContent = trace?.job.design_title ? `Saved design: ${trace.job.design_title}. Not a deployed Job name. Runtime not confirmed. Source-to-task links require explicit saved coverage.` : 'Not generated in this projection. No current explicit source-to-Databricks correspondence. Destinations unassigned, not fabricated.';
     if (data.family === 'trace') for (const r of data.page.items) for (const t of r.targets) technical(targetPanel, `${t.label}: ${t.status}`, t);
     if ($('lineage-example').checked && data.illustrative_example) targetPanel.append(html('p', 'Illustrative mock library is separate from this selected package. It is not a persisted user conversion or runtime observation.'));
     const relations = $('lineage-relations'); relations.replaceChildren();
@@ -211,7 +211,7 @@
         if (!mapping.targets?.length) details.append(html('p', 'No target definitions returned for this mapping.'));
         else {
           const list = html('ul');
-          for (const target of mapping.targets) list.append(html('li', `${target.name || 'Target name unavailable'}: ${target.role || 'role unknown'}; ${target.wired_source_instance_count ?? 'unknown'} captured wired source instances. Destination unassigned; approval not recorded.`));
+          for (const target of mapping.targets) list.append(html('li', `${target.name || 'Target name unavailable'}: ${target.role || 'role not reported'}; ${target.wired_source_instance_count ?? 'not reported'} captured wired source instances. Destination unassigned; approval not recorded.`));
           details.append(list);
         }
       }

@@ -3,29 +3,51 @@
 Updated: **2026-11-22**.
 
 Start with the [open work checklist](ORION-TODO.md) and the
-[current release ledger](current-release-verification-ledger.md). The documents
-below preserve design, operational guidance, and dated investigation evidence;
-older release dates describe their historical state, not the current release.
+[current release ledger](current-release-verification-ledger.md). This index
+lists the maintained design and operational references. Completed, one-off
+dated fix reports were consolidated into the release ledger and removed; active
+blockers and durable technical guidance remain separate.
 
 ## Reading order
 
-1. [Architecture and implementation matrix](proposal-first-deepagents-lakeflow-plan.md):
-   authoritative design intent and dated partial-implementation status.
+1. [Architecture and implementation notes](proposal-first-deepagents-lakeflow-plan.md):
+  background design intent and implementation boundaries. This is reference
+  material, not a prerequisite to make requested UI or support changes.
 2. [Hosted app](databricks-hosted-workbench.md) and
    [Delta authority](hosted-delta-authority.md): OBO identity, data ownership,
-   runtime storage, authorization and operational limitations.
-   [Hosted intake redesign guide](hosted-intake-redesign.md): candidate upload and
-   operation behavior, ask ledger, offline evidence, pending live checks and the
-   explicit deployment hold. Journal durability is not external-worker durability.
-3. [Historical metadata import](delta-state-migration.md): verified archive,
-   record counts, recovery and distinction from the active hosted generation.
-4. [Verification report](workbench-verification.md): observed results and
-   explicitly historical test milestones.
-5. [Demo runbook](wil-net-dis-demo-runbook.md) and
-   [workflow shortlist](demo-workflow-shortlist.md): what can actually be shown,
-   successful bounded tests and remaining gaps.
-6. [Diagram companion](modernization-review-diagrams.html): presentation of the
-   design, not an execution trace or proof that every stage is implemented.
+   runtime storage, authorization and operational limitations. See also the
+   [intake guide](hosted-intake-redesign.md) for user-scoped uploads and
+   operation boundaries.
+3. [Agent responsibilities and memory](migration-agent-responsibilities-memory-and-model-routing.md),
+   [evaluation scorecard](agent-evaluation-scorecard.md), and
+   [engineering review](agent-engineering-eight-source-review-2026-11-17.md):
+   scoped roles, evidence, evaluation and known limitations.
+4. [ORION verification](current-release-verification-ledger.md),
+   [workbench verification](workbench-verification.md), and
+   [conversion acceptance](conversion-acceptance-2026-11-10.md): current evidence
+   and explicit unverified boundaries.
+5. [Demo runbook](wil-net-dis-demo-runbook.md),
+   [workflow shortlist](demo-workflow-shortlist.md), and
+   [parent/child parity assessment](wil-parent-child-parity.md): bounded example
+   evidence, not a general conversion claim.
+6. [Diagram companion](modernization-review-diagrams.html): design presentation,
+   not an execution trace.
+
+## Active investigations and specialized references
+
+- [Agent and deployment blockers](ORION-TODO.md), including support review,
+  official search, skill vetting and shared Volume access.
+- [Hosted intake](hosted-intake-redesign.md),
+  [hosted object latency](hosted-object-latency-investigation.md),
+  [deployment blocker](orion-deployment-blocker-2026-11-12.md), and
+  [model-save incident](model-save-lock-incident-2026-11-09.md).
+- [Package/source evidence](package-source-understanding-investigation.md),
+  [ten-workflow lineage](ten-workflow-lineage.md),
+  [target fixtures](target-fixture-completion-2026-11-16.md), and
+  [writer limits](writer-metadata-staging-2026-11-12.md).
+- Keep the remaining feature-specific reports only when linked from this index,
+  the TODO list or the current release ledger. Do not treat their dated test
+  totals as current whole-project certification.
 
 ## Non-negotiable distinctions
 
