@@ -661,9 +661,19 @@
     const name = event?.startsWith('tool_') ? activityName(latest?.tool_name)
       : event?.startsWith('model_') ? activityName(latest?.endpoint) : null;
     const stamp = activityTime(latest?.created_at);
-    activityPanel.append(node('p', latest
-      ? `Latest activity: ${role} · ${name ?? 'Name not reported'} · ${event?.replaceAll('_', ' ') ?? 'State not reported'} · ${stamp ?? 'Time not reported'}`
-      : 'Latest activity: not recorded.', 'arena-activity-latest'));
+    const latestSummary = node('div', '', 'arena-activity-latest');
+    latestSummary.setAttribute('role', 'group');
+    latestSummary.setAttribute('aria-label', 'Latest recorded activity');
+    latestSummary.append(node('span', 'Latest activity', 'arena-activity-latest-label'));
+    if (latest) {
+      latestSummary.append(
+        node('strong', role, 'arena-activity-latest-role'),
+        node('span', name ?? 'Name not reported', 'arena-activity-latest-name'),
+        node('span', event?.replaceAll('_', ' ') ?? 'State not reported', 'arena-activity-latest-event'),
+        node('time', stamp ?? 'Time not reported', 'arena-activity-latest-time')
+      );
+    } else latestSummary.append(node('span', 'Not recorded', 'arena-activity-latest-empty'));
+    activityPanel.append(latestSummary);
     if (event?.startsWith('tool_') && name === 'check_generation_code')
       activityPanel.append(node('p', `Latest code check: ${event.replaceAll('_', ' ')}.`, 'arena-activity-note'));
     const turns = array(receipt?.turns).filter(turn => object(turn) && roles.includes(turn.role)

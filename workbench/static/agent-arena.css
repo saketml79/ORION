@@ -333,7 +333,13 @@
 .agent-arena .arena-activity-flow { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 12px 0 6px; list-style: none; font-size: 10px; line-height: 1.5; }
 .agent-arena .arena-activity-flow li { flex: 1 1 110px; min-width: 0; background: var(--indigo-soft); padding: 8px; border-radius: 8px; }
 .agent-arena .arena-activity-flow li:not(:last-child)::after { content: ' →'; color: var(--teal); }
-.agent-arena .arena-activity-latest { font-size: 11px; line-height: 1.5; margin: 12px 0 6px; }
+.agent-arena .arena-activity-latest { display: grid; grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, auto) minmax(0, auto); align-items: baseline; gap: 6px 12px; min-width: 0; margin: 12px 0 6px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--muted); font: 12px/1.4 var(--body); overflow-wrap: anywhere; }
+.agent-arena .arena-activity-latest-label { color: var(--ink); font-weight: 700; }
+.agent-arena .arena-activity-latest-role { min-width: 0; color: var(--ink); font-weight: 650; }
+.agent-arena .arena-activity-latest-name, .agent-arena .arena-activity-latest-event, .agent-arena .arena-activity-latest-time { min-width: 0; overflow-wrap: anywhere; }
+.agent-arena .arena-activity-latest-event { color: var(--indigo); font-weight: 650; text-transform: capitalize; }
+.agent-arena .arena-activity-latest-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .agent-arena .arena-activity-latest { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .agent-arena .arena-activity-latest-label { grid-column: 1 / -1; } }
 .arena-current-skills { position: relative; box-sizing: border-box; width: 100%; margin-block: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: visible; }
 .arena-current-skills::after { content: '➜'; display: none; position: absolute; inset: 0 auto auto 0; color: var(--teal); font-size: 13px; line-height: 1; offset-path: inset(3px round 9px); offset-distance: 0%; offset-rotate: auto; pointer-events: none; }
 .arena-current-skills[data-active="true"]::after { display: block; }
