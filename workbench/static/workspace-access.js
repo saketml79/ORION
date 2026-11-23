@@ -211,8 +211,8 @@
       endpoint.value = ''; endpoint.disabled = !first; modelScope = ticket;
       renderSelection();
       modelStatus.textContent = first
-        ? 'Connected. Choose a READY chat model, confirm it supports the tools agents use, then apply your selection. This does not start a conversion.'
-        : 'Connected, but no endpoint explicitly reports both READY and chat. No selection applied.';
+        ? 'Endpoint discovery confirmed. Choose a READY chat model, confirm it supports the tools agents use, then apply your selection. This does not test inference or start a conversion.'
+        : 'Endpoint discovery completed, but no endpoint explicitly reports both READY and chat. No selection applied.';
       const measurements = data.timings;
       if (measurements && ['authentication_seconds', 'endpoint_list_seconds'].every(name =>
         Number.isFinite(measurements[name]) && measurements[name] >= 0)) {

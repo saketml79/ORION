@@ -53,8 +53,8 @@
     const endpoint=data?.active_endpoint || (endpoints.length===1?endpoints[0]:null);
     const external=data?.mode==='external';
     const configured=data?.inference_ready===true || (external&&data?.configured===true);
-    routeBadge.textContent=configured?'Configured · not inference-tested':data?.connected?'Connected · not inference-tested':'No route confirmed';
-    routeBadge.className=`agent-observability-badge ${configured?'is-configured':data?.connected?'is-configured':'is-unknown'}`;
+    routeBadge.textContent=configured?'Saved configuration · inference not tested':data?.connected?'Endpoint discovery confirmed · inference not tested':'No route confirmed';
+    routeBadge.className=`agent-observability-badge ${configured?'is-configured':'is-unknown'}`;
     routeName.textContent=endpoint?`${external?'External model':'Workspace endpoint'} · ${endpoint}`:external?`External model · ${data.model||'model not reported'}`:'No model route returned by the service.';
     const qualified=typeof endpoint==='string'&&/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(endpoint);
     gatewayLine.textContent=qualified?'A Unity Catalog service name is present in the saved route. Gateway inference is not verified by this read.':'Current workspace routes use Model Serving endpoint names; Unity Catalog AI Gateway is not configured in this route.';
