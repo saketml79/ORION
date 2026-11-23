@@ -695,7 +695,7 @@ pre, code { font-family: var(--mono); }
 /* Desktop navigation stays below the header, independently of page length.
    Mobile retains its existing natural-flow navigation grid. */
 @media (min-width: 901px) {
-  .sidebar { position: sticky; top: 76px; align-self: start; height: calc(100dvh - 76px); box-sizing: border-box; border: 0; padding: 12px 10px; gap: 14px; overflow: hidden; }
+  .sidebar { position: sticky; top: 76px; align-self: start; height: calc(100dvh - 76px); box-sizing: border-box; border: 0; padding: 12px 10px; gap: 14px; overflow: auto; }
   .sidebar .navigation { gap: 3px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
   .sidebar .nav-item { min-height: 0; padding: 6px 10px; line-height: 1.2; flex-shrink: 1; }
   .sidebar-note { padding: 12px 10px 0; }
@@ -704,7 +704,6 @@ pre, code { font-family: var(--mono); }
 }
 @media (min-width: 901px) and (max-height: 800px) {
   .sidebar { padding: 4px 8px; gap: 0; }
-  .sidebar .workspace-label, .sidebar-note { display: none; }
   .sidebar .navigation { flex: 1 1 auto; justify-content: space-between; gap: 0; }
   .sidebar .nav-item { flex: 1 1 0; min-height: 0; padding: clamp(1px, .35vh, 3px) clamp(4px, .55vw, 8px); gap: clamp(4px, .5vw, 7px); font-size: clamp(9px, 1.45vh, 12px); line-height: 1.05; }
   .sidebar .nav-item > span { width: clamp(14px, 1.8vh, 18px); font-size: clamp(14px, 2vh, 18px); }
@@ -715,12 +714,6 @@ pre, code { font-family: var(--mono); }
 }
 @media (min-width: 901px) and (max-height: 320px) {
   .sidebar .nav-item { padding-block: 0; font-size: clamp(7px, 3.2vh, 9px); line-height: 1; }
-}
-@media (min-width: 901px) and (max-height: 800px) {
-  .sidebar-note { display: none; }
-}
-@media (min-width: 901px) and (max-height: 640px) {
-  .sidebar .workspace-label { display: none; }
 }
 main { padding: 25px clamp(18px, 3vw, 48px) 0; min-width: 0; max-width: 1800px; width: 100%; }
 .breadcrumb { display: flex; align-items: center; gap: 13px; font-size: 11px; color: var(--muted); margin-bottom: 26px; }

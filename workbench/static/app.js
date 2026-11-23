@@ -170,7 +170,7 @@
     node.append(document.createTextNode(value.slice(cursor)));
     return node;
   }
-  function semanticStatus(status) {
+  function semanticStatus(status, label = null) {
     const key = String(status ?? '').toLowerCase();
     const styles = {
       queued: ['clock', 'pending'], running: ['running', 'busy'], completed: ['check', 'good'],
@@ -183,13 +183,13 @@
     const [glyph, tone] = styles[key] ?? ['info', 'neutral'];
     const badge = el('span', `status-pill semantic-status ${tone}${key === 'queued' || key === 'running' ? ' is-ongoing' : ''}`);
     badge.dataset.status = key;
-    badge.append(icon(glyph), el('span', '', key === 'generation_complete' ? 'Generation complete' : human(status ?? 'Status not reported')));
+    badge.append(icon(glyph), el('span', '', label ?? (key === 'generation_complete' ? 'Generation complete' : human(status ?? 'Status not reported'))));
     return badge;
   }
-  function recordHeader(node, label, status, timestamp) {
+  function recordHeader(node, label, status, timestamp, statusLabel = null) {
     const header = el('div', 'record-heading');
     const name = title(el('strong', 'record-title', label), label);
-    header.append(name, semanticStatus(status));
+    header.append(name, semanticStatus(status, statusLabel));
     node.append(header);
     if (timestamp != null) node.append(el('small', 'record-time', text(timestamp)));
   }
@@ -821,7 +821,8 @@
       const record = el('article', 'record job-card');
       record.dataset.jobStatus = String(job.status ?? 'unknown').toLowerCase();
       record.append(el('span', 'job-stage-label', 'XML package ingestion'));
-      recordHeader(record, 'XML analysis', job.status, job.created_at ?? job.updated_at);
+      recordHeader(record, 'XML analysis', job.status, job.created_at ?? job.updated_at,
+        String(job.status).toLowerCase() === 'completed' ? 'Ingestion complete' : null);
       if (Number.isSafeInteger(job.processed) && job.processed >= 0 && Number.isSafeInteger(job.total) && job.total >= job.processed) {
         const progressLine = el('div', 'job-progress-label');
         progressLine.append(el('span', 'small muted', 'Files analyzed'), el('strong', 'stat-emphasis', `${count(job.processed)} / ${count(job.total)}`));
@@ -874,7 +875,7 @@
       if (!array(data.packages).length) message($('project-members'), 'No XML packages have been added to this project. Upload from this machine or select an XML file from Databricks Volume.');
       for (const member of array(data.packages)) {
         const record = el('div', 'record');
-        paragraph(record, `${text(member.name)} · ${text(member.status)}`, 'small');
+        paragraph(record, `${text(member.name)} · ${String(member.status).toLowerCase() === 'completed' ? 'Ingestion complete' : text(member.status)}`, 'small');
         if (member.error) paragraph(record, member.error, 'small');
         $('project-members').append(record);
       }
