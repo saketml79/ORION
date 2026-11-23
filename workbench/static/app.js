@@ -620,12 +620,15 @@
   }
   async function request(path, options = {}) {
     const controller = new AbortController();
-    // Never invent a client deadline. Long Databricks reads remain observable
-    // through request diagnostics; context changes still cancel stale requests.
     const readOnly = !options.method || options.method === 'GET';
     const overviewRead = path.split('?')[0] === '/api/overview' && readOnly;
     const inventoryRead = path.split('?')[0] === '/api/objects' && readOnly;
-    const timer = null;
+    const projectBootstrapRead = path.split('?')[0] === '/api/projects' && readOnly;
+    let deadlineExceeded = false;
+    const timer = projectBootstrapRead ? setTimeout(() => {
+      deadlineExceeded = true;
+      controller.abort();
+    }, 30000) : null;
     const epoch = state.epoch;
     let diagnostic = null;
     const descriptor = requestDescription(path, options);
@@ -668,7 +671,10 @@
       }
       return payload;
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('Request cancelled because the selected context changed. No service completion is inferred.');
+      if (error.name === 'AbortError') {
+        if (deadlineExceeded) throw new Error('Workspace response timed out after 30 seconds. Refresh projects to try again.');
+        throw new Error('Request cancelled because the selected context changed. No service completion is inferred.');
+      }
       throw error;
     } finally { if (timer !== null) clearTimeout(timer); stopLoadingDiagnostic(diagnostic); requestActivity.delete(controller); state.requests -= 1; updateActivity(); }
   }
