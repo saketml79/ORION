@@ -756,7 +756,7 @@
     const activityConfirmed = active && !current.status_unconfirmed && !current.progress_stalled;
     const startTime = Date.parse(current?.started_at || current?.created_at || '');
     const finishTime = active ? Date.now() : Date.parse(current?.finished_at || '');
-    showElapsed(Number.isFinite(startTime) && Number.isFinite(finishTime)
+    if (!current?.status_unconfirmed) showElapsed(Number.isFinite(startTime) && Number.isFinite(finishTime)
       ? Math.max(0, (finishTime - startTime) / 1000) : 0);
     showWorkspaceElapsed(current?.workspace_elapsed_seconds, current?.workspace_save_applicable);
     const saved = current?.observation_snapshot;
@@ -905,9 +905,9 @@
       current = {...current, progress_stalled: event.detail.progressStalled};
       render();
     }
-    if (current?.id === event.detail?.id && ['queued', 'running', 'cancelling'].includes(current.status))
+    if (current?.id === event.detail?.id && !current.status_unconfirmed && ['queued', 'running', 'cancelling'].includes(current.status))
       showElapsed(event.detail.elapsed);
-    if (current?.id === event.detail?.id && current.workspace_save_pending)
+    if (current?.id === event.detail?.id && !current.status_unconfirmed && current.workspace_save_pending)
       showWorkspaceElapsed(event.detail.workspaceElapsed, current.workspace_save_applicable);
   });
   document.addEventListener('orion:tracing-status', event => {

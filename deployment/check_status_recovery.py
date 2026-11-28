@@ -259,6 +259,12 @@ window.probe = {state,recordedRunStates,
         assert "Current status unconfirmed" in page.locator(".agent-status-note").inner_text()
         assert page.evaluate("probe.observations().liveRunObservation") is None
         assert page.locator(".agent-arena").get_attribute("data-active") == "false"
+        frozen_elapsed = page.locator(".arena-elapsed-timer").inner_text()
+        page.evaluate("""()=>{const now=Date.now;Date.now=()=>now()+60000;
+          try {document.dispatchEvent(new CustomEvent('orion:model-list-prices',
+            {detail:{version:'model-list-prices-v1',status:'unavailable',rates:{}}}));}
+          finally {Date.now=now;}}""")
+        assert page.locator(".arena-elapsed-timer").inner_text() == frozen_elapsed
         page.evaluate("""r=>{r.live_activity.last_event.created_at=new Date().toISOString();
           probe.setResponse(r)}""", run)
         page.evaluate("probe.poll()")

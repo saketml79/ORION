@@ -69,6 +69,10 @@ observation restores the display; terminal records stop live activity. A 404
 clears the unavailable selected observation rather than implying completion.
 The measured workspace-save elapsed value is preserved and frozen on read
 failure instead of being reset to "not observed".
+The arena also stops recalculating its elapsed clock on non-status rerenders
+(such as a late model-price receipt) while status is unconfirmed. Clearing the
+main interval alone did not prevent that separate render path from advancing
+the clock.
 
 ### Hosted Stop queued behind the run it needed to stop (#47)
 
