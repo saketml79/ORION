@@ -5397,7 +5397,10 @@
       if (epoch !== state.epoch || ticket !== state.runTicket) return;
       const previous = latestRunObservation?.id === id ? latestRunObservation : null;
       if (previous) {
-        latestRunObservation = {...previous, status_unconfirmed: true};
+        const workspaceElapsed = liveRunObservation?.workspacePending && Number.isFinite(liveRunObservation.started)
+          ? Math.max(0, Math.floor((Date.now() - liveRunObservation.started) / 1000))
+          : previous.workspace_elapsed_seconds;
+        latestRunObservation = {...previous, status_unconfirmed: true, workspace_elapsed_seconds: workspaceElapsed};
         recordedRunStates.set(id, runState(latestRunObservation, epoch));
         document.dispatchEvent(new CustomEvent('orion:agent-run', {detail: {...latestRunObservation,
           workspace_save_pending: state.hosted && state.agentSubmitting && terminal.has(String(previous.status).toLowerCase()),

@@ -67,6 +67,8 @@ pauses execution clocks and activity animation, and retains the last reported
 status and counters. Polling reconnects to the same run. A successful subsequent
 observation restores the display; terminal records stop live activity. A 404
 clears the unavailable selected observation rather than implying completion.
+The measured workspace-save elapsed value is preserved and frozen on read
+failure instead of being reset to "not observed".
 
 ### Hosted Stop queued behind the run it needed to stop (#47)
 
@@ -168,6 +170,10 @@ regressions without the corresponding evidence.
 - Local production-function, event-consumer, scoped-cancellation, threshold,
   history geometry, notice preservation and six-layout checks passed.
 - Python 3.11 syntax and production JavaScript syntax checks passed.
+- A coupled workspace-save clock case failed during verification of the new
+  unavailable-observation projection. Its missing measured elapsed value was
+  corrected and the focused check now proves that the value survives read
+  failure. The incomplete projection was never deployed.
 - The exact candidate contains four runtime repairs and 885 unchanged source
   files. The reusable Job settings, Run-as identity and permissions were
   captured without modification.

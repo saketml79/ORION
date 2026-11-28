@@ -275,8 +275,10 @@ window.probe = {state,recordedRunStates,
           }""", run)
         page.evaluate("probe.poll()")
         assert "Saving workspace state" in page.locator(".agent-status-note").inner_text()
+        assert "not observed" not in page.locator(".arena-workspace-elapsed").inner_text()
         page.evaluate("probe.fail();probe.poll()")
         assert "Status unconfirmed" in page.locator(".arena-badge").inner_text()
+        assert "not observed" not in page.locator(".arena-workspace-elapsed").inner_text()
         page.evaluate("probe.state.agentSubmitting=false")
         for status in ("failed", "completed"):
             page.evaluate("([r,s])=>probe.setResponse({...r,status:s,finished_at:new Date().toISOString()})", [run, status])
