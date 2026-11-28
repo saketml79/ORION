@@ -13,9 +13,10 @@ record. The retained logs did not establish a fatal worker exception.
 whether the provider, worker, transport or persistence layer stalled.**
 No underlying worker/provider crash is claimed as diagnosed or repaired.
 
-The fixes below are implemented locally and the focused check has passed,
-including a reproduction of the old ready-package navigation lock. Deployment
-and hosted verification must be recorded before the related issues are closed.
+The fixes below were deployed through protected GitHub Actions after the focused
+check passed against the exact candidate, including a reproduction of the old
+ready-package navigation lock. The verified release and remaining limits are
+recorded below.
 
 ## Confirmed causes and fixes
 
@@ -191,5 +192,27 @@ regressions without the corresponding evidence.
   The export and deployment signatures were then checked against the installed
   SDK and corrected. This is why offline fixture checks are not sufficient for
   release authorization.
-- GitHub rerun and hosted outcome remain pending; no successful deployment or
-  normal cancellation is claimed by this record yet.
+- Reviewed runtime revision: `d4b54cce4054fa4f3c43559ac9ab8774bc1c35f5`
+  in [PR #50](https://github.com/saketml79/ORION/pull/50).
+- [GitHub Actions run 46093275608](https://github.com/saketml79/ORION/actions/runs/46093275608)
+  passed read-only preflight on attempt 1 and deployed on attempt 2 after the
+  protected environment and explicit original-app replacement approval.
+- Deployment `01f1eacc02371236b3ad86da5be56df0` was verified
+  RUNNING/SUCCEEDED with no pending deployment. GitHub verified all 889 deployed
+  source hashes: four runtime repairs and 885 unchanged files.
+- Independent authenticated reads verified the hosted JavaScript/CSS bytes
+  against the reviewed Git commit, not Windows working-copy line endings.
+  Original app identity, OBO scopes, compute, resources and source path were
+  preserved; the authenticated health endpoint reported Databricks OBO and `ok`.
+- The existing external reusable Job's settings, Run-as identity and ACL were
+  identical before and after deployment. Its application/template code was
+  included in the app snapshot. The Job was neither recreated, cleared nor run.
+- After the authorized process replacement, the old scoped run read returned
+  HTTP 404, `Unknown job/run ID`. No completed/cancelled record is fabricated.
+  The first cold read timed out; a later scoped read established the 404.
+  This does not establish the original provider/worker failure cause.
+- Real model inference and a new live-run Stop interaction were not performed.
+  Cancellation dispatch was verified against the production method with scoped
+  fixtures, not claimed as a successful live cooperative cancellation.
+- Post-release documentation is published separately from the deployed runtime
+  revision; it must not trigger another application replacement.
