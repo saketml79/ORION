@@ -147,11 +147,13 @@ const loadingDiagnosticText=$('loading-diagnostic-text');
 let liveRunObservation=null,liveRunClock=null,latestRunObservation=null,hostedRunTiming=null;
 let finalRunStatus=null,renderedRunId=null,renderedRunSignature=null,displayedRunDocsConsentId=null;
 let response=null,rejectStatus=false,reads=0,timers=0,clears=0;
+let deferredStatus=false,rejectDeferred=null;
 window.setTimeout = cb => { window.reconnect=cb; return 1; };
 window.setInterval = () => { timers++; return 1; };
 window.clearInterval = () => { clears++; };
 const api = async path => {
   reads++;
+  if(deferredStatus) return new Promise((resolve,reject)=>{rejectDeferred=reject;});
   if(rejectStatus) throw new Error('HTTP 503 fixture');
   return {...response};
 };
@@ -188,6 +190,9 @@ def check_browser(baseline=None):
 window.probe = {state,recordedRunStates,
   nav: navigationPrerequisite, activity:updateActivity,
   poll:()=>pollRun(1), progress:agentProgressTime,
+  observe:r=>pollRun(1,r,true),
+  defer:()=>{deferredStatus=true;},
+  rejectDeferred:()=>{deferredStatus=false;rejectDeferred(new Error('HTTP 503 late fixture'));},
   tick:updateLiveRunClock, history:showObservedActiveRun,
   setResponse:r=>{response=r;rejectStatus=false;},fail:()=>rejectStatus=true,
   observations:()=>({timers,clears,reads,liveRunObservation}),
@@ -291,6 +296,14 @@ window.probe = {state,recordedRunStates,
             page.evaluate("probe.poll()")
             assert page.evaluate("probe.observations().liveRunObservation") is None
             assert page.locator(".agent-arena").get_attribute("data-active") == "false"
+        page.evaluate("r=>probe.setResponse(r)", run)
+        page.evaluate("probe.poll()")
+        page.evaluate("()=>{probe.defer();window.outstanding=probe.poll();}")
+        page.evaluate("r=>probe.observe({...r,status:'completed',finished_at:new Date().toISOString()})", run)
+        page.evaluate("async()=>{probe.rejectDeferred();await window.outstanding;}")
+        assert "Status unconfirmed" not in page.locator(".arena-badge").inner_text()
+        assert "newer confirmed terminal status" in page.locator(".agent-status-read-error").last.inner_text()
+        assert page.evaluate("probe.observations().liveRunObservation") is None
         assert page.locator("#runs-list > button").count() == 1
         page.evaluate("probe.history({id:'b'.repeat(32),status:'running'})")
         assert page.locator("#runs-list > button").count() == 2

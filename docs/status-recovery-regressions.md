@@ -73,6 +73,10 @@ The arena also stops recalculating its elapsed clock on non-status rerenders
 (such as a late model-price receipt) while status is unconfirmed. Clearing the
 main interval alone did not prevent that separate render path from advancing
 the clock.
+An older in-flight status read can also fail after the hosted final-observation
+event has supplied a newer confirmed terminal result. That late read error is
+reported without replacing the newer terminal result with an unconfirmed state.
+This guard applies only after execution and workspace saving have ended.
 
 ### Hosted Stop queued behind the run it needed to stop (#47)
 
@@ -131,6 +135,7 @@ Required scenarios:
 - Unchanged successful status GETs do not reset recorded-progress age.
 - Threshold crossing, status failure, reconnection and terminal observations
   update all relevant activity consumers coherently.
+- A late failed read cannot invalidate a newer confirmed terminal observation.
 - Observed history insertion preserves deduplication and pagination.
 - Live-status layouts fit light/dark desktop, intermediate and mobile widths.
 - Cancellation cannot bypass owner/live-scope matching, method/path validation

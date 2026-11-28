@@ -4922,6 +4922,7 @@
   }
   async function pollRun(ticket, completedRecord = null, suppressScheduling = false) {
     const id = state.runId, epoch = state.epoch;
+    const observationBeforeRead = latestRunObservation;
     if (!id) return;
     if (liveRunObservation?.ticket === ticket) liveRunObservation.pending = true;
     try {
@@ -5396,6 +5397,12 @@
     } catch (error) {
       if (epoch !== state.epoch || ticket !== state.runTicket) return;
       const previous = latestRunObservation?.id === id ? latestRunObservation : null;
+      if (previous && previous !== observationBeforeRead && !previous.status_unconfirmed
+          && terminal.has(String(previous.status).toLowerCase()) && !activeWriter(previous)
+          && !(state.hosted && state.agentSubmitting)) {
+        paragraph($('run-detail'), `An earlier status read failed. ${error.message} The newer confirmed terminal status remains visible.`, 'small caution agent-status-read-error');
+        return;
+      }
       if (previous) {
         const workspaceElapsed = liveRunObservation?.workspacePending && Number.isFinite(liveRunObservation.started)
           ? Math.max(0, Math.floor((Date.now() - liveRunObservation.started) / 1000))
