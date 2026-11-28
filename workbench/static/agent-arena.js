@@ -138,17 +138,40 @@
   const outcome = node('section', '', 'arena-run-outcome'); outcome.hidden = true;
   function showDesignOutcome(submission, source) {
     outcome.replaceChildren(); outcome.hidden = true;
-    if (!source || !current || kind !== 'agent' || current.status === 'queued' || current.status === 'running') return;
+    if (!current || kind !== 'agent' || current.status === 'queued' || current.status === 'running') return;
+    if (current.workspace_save_pending) {
+      outcome.hidden = false;
+      outcome.dataset.state = 'pending';
+      outcome.append(node('h3', 'Saving workspace state'),
+        node('p', 'The agent finished. Saving the workspace state to Delta is still in progress; the save is not yet confirmed.', 'arena-outcome-summary'));
+      return;
+    }
+    if (!source) return;
     const accepted = Number(submission?.accepted_count ?? array(source.redesigns).length);
     if (accepted > 0) {
       outcome.hidden = false;
+      outcome.dataset.state = 'success';
       const deterministic = source.design_origin === 'deterministic_workflow_compiler';
       const drafts = array(source.candidate_code_drafts);
-      const draftText = drafts.length
-        ? ` Candidate code draft: ${drafts.map(item => `${safe(item.status)}${item.manifest_status ? ` (${safe(item.manifest_status)})` : ''}`).join(', ')}. Open the saved proposal to view its task grid, YAML when all tasks are supported, and exact notebook code.`
+      const candidates = array(current.candidate_draft_history).length ? current.candidate_draft_history : drafts;
+      const draft = candidates.filter(item => item?.status === 'completed'
+        && Number.isSafeInteger(item.design_version) && item.design_version > 0).at(-1);
+      const link = array(current.submitted_design_links).find(item => item && item.id === draft?.design_id
+        && item.version === draft?.design_version && /^[a-f0-9]{64}$/.test(item.id)
+        && item.record_id === current.id && item.workflow_id === current.workflow_id
+        && item.scenario === current.scenario && item.package_hash === current.package_hash);
+      const draftText = candidates.length
+        ? ` Candidate code draft: ${candidates.map(item => `${safe(item.status)}${item.manifest_status ? ` (${safe(item.manifest_status)})` : ''}`).join(', ')}. Open Proposals to review its task grid and saved notebook code.`
         : ' No candidate code receipt was returned.';
-      outcome.append(node('h3', 'Logical design draft created'),
+      outcome.append(node('h3', draft ? `Generated design v${draft.design_version}` : 'Logical design draft created'),
         node('p', `${deterministic ? 'A deterministic XML-bound compiler' : 'The agent team'} produced ${accepted} validated logical task outline${accepted === 1 ? '' : 's'}.${draftText} Approval, execution and deployment are not included.`, 'arena-outcome-summary'));
+      const review = node('button', link ? `Review v${link.version} in Proposals` : 'Open Proposals to review saved designs', 'primary');
+      review.type = 'button';
+      review.addEventListener('click', () => {
+        if (link) document.dispatchEvent(new CustomEvent('orion:review-submitted-design', {detail: link}));
+        else document.querySelector('[data-page="proposals"]')?.click();
+      });
+      outcome.append(review);
       return;
     }
     const rejections = array(submission?.rejections);
@@ -308,18 +331,31 @@
   runtimeCost.setAttribute('role', 'note');
   runtimeCost.title = 'Current Azure list rates, uncached standard reference, not the final billed amount. Writer and shared compute are excluded.';
   const elapsedTimer = node('time', '00:00:00', 'arena-elapsed-timer');
-  elapsedTimer.setAttribute('aria-label', 'Run elapsed time');
+  elapsedTimer.setAttribute('aria-label', 'Agent execution elapsed time');
   elapsedTimer.setAttribute('aria-live', 'off');
   const runtimeCostBox = node('div', '', 'arena-progress-detail arena-cost-box');
   runtimeCostBox.append(node('span', 'EST. MODEL COST', 'arena-progress-label'), runtimeCost, progressBasis);
   const elapsedBox = node('div', '', 'arena-progress-detail arena-timer-box');
-  elapsedBox.append(node('span', 'ELAPSED', 'arena-progress-label'), elapsedTimer);
+  elapsedBox.append(node('span', 'AGENT TIME', 'arena-progress-label'), elapsedTimer);
+  const workspaceElapsed = node('span', '', 'arena-workspace-elapsed');
+  workspaceElapsed.hidden = true;
+  elapsedBox.append(workspaceElapsed);
   progressPanel.append(progressValue, runtimeCostBox, elapsedBox, pauseControl, stopControl);
   function showElapsed(seconds) {
     const total = Number.isFinite(seconds) && seconds >= 0 ? Math.floor(seconds) : 0;
     const value = `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor(total / 60) % 60).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
     write(elapsedTimer, value);
     elapsedTimer.setAttribute('datetime', `PT${total}S`);
+  }
+  function showWorkspaceElapsed(seconds, applicable) {
+    workspaceElapsed.hidden = !applicable;
+    if (workspaceElapsed.hidden) return;
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      write(workspaceElapsed, 'Total through save: not observed');
+      return;
+    }
+    const total = Math.floor(seconds);
+    write(workspaceElapsed, `Total: ${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor(total / 60) % 60).padStart(2, '0')}:${String(total % 60).padStart(2, '0')} (observed)`);
   }
   const activityPanel = node('section', '', 'arena-activity');
   activityPanel.setAttribute('aria-label', 'Recorded agent activity');
@@ -396,9 +432,8 @@
   const activityStates = ['model_started', 'model_completed', 'model_failed',
     'tool_started', 'tool_completed', 'tool_rejected', 'tool_failed'];
   function activityTime(value) {
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
+    if (typeof value !== 'string' || !value) return null;
+    return window.orionTime?.time(value) || 'Local time unavailable';
   }
   function renderActivity(receipt, active, historical) {
     const openAgentRoles = new Set([...activityPanel.querySelectorAll('.arena-agent-cell[open]')].map(item => item.dataset.role));
@@ -409,7 +444,6 @@
       .map(item => item.closest('.arena-context-role')?.dataset.role));
     const openIdRoles = new Set([...activityPanel.querySelectorAll('.arena-context-role .arena-context-reference-ids[open]')]
       .map(item => item.closest('.arena-context-role')?.dataset.role));
-    const scopeOpen = activityPanel.querySelector('.arena-context-scope')?.open ?? false;
     const contextHelpOpen = activityPanel.querySelector('.arena-context-help')?.open ?? false;
     activityPanel.replaceChildren();
     activityPanel.append(node('h3', 'Recorded agent activity (short summary, details in the sections below)'));
@@ -486,7 +520,7 @@
     const latestDisplayed = runList?.dataset.offset === '0'
       && runList.querySelector('[data-run-id]')?.dataset.runId === current.id;
     skillStrip.append(node('h4', latestDisplayed ? 'Skills and guidance recorded during latest run' : 'Skills and guidance recorded during selected run'));
-    skillStrip.append(node('p', 'These cards show skills and guidance recorded as loaded or read, not the full available catalog. Spark and SQL coding appears when the separate writer has a recorded receipt. Official coding and Databricks skills appear only if a successful read was recorded. A pulse marks recorded active work, not proof that a skill influenced reasoning.', 'arena-skill-summary'));
+    skillStrip.append(node('p', 'Only recorded skills and guidance are shown, not the full catalog. Writer skills require a writer receipt; official skills require a successful read. A pulse indicates recorded activity, not influence on reasoning.', 'arena-skill-summary'));
     const skillGrid = node('div', '', 'arena-skills-grid');
     skillStrip.append(skillGrid);
     const activeRoles = new Set(array(receipt?.active_calls).map(call => call.role).filter(role => roles.includes(role)));
@@ -531,7 +565,8 @@
       const readCounts = row.tool_reads;
       const paths = new Set([...loadedPaths, ...readCounts.keys()]);
       for (const path of paths) {
-        const isCurrent = row.role === 'writer' ? writerActive : active && activeRoles.has(row.role);
+        const isCurrent = !current.status_unconfirmed && !current.progress_stalled
+          && (row.role === 'writer' ? writerActive : active && activeRoles.has(row.role));
         const card = node('article', '', 'arena-current-skill');
         card.dataset.active = String(isCurrent);
         card.dataset.phase = isCurrent ? 'active' : active ? 'earlier' : 'recorded';
@@ -578,12 +613,19 @@
     contextHeading.append(node('h4', 'Context and evidence by agent'), contextHelp);
     contextPanel.append(contextHeading,
       node('p', 'Open an agent to explore its guidance, tools, and source references.', 'arena-activity-note'));
-    const scope = node('details', '', 'arena-context-scope'); scope.open = scopeOpen;
-    scope.append(node('summary', 'Run details'));
+    const scope = node('section', '', 'arena-context-scope');
+    scope.setAttribute('aria-label', 'Recorded run details');
+    scope.append(node('h5', 'Run details'));
     const scopeFacts = node('dl', '', 'arena-context-facts');
-    const fact = (name, value) => { scopeFacts.append(node('dt', name), node('dd', value)); };
+    scopeFacts.tabIndex = 0;
+    scopeFacts.setAttribute('aria-label', 'Workflow, scenario and recorded mode. Scroll horizontally on narrow screens.');
+    const fact = (name, value) => {
+      const item = node('div', '', 'arena-scope-fact');
+      item.append(node('dt', name), node('dd', value)); scopeFacts.append(item);
+    };
     fact('Workflow', current.workflow_name || current.workflow_id || 'Not recorded');
     fact('Scenario', ({bronze: 'Source data already in Unity Catalog', original: 'Original source systems'})[current.scenario] || current.scenario || 'Not recorded');
+    fact('Mode', current.cohort_id ? 'Cohort' : 'Standalone');
     scope.append(scopeFacts);
     contextPanel.append(scope);
     const contextGrid = node('div', '', 'arena-context-grid');
@@ -660,17 +702,19 @@
     const role = roles.includes(latest?.role) ? roleLabels[latest.role] : 'AI agent not reported';
     const name = event?.startsWith('tool_') ? activityName(latest?.tool_name)
       : event?.startsWith('model_') ? activityName(latest?.endpoint) : null;
-    const stamp = activityTime(latest?.created_at);
     const latestSummary = node('div', '', 'arena-activity-latest');
     latestSummary.setAttribute('role', 'group');
     latestSummary.setAttribute('aria-label', 'Latest recorded activity');
     latestSummary.append(node('span', 'Latest activity', 'arena-activity-latest-label'));
     if (latest) {
+      const latestTime = node('time', activityTime(latest.created_at) ?? 'Time not recorded', 'arena-activity-latest-time');
+      const machineTime = window.orionTime?.iso(latest.created_at);
+      if (machineTime) latestTime.dateTime = machineTime;
       latestSummary.append(
         node('strong', role, 'arena-activity-latest-role'),
         node('span', name ?? 'Name not reported', 'arena-activity-latest-name'),
         node('span', event?.replaceAll('_', ' ') ?? 'State not reported', 'arena-activity-latest-event'),
-        node('time', stamp ?? 'Time not reported', 'arena-activity-latest-time')
+        latestTime
       );
     } else latestSummary.append(node('span', 'Not recorded', 'arena-activity-latest-empty'));
     activityPanel.append(latestSummary);
@@ -709,10 +753,12 @@
   let progressRunId = null, estimatedProgress = 0;
   function render() {
     const active = ['queued', 'running', 'cancelling'].includes(current?.status);
+    const activityConfirmed = active && !current.status_unconfirmed && !current.progress_stalled;
     const startTime = Date.parse(current?.started_at || current?.created_at || '');
     const finishTime = active ? Date.now() : Date.parse(current?.finished_at || '');
-    showElapsed(Number.isFinite(startTime) && Number.isFinite(finishTime)
+    if (!current?.status_unconfirmed) showElapsed(Number.isFinite(startTime) && Number.isFinite(finishTime)
       ? Math.max(0, (finishTime - startTime) / 1000) : 0);
+    showWorkspaceElapsed(current?.workspace_elapsed_seconds, current?.workspace_save_applicable);
     const saved = current?.observation_snapshot;
     const historical = !active && saved?.schema_version === 1 && saved.mode === 'historical_not_live'
       && saved.public_run_id === current?.id && saved.package_hash === current.package_hash
@@ -729,10 +775,17 @@
     renderCost(costReceipt && (!current?.output?.run_id || costReceipt.run_id === current.output.run_id)
       ? costReceipt : null, active);
     const activeCalls = array(live?.active_calls);
-    arena.dataset.active = String(active);
+    arena.dataset.active = String(activityConfirmed);
     arena.dataset.state = current?.status === 'failed' || current?.status === 'error' ? 'failed' : 'neutral';
-    write(badge, current ? `${active ? 'Run' : 'Historical run, not live'} / ${safe(current.status)}` : 'Awaiting explicit run');
-    write(status, !current ? 'No run selected.' : active
+    write(badge, current ? `${current.status_unconfirmed ? 'Status unconfirmed' : current.progress_stalled ? 'No recent progress'
+      : current.workspace_save_pending ? 'Workspace save pending' : active ? 'Run' : 'Historical run, not live'} / ${safe(current.status)}` : 'Awaiting explicit run');
+    write(status, !current ? 'No run selected.' : current.status_unconfirmed
+      ? 'Current status unconfirmed. Activity animation is paused while reconnecting to the same run. No completion or new execution is assumed.'
+      : current.progress_stalled
+      ? 'No execution progress has been persisted for at least five minutes. The last report is still nonterminal; status checks cannot distinguish a long request from a stalled worker. No automatic stop is performed.'
+      : current.workspace_save_pending
+      ? 'Agent execution finished. Saving workspace state to Delta; final save is not yet confirmed.'
+      : active
       ? live ? activeCalls.length
         ? `Run active. ${activeCalls.map(call => `${roleLabels[call.role] ?? call.role}: ${call.kind === 'tool' ? `tool ${safe(call.tool_name)}` : `model ${safe(call.endpoint)}`} in flight`).join('; ')}. Based on committed local ledger events.`
         : 'Run active. No call is currently recorded in flight. Awaiting the next committed event.'
@@ -789,7 +842,7 @@
     values.workflow.title = safe(current?.workflow_name ? `${current.workflow_name} (${current.workflow_id})` : current?.workflow_id);
     const dateLabel = value => {
       if (!value) return 'N/A';
-      const date = new Date(value); return Number.isNaN(date.getTime()) ? safe(value) : date.toLocaleString();
+      return window.orionTime?.dateTime(value) || 'Local time unavailable';
     };
     write(values.created, dateLabel(current?.created_at)); write(values.finished, dateLabel(current?.finished_at));
     const roleResults = array(source?.role_completion);
@@ -816,7 +869,7 @@
       const severity = ['failed', 'unsupported', 'needs_information', 'supported'].find((s) => states.includes(s));
       button.dataset.state = severity ?? 'unknown';
       const receipt = roleReceipts.get(role);
-      const roleCalls = active ? activeCalls.filter(call => call.role === role) : [];
+      const roleCalls = activityConfirmed ? activeCalls.filter(call => call.role === role) : [];
       button.dataset.inFlight = String(roleCalls.length > 0);
       const result = roleCalls.length ? roleCalls.map(call => call.kind === 'tool'
         ? `Tool in flight: ${safe(call.tool_name)}` : `Model in flight: ${safe(call.endpoint)}`).join(' · ')
@@ -847,8 +900,15 @@
   window.addEventListener('orion:model-list-prices', receivePrices);
   document.addEventListener('orion:model-list-prices', receivePrices);
   document.addEventListener('orion:agent-clock', event => {
-    if (current?.id === event.detail?.id && ['queued', 'running', 'cancelling'].includes(current.status))
+    if (current?.id === event.detail?.id && current.progress_stalled !== event.detail.progressStalled
+        && typeof event.detail.progressStalled === 'boolean') {
+      current = {...current, progress_stalled: event.detail.progressStalled};
+      render();
+    }
+    if (current?.id === event.detail?.id && !current.status_unconfirmed && ['queued', 'running', 'cancelling'].includes(current.status))
       showElapsed(event.detail.elapsed);
+    if (current?.id === event.detail?.id && !current.status_unconfirmed && current.workspace_save_pending)
+      showWorkspaceElapsed(event.detail.workspaceElapsed, current.workspace_save_applicable);
   });
   document.addEventListener('orion:tracing-status', event => {
     if (smithStatus && object(event.detail)) write(smithStatus, ` · ${traceLabel(event.detail)}${event.detail.project ? ` (${event.detail.project})` : ''}`);

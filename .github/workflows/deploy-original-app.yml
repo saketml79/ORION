@@ -1,0 +1,77 @@
+name: Deploy reviewed original ORION app
+
+on:
+  push:
+    branches: [release/status-recovery]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: orion-original-app-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: orion-original-app
+    timeout-minutes: 90
+    env:
+      DATABRICKS_HOST: ${{ vars.ORION_DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ vars.ORION_DEPLOYMENT_CLIENT_ID }}
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_TOKEN_AUDIENCE: ${{ vars.ORION_OIDC_AUDIENCE }}
+      ORION_REVIEWED_SHA: ${{ vars.ORION_REVIEWED_SHA }}
+    steps:
+      - name: Require the reviewed source revision
+        shell: bash
+        run: test -n "$ORION_REVIEWED_SHA" && test "$GITHUB_SHA" = "$ORION_REVIEWED_SHA"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify the protected GitHub OIDC subject without exposing tokens
+        shell: python
+        run: |
+          import base64, json, os, urllib.parse, urllib.request
+          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+          url += "&audience=" + urllib.parse.quote(os.environ["DATABRICKS_TOKEN_AUDIENCE"], safe="")
+          request = urllib.request.Request(url, headers={
+              "Authorization": "Bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              token = json.load(response)["value"]
+          payload = token.split(".")[1]
+          claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+          print("Protected OIDC subject: " + claims["sub"])
+      - name: Install deployment SDK
+        run: python -m pip install databricks-sdk==0.157.0
+      - name: Assemble exact deployed baseline plus four reviewed repairs
+        run: >-
+          python -B deployment/deploy_original_app.py prepare
+          --baseline deployment/release-package-baseline.json
+          --output "${{ runner.temp }}/orion-reviewed-package"
+      - name: Install reviewed package dependencies and Chromium
+        run: |
+          python -m pip install -r "${{ runner.temp }}/orion-reviewed-package/requirements.txt"
+          python -m playwright install --with-deps chromium
+      - name: Verify reported regressions against the exact candidate
+        run: >-
+          python -B deployment/check_status_recovery.py
+          --source-root "${{ runner.temp }}/orion-reviewed-package"
+      - name: Require explicit active-work replacement approval
+        if: vars.ORION_ACTIVE_WORK_REPLACEMENT_APPROVED == 'true'
+        env:
+          APPROVAL: ${{ vars.ORION_ACTIVE_WORK_REPLACEMENT_APPROVED }}
+        run: test "$APPROVAL" = "true"
+      - name: Deploy and verify only the original app
+        if: vars.ORION_ACTIVE_WORK_REPLACEMENT_APPROVED == 'true'
+        run: >-
+          python -B deployment/deploy_original_app.py activate
+          --baseline deployment/release-package-baseline.json
+          --output "${{ runner.temp }}/orion-reviewed-package"
+          --approve-active-work-replacement
+      - name: Record read-only preflight hold
+        if: vars.ORION_ACTIVE_WORK_REPLACEMENT_APPROVED != 'true'
+        run: echo "Read-only preflight verified. Activation remains held until protected-subject federation and active-work approval are confirmed."

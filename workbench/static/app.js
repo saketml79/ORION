@@ -89,7 +89,7 @@
   const terminal = new Set(['completed', 'partial', 'complete', 'succeeded', 'success', 'failed', 'error', 'cancelled', 'canceled', 'rejected']);
   const state = {
     page: 'estate', overview: null, healthCapabilities: null, ready: false, packageKey: null, epoch: 0, hosted: false,
-    overviewLoading: false, overviewError: '', loadingDiagnostic: null, loadingDiagnosticSequence: 0,
+    overviewLoading: false, overviewError: '', loadingDiagnostic: null, workspaceLoadingDiagnostic: null, loadingDiagnosticSequence: 0,
     overviewTimer: null, jobTimer: null, jobId: null, jobBusy: false,
     inventoryOffset: 0, inventoryTotal: 0, inventoryCount: 0, inventoryTicket: 0, inventoryLoaded: false,
     inventoryPreload: 'not_started', inventoryPreloadError: '',
@@ -98,7 +98,7 @@
     proposalTicket: 0, proposalsLoaded: false,
     runTimer: null, runId: null, runTicket: 0, settingsLoaded: false, settingsTicket: 0, overviewTicket: 0,
     projectId: '', memberHash: '', project: null, legacyWorkspaceSelected: false, projectTicket: 0, projectTimer: null,
-    projectJobs: [], projectSubmitting: false, requests: 0, agentRunning: false, agentSubmitting: false, submittedRunId: null, agentRunsLoaded: false,
+    projectJobs: [], projectSubmitting: false, requests: 0, agentRunning: false, agentSubmitting: false, submittedRunId: null, submittedRunConfirmed: false, agentRunsLoaded: false,
     projectsLoaded: false, projectsLoading: false, projectsTicket: 0,
     inputsLoaded: false, inputsLoading: false, inputsTicket: 0, projectLoading: false,
     documentsLoaded: false, documentsLoading: false, documentsTicket: 0,
@@ -107,7 +107,8 @@
     readinessPreload: 'not_started', readinessPreloadError: '', readinessTicket: 0, readinessEpoch: 0, readinessFlight: null,
     pagePreload: 'not_started', pagePreloadError: '', pagePreloadTicket: 0, pagePreloadFlight: null,
     graphOffset: 0, graphTicket: 0, graphOpen: false, graphBusy: false, graphHasMore: false, graphRenderedKey: '',
-    logsOffset: 0, logsTicket: 0, logsTimer: null,
+    logsOffset: 0, logsTicket: 0, logsTimer: null, writerLogsScope: null, writerLogsSignature: null,
+    agentLogsScope: null, agentLogsSignature: null,
     hostedLogsTicket: 0, hostedLogsTimer: null,
     logsRenderSignature: null, hostedLogsRenderSignature: null,
   };
@@ -115,11 +116,18 @@
   const requestActivity = new Map();
   let hostedActivity = null;
   const recordedRunStates = new Map();
+  let latestRunObservation = null;
+  let latestFinalObservation = '';
+  let finalRunStatus = null;
+  let hostedRunTiming = null;
+  let snapshotLogScope = '';
+  let snapshotLogOperationId = '';
+  let savedResultNotice = null;
+  let snapshotLogEvents = [];
+  let snapshotLogsResizeObserver = null;
   let legacyJobStatus = '';
   let initializingNavigation = true;
   let startupUserPage = '';
-  let restoredPage = null;
-  let restoreSelectionCancelled = false;
   const iconPaths = Object.freeze({
     grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     graph: 'M4 4h5v5H4z M15 15h5v5h-5z M15 4h5v5h-5z M9 6.5h6 M6.5 9v8.5H15',
@@ -191,7 +199,7 @@
     const name = title(el('strong', 'record-title', label), label);
     header.append(name, semanticStatus(status, statusLabel));
     node.append(header);
-    if (timestamp != null) node.append(el('small', 'record-time', text(timestamp)));
+    if (timestamp != null) node.append(el('small', 'record-time', historyTime(timestamp)));
   }
   function viewLogs(node, runId = '') {
     node.append(action('View logs', () => { $('logs-run').value = runId; state.logsOffset = 0; navigate('logs', true); }));
@@ -211,7 +219,7 @@
   function clear(node) { node.replaceChildren(); return node; }
   function message(node, content, className = 'empty') {
     const pending = /^Loading\b/.test(String(content));
-    const line = el('p', `${className}${pending ? ' loading-message' : ''}`);
+    const line = el('p', `${className} ui-callout${pending ? ' loading-message' : ''}`);
     if (pending) line.append(icon('running'));
     line.append(document.createTextNode(text(content)));
     clear(node).append(line);
@@ -387,19 +395,25 @@
   }
   const loadingPhases = Object.freeze({
     reading_history: 'Loading saved agent runs',
-    queued: 'Queued', provisioning: 'Provisioning', metadata_restore: 'Restoring metadata',
+    queued: 'Queued', starting: 'Starting', waiting_for_session: 'Preparing package view; detailed progress not yet reported',
+    provisioning: 'Provisioning', metadata_restore: 'Restoring metadata',
     artifact_files: 'Restoring artifact files', audit_restore: 'Restoring audit records',
+    verifying_artifact: 'Verifying package checksum', decoding_nodes: 'Reading package nodes',
+    decoding_edges: 'Reading package links', index_cache: 'Reusing package index',
+    indexing_nodes: 'Indexing package nodes', indexing_edges: 'Indexing package links',
+    querying_inventory: 'Querying package inventory',
     preparing_package: 'Preparing package', audit_persist: 'Persisting audit records', responding: 'Responding',
   });
   const operationPhases = Object.freeze({
     reading_history: 'Loading saved agent history metadata',
     queued: 'Accepted; waiting for a background worker slot', starting: 'Starting background operation',
+    waiting_for_session: 'Preparing package view; detailed progress not yet reported',
     provisioning: 'Opening user-scoped workspace storage', metadata_restore: 'Restoring committed package metadata',
     artifact_files: 'Verifying committed package files', verifying_artifact: 'Verifying package checksum',
     decoding_nodes: 'Reading canonical package nodes', decoding_edges: 'Reading canonical package links',
     index_cache: 'Reusing verified package index', indexing_nodes: 'Indexing package nodes',
     indexing_edges: 'Indexing package links', preparing_package: 'Preparing package view',
-    querying_inventory: 'Querying requested package view', responding: 'Returning verified result',
+    querying_inventory: 'Querying package inventory', responding: 'Returning verified result',
     committed: 'Completed', failed: 'Failed', authentication_required: 'Authentication required',
     interrupted: 'Interrupted; no automatic replay',
   });
@@ -417,6 +431,11 @@
     clearTimeout(diagnostic.timer);
     diagnostic.controller?.abort();
     if (state.loadingDiagnostic === diagnostic) state.loadingDiagnostic = null;
+    if (state.workspaceLoadingDiagnostic === diagnostic) state.workspaceLoadingDiagnostic = null;
+  }
+  function workspaceRestoreDiagnostic(diagnostic) {
+    return diagnostic?.data?.workspace_restore
+      ? { ...diagnostic, data: { ...diagnostic.data, ...diagnostic.data.workspace_restore } } : diagnostic;
   }
   function loadingDiagnosticLabel(diagnostic) {
     const data = diagnostic.data;
@@ -434,8 +453,9 @@
         : data.status === 'succeeded' ? 'Package request completed' : stage;
     return `${activity} · ${warehouseLabel} · ${elapsed}${exception ? ` · ${text(exception)}` : ''}`;
   }
-  function startLoadingDiagnostic(controller) {
-    stopLoadingDiagnostic();
+  function startLoadingDiagnostic(controller, workspace = false) {
+    const key = workspace ? 'workspaceLoadingDiagnostic' : 'loadingDiagnostic';
+    stopLoadingDiagnostic(state[key]);
     const uuid = crypto.getRandomValues(new Uint8Array(16));
     // Keep diagnostic IDs unique within this tab even if a browser/test crypto
     // provider repeats random bytes. The random prefix remains 96-bit.
@@ -451,10 +471,10 @@
       projectId: state.projectId, memberHash: state.memberHash, pending: true,
       timer: null, controller: null, data: null, message: '',
     };
-    state.loadingDiagnostic = diagnostic;
-    const current = () => diagnostic.pending && state.loadingDiagnostic === diagnostic
-      && diagnostic.epoch === state.epoch && diagnostic.projectId === state.projectId
-      && diagnostic.memberHash === state.memberHash && !controller.signal.aborted;
+    state[key] = diagnostic;
+    const current = () => diagnostic.pending && state[key] === diagnostic
+      && (workspace || (diagnostic.epoch === state.epoch && diagnostic.projectId === state.projectId
+        && diagnostic.memberHash === state.memberHash)) && !controller.signal.aborted;
     const poll = async () => {
       if (!current()) return;
       diagnostic.controller = new AbortController();
@@ -489,7 +509,11 @@
   const activeRunStatuses = new Set(['queued', 'running', 'cancelling']);
   const activeWriter = run => activeRunStatuses.has(String(run?.candidate_writer?.status || '').toLowerCase());
   const activeRun = run => activeRunStatuses.has(String(run?.status || '').toLowerCase()) || activeWriter(run);
-  const runState = (run, epoch) => ({status: run.status, candidate_writer: run.candidate_writer ?? null, epoch});
+  const runState = (run, epoch) => ({status: run.status, candidate_writer: run.candidate_writer ?? null,
+    status_unconfirmed: run.status_unconfirmed === true, progress_stalled: run.progress_stalled === true, epoch});
+  function latestPackageRead(foreground, loadingOverview) {
+    return foreground.filter(item => loadingOverview ? item.overview : item.inventory).at(-1);
+  }
   function updateActivity() {
     const activeJobs = state.projectJobs.filter((job) => ['queued', 'running'].includes(job.status));
     const activeRuns = [...recordedRunStates.values()].filter((run) => run.epoch === state.epoch && activeRun(run));
@@ -497,6 +521,8 @@
     const jobs = activeJobs.length + (legacyActive ? 1 : 0) + activeRuns.length;
     const hostedBusy = state.hosted && hostedActivity?.busy === true;
     const agentUnconfirmed = state.agentRunning || state.agentSubmitting;
+    const uncertainAgent = activeRuns.length > 0 && activeRuns.every(run => run.status_unconfirmed || run.progress_stalled)
+      && activeJobs.length === 0 && !legacyActive;
     const busy = state.requests > 0 || jobs > 0 || hostedBusy || agentUnconfirmed;
     const requests = [...requestActivity.values()].filter((item) => item.epoch === state.epoch
       && (!item.inventory || item.inventoryTicket === state.inventoryTicket)
@@ -509,8 +535,20 @@
     const loadingReadiness = state.readinessPreload === 'loading';
     const loadingPages = state.pagePreload === 'loading';
     const activeRead = foreground.find((item) => item.operation);
-    const packageRead = foreground.find((item) => (item.overview || item.inventory) && item.operation);
-    const operationLabel = packageRead ? operationProgressText(packageRead.operation) : '';
+    const packageRead = latestPackageRead(foreground, loadingOverview);
+    const waitingForWorkspace = loadingOverview && (packageRead?.operation?.progress?.stage === 'waiting_for_session'
+      || state.loadingDiagnostic?.data?.phase === 'waiting_for_session');
+    const workspaceDiagnostic = [
+      workspaceRestoreDiagnostic(state.workspaceLoadingDiagnostic),
+      workspaceRestoreDiagnostic(state.loadingDiagnostic),
+      packageRead?.operation?.workspace_restore ? {data: packageRead.operation.workspace_restore} : null,
+    ].find(observation => observation?.data?.status === 'running'
+      && !['queued', 'starting', 'waiting_for_session'].includes(observation.data.phase));
+    const workspaceRestore = waitingForWorkspace ? workspaceDiagnostic : null;
+    const operationLabel = waitingForWorkspace ? (workspaceRestore
+      ? 'Loading workspace data for the current session.'
+      : 'Preparing the package view. Detailed progress is not yet reported.')
+      : packageRead?.operation ? operationProgressText(packageRead.operation) : '';
     const readinessFailed = state.readinessPreload === 'failed' && baseAssessmentReady();
     const warmFailed = state.hosted && state.runtimeWarmStatus === 'unavailable' && baseAssessmentReady();
     overviewProgress.hidden = !(loadingOverview || loadingInventory || loadingReadiness || loadingPages || state.pagePreloadError || state.inventoryPreload === 'failed' || readinessFailed || warmFailed);
@@ -523,28 +561,32 @@
       : state.pagePreloadError ? `The initial read did not confirm: ${state.pagePreloadError}. Check the relevant page status and refresh if needed.`
       : loadingPages ? 'Loading saved documents, release settings, connections, readiness and the first page of agent history. Other details remain on demand.'
       : warmFailed ? `Package preparation could not be confirmed. ${state.runtimeWarmError} Retry before invoking agents.`
-      : operationLabel || (loadingInventory ? 'Loading the current Explorer inventory page (up to 50 objects). Other pages and object details are not loaded.'
+      : operationLabel || (loadingOverview ? 'Loading selected XML understanding. Detailed stage not yet reported.'
+        : loadingInventory ? 'Loading the current Explorer inventory page (up to 50 objects). Other pages and object details are not loaded.'
         : loadingReadiness ? 'Loading saved readiness evidence for the selected package. Runtime and output parity remain unassessed.' : 'Loading selected XML understanding in a background operation.');
-    if (state.hosted && state.projectId && state.memberHash && !loadingOverview) {
-      const step = loadingInventory || state.inventoryPreload === 'failed' ? 1
+    if (state.hosted && state.projectId && state.memberHash) {
+      const step = loadingOverview || loadingInventory || state.inventoryPreload === 'failed' ? 1
         : loadingReadiness || readinessFailed ? 2 : 0;
       if (step) overviewProgressDescription.textContent = `Step ${step} of 2: ${overviewProgressDescription.textContent}`;
     }
     inventoryRetry.hidden = state.inventoryPreload !== 'failed';
     readinessRetry.hidden = !readinessFailed;
     warmRetry.hidden = !warmFailed;
-    const diagnostic = state.loadingDiagnostic;
+    const diagnostic = workspaceRestore || state.loadingDiagnostic;
     const diagnosticLabel = diagnostic ? loadingDiagnosticLabel(diagnostic) : '';
     loadingDiagnosticText.textContent = diagnosticLabel ? ` ${diagnosticLabel}` : '';
     const operationProgress = packageRead?.operation?.progress;
-    const verified = diagnostic?.data?.verified_files ?? (operationProgress?.unit === 'files' ? operationProgress.completed : null);
-    const total = diagnostic?.data?.total_files ?? (operationProgress?.unit === 'files' ? operationProgress.total : null);
+    const verified = (diagnostic?.data?.phase === 'artifact_files' ? diagnostic.data.verified_files : null)
+      ?? (operationProgress?.unit === 'files' ? operationProgress.completed : null);
+    const total = (diagnostic?.data?.phase === 'artifact_files' ? diagnostic.data.total_files : null)
+      ?? (operationProgress?.unit === 'files' ? operationProgress.total : null);
     const operationCompleted = operationProgress?.completed, operationTotal = operationProgress?.total;
     const measuredFiles = Number.isInteger(verified) && Number.isInteger(total) && total > 0 && verified >= 0 && verified <= total;
     const measuredRecords = Number.isInteger(operationCompleted) && Number.isInteger(operationTotal)
       && operationTotal > 0 && operationCompleted >= 0 && operationCompleted <= operationTotal;
     overviewProgressBar.removeAttribute('value');
     overviewProgressBar.removeAttribute('max');
+    overviewProgressBar.hidden = !(loadingOverview || loadingInventory || loadingReadiness || loadingPages);
     overviewProgressBar.setAttribute('aria-label', 'Package operation progress is currently indeterminate');
     if (measuredFiles) {
       overviewProgressBar.max = total; overviewProgressBar.value = verified;
@@ -556,22 +598,25 @@
     if (Number.isInteger(verified) && Number.isInteger(total) && verified >= 0 && total >= verified) loadingDiagnosticText.textContent += ` · ${verified} of ${total} artifact files verified`;
     const prominent = jobs > 0 || foreground.length > 0 || hostedBusy || agentUnconfirmed;
     const packageTarget = selectedCompletedPackage()?.name || state.overview?.package?.name || 'selected package';
-    const label = (hostedBusy && hostedActivity.message) || diagnosticLabel || (activeRead
+    const label = (uncertainAgent ? activeRuns.some(run => run.status_unconfirmed)
+      ? 'Agent status unconfirmed; reconnecting' : 'No recent recorded agent progress; inspect the run'
+      : '') || (hostedBusy && hostedActivity.message) || diagnosticLabel || (activeRead
       ? (activeRead.history ? activeRead.label : `Reading saved package information for ${packageTarget}`)
       : jobs ? `${count(jobs)} active ${jobs === 1 ? 'job' : 'jobs'}` : agentUnconfirmed ? 'Agent run active or status unconfirmed'
         : foreground.length ? foreground[0].label : requests.length ? 'Refreshing logs' : 'Idle');
     const activity = clear($('activity-status'));
-    activity.classList.toggle('is-active', busy && prominent);
-    activity.append(icon(prominent ? 'running' : requests.length ? 'file' : 'check'), el('span', '', label));
+    activity.classList.toggle('is-active', busy && prominent && (!uncertainAgent || foreground.length > 0));
+    activity.append(icon(uncertainAgent ? 'warning' : prominent ? 'running' : requests.length ? 'file' : 'check'), el('span', '', label));
     $('activity-status').title = 'Activity reflects API requests in flight and service-reported jobs, not model reasoning.';
     const banner = clear($('operation-banner'));
     banner.hidden = !prominent;
     if (prominent) {
       const copy = el('div', 'operation-copy');
       copy.append(el('strong', '', label));
-      const descriptions = [...activeJobs.map((job) => `Package job ${String(job.id).slice(0, 12)}: ${job.status}`), ...(legacyActive ? [`Package job: ${legacyJobStatus}`] : []), ...activeRuns.map((run) => activeWriter(run) ? `Candidate writer: ${run.candidate_writer.status}` : `Agent run: ${run.status}`), ...foreground.map((item) => item.operation ? operationProgressText(item.operation) : item.label)];
+      const descriptions = [...activeJobs.map((job) => `Package job ${String(job.id).slice(0, 12)}: ${job.status}`), ...(legacyActive ? [`Package job: ${legacyJobStatus}`] : []), ...activeRuns.map((run) => activeWriter(run) ? `Candidate writer: ${run.candidate_writer.status}` : `Agent run: ${run.status}`), ...foreground.filter(item => (!item.overview && !item.inventory) || item === packageRead).map((item) => item.operation ? operationProgressText(item.operation) : item.label)];
       copy.append(el('span', 'small muted', [...new Set(descriptions)].filter(description => description !== label).join(' · ')));
-      banner.append(icon('running'), copy, el('span', 'operation-note small', 'Service activity, not model reasoning'));
+      banner.append(icon(uncertainAgent ? 'warning' : 'running'), copy,
+        el('span', 'operation-note small', uncertainAgent ? 'Last reported state; execution activity is unconfirmed' : 'Service activity, not model reasoning'));
       if (loadingOverview) banner.append(action('View package loading progress', () => {
         navigate('estate');
         overviewProgress.focus({ preventScroll: true });
@@ -582,6 +627,8 @@
   function requestDescription(path, options) {
     const pathname = String(path).split('?')[0];
     const background = (!options.method || options.method === 'GET') && (pathname === '/api/logs'
+      || pathname === '/api/hosted/logs'
+      || /^\/api\/projects\/[a-f0-9]{32}\/jobs\/[a-f0-9]{32}\/logs$/.test(pathname)
       || (pathname === '/api/agents/runs' && state.page !== 'agents')
       || (/^\/api\/agents\/runs\/[a-f0-9]{32}$/.test(pathname)
         && new URLSearchParams(String(path).split('?')[1]).get('status_only') === 'true'));
@@ -623,6 +670,7 @@
     const readOnly = !options.method || options.method === 'GET';
     const overviewRead = path.split('?')[0] === '/api/overview' && readOnly;
     const inventoryRead = path.split('?')[0] === '/api/objects' && readOnly;
+    const inputsRead = path.split('?')[0] === '/api/input-packages' && readOnly;
     const projectBootstrapRead = path.split('?')[0] === '/api/projects' && readOnly;
     let deadlineExceeded = false;
     const timer = projectBootstrapRead ? setTimeout(() => {
@@ -650,7 +698,7 @@
         if (epoch !== state.epoch) throw new Error('Selection changed; stale background read ignored.');
         return result;
       }
-      diagnostic = overviewRead && state.hosted ? startLoadingDiagnostic(controller) : null;
+      diagnostic = state.hosted && (overviewRead || inputsRead) ? startLoadingDiagnostic(controller, inputsRead) : null;
       const response = await fetch(path, { ...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json', ...contextHeaders(), ...(options.method && options.method !== 'GET' ? { 'X-Workbench-Request': '1' } : {}), ...options.headers, ...(diagnostic ? { XWorkbenchReadId: diagnostic.id } : {}) } });
       if (epoch !== state.epoch) throw new Error('Selection changed; stale response ignored.');
       if (options.download && response.ok) {
@@ -737,7 +785,7 @@
       : state.legacyWorkspaceSelected ? 'Legacy package workspace' : 'No project or XML package selected.';
     updateControls();
   }
-  async function switchProject(id, preferredHash = '') {
+  async function switchProject(id) {
     const legacyWorkspace = !state.hosted && id === '__legacy__';
     const projectId = legacyWorkspace ? '' : id;
     state.projectTicket += 1;
@@ -752,7 +800,7 @@
     $('project-package').dataset.emptyMessage = projectId ? 'Loading XML packages for the selected project…' : 'Select a saved project to view its XML packages.';
     $('project-select').value = legacyWorkspace ? '__legacy__' : projectId;
     resetContext();
-    if (projectId) await loadProject(preferredHash);
+    if (projectId) await loadProject();
     else if (legacyWorkspace) {
       $('project-summary').textContent = 'Legacy package workspace selected.';
       message($('project-jobs'), 'Select a project to view persisted per-file outcomes.');
@@ -761,8 +809,6 @@
       $('project-summary').textContent = 'Choose a project to view its uploaded XML packages.';
       message($('project-jobs'), 'Select a project to view persisted per-file outcomes.');
     }
-    if (!initializingNavigation && projectId && state.projectId === projectId && state.page === 'projects' && selectedCompletedPackage())
-      navigate('estate', true);
     if (state.page === 'logs') loadLogs();
   }
   async function loadProjects() {
@@ -856,7 +902,16 @@
     }
     updateControls();
   }
-  async function loadProject(preferredHash = '') {
+  function projectMemberRecord(member) {
+    const record = el('div', 'record project-member-card');
+    const status = String(member.status ?? '').toLowerCase();
+    record.dataset.status = status;
+    recordHeader(record, text(member.name), member.status, null,
+      status === 'completed' ? 'Ingestion complete' : text(member.status));
+    if (member.error) paragraph(record, member.error, 'small error-copy');
+    return record;
+  }
+  async function loadProject() {
     const id = state.projectId, epoch = state.epoch, ticket = ++state.projectTicket;
     if (!id) return;
     state.projectLoading = true;
@@ -873,12 +928,7 @@
       $('project-summary').textContent = `${data.name} · ${count(data.ready_package_count)} ready packages. ${data.description ?? ''}`;
       clear($('project-members'));
       if (!array(data.packages).length) message($('project-members'), 'No XML packages have been added to this project. Upload from this machine or select an XML file from Databricks Volume.');
-      for (const member of array(data.packages)) {
-        const record = el('div', 'record');
-        paragraph(record, `${text(member.name)} · ${String(member.status).toLowerCase() === 'completed' ? 'Ingestion complete' : text(member.status)}`, 'small');
-        if (member.error) paragraph(record, member.error, 'small');
-        $('project-members').append(record);
-      }
+      for (const member of array(data.packages)) $('project-members').append(projectMemberRecord(member));
       const members = array(data.packages).filter((member) => member.status === 'completed' && /^[a-f0-9]{64}$/.test(member.sha256));
       if (array(data.packages).length && !members.length) paragraph($('project-members'), 'XML packages exist, but none has completed analysis. Check package job status before selecting a ready package.', 'notice');
       clear($('project-package')).append(new Option('Select a package explicitly', ''));
@@ -887,7 +937,7 @@
       $('project-package').dataset.emptyMessage = array(data.packages).length
         ? members.length ? 'Select a completed XML package to load its analysis.' : 'Packages found. Analysis must complete before they can be selected.'
         : 'No XML packages added to this project yet.';
-      const desired = state.memberHash || preferredHash;
+      const desired = state.memberHash;
       const valid = members.some((member) => member.sha256 === desired) ? desired : '';
       $('project-package').value = valid;
       renderProjectJobs();
@@ -942,7 +992,6 @@
     finally { if (id === state.projectId) { state.projectSubmitting = false; updateControls(); } }
   }
   $('project-select').addEventListener('change', () => {
-    restoreSelectionCancelled = true; restoredPage = null;
     switchProject($('project-select').value);
   });
   function selectProjectPackage(hash) {
@@ -954,11 +1003,9 @@
     if (state.page === 'logs') loadLogs();
   }
   $('project-package').addEventListener('change', () => {
-    restoreSelectionCancelled = true; restoredPage = null;
     selectProjectPackage($('project-package').value);
   });
   packagePicker.addEventListener('change', () => {
-    restoreSelectionCancelled = true; restoredPage = null;
     selectProjectPackage(packagePicker.value);
   });
   $('refresh-projects').addEventListener('click', () => { loadProjects(); if (state.projectId) loadProject(); });
@@ -1025,6 +1072,30 @@
     if (paged) { params.set('offset', String(state.logsOffset)); params.set('limit', '50'); }
     return params;
   }
+  const diagnosticsHost = $('hosted-diagnostics-list');
+  let diagnosticsRows = [], diagnosticsResizePending = false;
+  const diagnosticsResize = new ResizeObserver(() => {
+    if (diagnosticsResizePending) return;
+    diagnosticsResizePending = true;
+    requestAnimationFrame(() => {
+      diagnosticsResizePending = false;
+      if (!diagnosticsHost.getClientRects().length || diagnosticsRows.some(row => row.querySelector('details[open]'))) return;
+      if (!diagnosticsRows.length) {
+        diagnosticsHost.style.removeProperty('--diagnostics-window-height');
+        return;
+      }
+      const last = diagnosticsRows.at(-1), margin = parseFloat(getComputedStyle(last).marginBottom) || 0;
+      const height = last.getBoundingClientRect().bottom - diagnosticsHost.getBoundingClientRect().top + diagnosticsHost.scrollTop + margin;
+      diagnosticsHost.style.setProperty('--diagnostics-window-height', `${Math.floor(height)}px`);
+    });
+  });
+  function observeDiagnosticRows() {
+    diagnosticsResize.disconnect();
+    diagnosticsRows = [...diagnosticsHost.querySelectorAll(':scope > [data-hosted-diagnostic-id]')].slice(0, 3);
+    diagnosticsResize.observe(diagnosticsHost);
+    diagnosticsRows.forEach(row => diagnosticsResize.observe(row));
+  }
+  diagnosticsResize.observe(diagnosticsHost);
   async function loadHostedDiagnostics() {
     clearTimeout(state.hostedLogsTimer);
     const ticket = ++state.hostedLogsTicket, epoch = state.epoch;
@@ -1038,6 +1109,10 @@
       host.querySelector(':scope > .hosted-diagnostics-unavailable')?.remove();
       const signature = JSON.stringify([items, data.storage]);
       if (signature !== state.hostedLogsRenderSignature) {
+        const wasAtTop = host.scrollTop <= 1;
+        const anchor = wasAtTop ? null : [...host.querySelectorAll(':scope > [data-hosted-diagnostic-id]')]
+          .find(row => row.getBoundingClientRect().bottom > host.getBoundingClientRect().top);
+        const anchorTop = anchor?.getBoundingClientRect().top;
         state.hostedLogsRenderSignature = signature;
         const existing = new Map([...host.querySelectorAll(':scope > [data-hosted-diagnostic-id]')]
           .map(row => [row.dataset.hostedDiagnosticId, row]));
@@ -1047,19 +1122,62 @@
           const itemSignature = JSON.stringify(item);
           let row = existing.get(key);
           if (!row || row.dataset.renderSignature !== itemSignature) {
-            row = el('article', 'record event-card'); row.dataset.severity = item.level === 'ERROR' ? 'error' : 'warning';
+            const loadingActivity = item.event === 'hosted_loading_progress';
+            row = el('article', 'record event-card'); row.dataset.severity = item.level === 'ERROR' ? 'error' : item.level === 'WARNING' ? 'warning' : 'info';
             row.dataset.hostedDiagnosticId = key; row.dataset.renderSignature = itemSignature;
             const headingNode = el('div', 'record-heading');
-            headingNode.append(el('strong', 'record-title', `${text(item.method)} ${text(item.path)} · HTTP ${text(item.status_code)}`),
-              el('span', 'event-severity error', text(item.error_type)), logCopyButton(item));
-            row.append(headingNode, el('small', 'record-time', text(item.timestamp)));
+            const resultLabel = loadingActivity ? (item.phase === 'response_sent' ? 'Successful response sent' : 'Loading activity') : item.event === 'hosted_operation_journal_failure'
+              ? 'Operation journal failure' : item.event === 'hosted_snapshot_failure_observed'
+                ? 'Save failure observed; recovery pending' : `HTTP ${text(item.status_code)}`;
+            headingNode.append(el('strong', 'record-title', `${text(item.method)} ${text(item.path)} · ${resultLabel}`),
+              el('span', `event-severity ${loadingActivity ? 'info' : 'error'}`, loadingActivity ? 'INFO' : text(item.error_type)), logCopyButton(item));
+            row.append(headingNode, el('small', 'record-time', historyTime(item.timestamp)));
             const error = item.error && typeof item.error === 'object' ? item.error : {};
+            const snapshot = error.snapshot_context && typeof error.snapshot_context === 'object' ? error.snapshot_context : {};
             const summary = [item.phase && `Phase: ${human(item.phase)}`,
+              Number.isSafeInteger(item.completed) && Number.isSafeInteger(item.total) && `${count(item.completed)} of ${count(item.total)} ${text(item.unit || 'items')}`,
+              item.run_id && `Run: ${item.run_id}`,
+              item.operation_id && `Operation ID: ${item.operation_id}`,
+              Number.isSafeInteger(item.elapsed_ms) && `${item.event === 'hosted_snapshot_failure_observed' ? 'Action' : 'Request'} elapsed: ${(item.elapsed_ms / 1000).toFixed(1)} seconds`,
+              error.snapshot_stage && `Snapshot stage: ${human(error.snapshot_stage)}`,
+              snapshot.operation && `Operation: ${human(snapshot.operation)}`,
+              snapshot.resource_name && `Table: ${snapshot.resource_name}`,
+              error.snapshot_reason && `Validation: ${error.snapshot_reason}`,
+              Number.isSafeInteger(error.snapshot_files_checked) && `Files checked: ${error.snapshot_files_checked}`,
+              error.recovery_error_type && `Recovery error: ${error.recovery_error_type}`,
+              error.recovery_stage && `Recovery step: ${human(error.recovery_stage)}`,
+              error.recovery_error_code && `Recovery code: ${error.recovery_error_code}`,
               error.resource_type && error.resource_name && `Resource: ${error.resource_name}`,
+              error.storage_operation && `Files API operation: ${human(error.storage_operation)}`,
+              error.workspace_operation && `Workspace API operation: ${human(error.workspace_operation)}`,
+              error.workspace_path && `Workspace path: ${error.workspace_path}`,
               error.error_code && `Databricks error: ${error.error_code}`,
+              error.provider_error_type && `Underlying error: ${error.provider_error_type}`,
+              error.provider_reason && `Provider reason: ${error.provider_reason}`,
+              error.provider_message && `Provider description: ${error.provider_message}`,
+              error.provider_message_status === 'withheld_or_unavailable' && 'Provider description unavailable or withheld for safety',
+              error.provider_request_id && `Provider request ID: ${error.provider_request_id}`,
+              error.provider_http_status && `Provider HTTP: ${error.provider_http_status}`,
+              error.token_expiry_claim && `Unverified token expiry claim: ${human(error.token_expiry_claim)}`,
+              Number.isSafeInteger(error.token_expiry_seconds) && `Token expiry claim offset: ${error.token_expiry_seconds} seconds`,
+              error.statement_operation && `SQL step: ${human(error.statement_operation)}`,
+              error.statement_state && `SQL state of execution: ${error.statement_state}`,
+              Number.isSafeInteger(error.statement_elapsed_ms) && `SQL elapsed: ${(error.statement_elapsed_ms / 1000).toFixed(1)} seconds`,
               error.sql_state && `SQL state: ${error.sql_state}`,
               error.statement_id && `Statement ID: ${error.statement_id}`].filter(Boolean).join(' · ');
             if (summary) paragraph(row, summary, 'small');
+            if (loadingActivity && item.phase === 'response_sent')
+              paragraph(row, 'The app sent a successful response. Overall package readiness is reported separately.', 'small');
+            const counts = [['files_total', 'Files'], ['bytes_total', 'Bytes'], ['records_total', 'Records'],
+              ['tables_total', 'Tables'], ['table_index', 'Table index'], ['rows_total', 'Rows in table'],
+              ['rows_read', 'Rows read'], ['rows_expected', 'Rows expected'],
+              ['artifacts_total', 'Staged artifacts'], ['artifact_index', 'Artifact index']]
+              .filter(([key]) => Number.isSafeInteger(snapshot[key]) && snapshot[key] >= 0)
+              .map(([key, label]) => `${label}: ${snapshot[key]}`).join(' · ');
+            if (counts) paragraph(row, counts, 'small');
+            if (snapshot.receipt_write_attempted === true && snapshot.receipt_readback_confirmed === false)
+              paragraph(row, 'Receipt write attempted; commit is unconfirmed and may have succeeded. Check the committed state before retrying.', 'small');
+            if (error.snapshot_relative_path) paragraph(row, `Rejected relative path: ${error.snapshot_relative_path}`, 'small');
             if (error.provider_message) paragraph(row, error.provider_message, 'prose');
             const frames = array(item.frames);
             if (frames.length) {
@@ -1073,7 +1191,7 @@
         }
         if (!items.length) {
           let empty = host.querySelector(':scope > .hosted-diagnostics-empty');
-          if (!empty) { empty = el('p', 'No hosted request failures have been recorded by this app instance.', 'small muted hosted-diagnostics-empty'); host.append(empty); }
+          if (!empty) { empty = el('p', 'small muted hosted-diagnostics-empty', 'No hosted loading activity or request failures have been recorded by this app instance.'); host.append(empty); }
           for (const row of host.querySelectorAll(':scope > [data-hosted-diagnostic-id]')) row.remove();
         } else {
           host.querySelector(':scope > .hosted-diagnostics-empty')?.remove();
@@ -1085,23 +1203,231 @@
             else host.insertBefore(row, cursor);
           }
         }
+        observeDiagnosticRows();
+        if (wasAtTop) host.scrollTop = 0;
+        else if (anchor?.isConnected) host.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
       }
-      const summary = `${count(items.length)} recent diagnostic events · ${text(data.storage)} · SQL text and credentials excluded.`;
+      const summary = `${count(items.length)} recent diagnostic events · ${text(data.storage)} · SQL text and credentials excluded.${items.length > 3 ? ' Latest three shown; scroll for older entries.' : ''}`;
       if ($('hosted-diagnostics-summary').textContent !== summary) $('hosted-diagnostics-summary').textContent = summary;
-      if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 10000);
+      if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 3000);
     } catch (error) {
       if (ticket !== state.hostedLogsTicket || epoch !== state.epoch) return;
       const message = `Live diagnostics unavailable. ${error.message}`;
       if ($('hosted-diagnostics-summary').textContent !== message) $('hosted-diagnostics-summary').textContent = message;
       let note = host.querySelector(':scope > .hosted-diagnostics-unavailable');
-      if (!note) { note = el('p', '', 'small muted hosted-diagnostics-unavailable'); host.prepend(note); }
+      if (!note) { note = el('p', 'small muted hosted-diagnostics-unavailable'); host.prepend(note); }
       note.textContent = 'Databricks app platform logs remain available separately in the workspace. Last successful events are retained below.';
       if (state.page === 'logs') state.hostedLogsTimer = setTimeout(loadHostedDiagnostics, 15000);
+    }
+  }
+  function writerEventText(event, includeTime = true) {
+    return [includeTime && historyTime(event.timestamp), event.stage, event.status,
+      Number.isSafeInteger(event.wait_elapsed_seconds) && `model response not returned to app after ${formatClockDuration(event.wait_elapsed_seconds)}`,
+      event.role, event.endpoint, event.tool,
+      event.review_status && `review: ${human(event.review_status)}`,
+      Number.isSafeInteger(event.tasks_reviewed) && Number.isSafeInteger(event.tasks_total)
+        ? `AI-reviewed tasks: ${event.tasks_reviewed}/${event.tasks_total}` : '',
+      Number.isSafeInteger(event.issue_count) ? `issues: ${event.issue_count}` : '', event.failure_class].filter(Boolean).join(' · ');
+  }
+  const writerToolDescriptions = Object.freeze({
+    fetch_source_task: 'Retrieve source task details and connectors from the captured XML.',
+    fetch_sql_phases: 'Retrieve the source task’s captured SQL phases.',
+    fetch_source_record_chunk: 'Retrieve a chunk of an oversized source record.',
+    read_file: 'Read writer guidance or a staged file.',
+    list_official_skills: 'List available official reference guidance.',
+    read_official_skill: 'Read official reference guidance.',
+    stage_generation_artifact: 'Stage a candidate notebook, module, SQL or test file.',
+    stage_generation_file_chunk: 'Stage a chunk of a candidate file.',
+    stage_generation_task: 'Record a task implementation and its evidence.',
+    stage_generation_obligation: 'Record a task’s behavior or test obligation.',
+    stage_generation_translation_page: 'Record translation coverage for a source evidence page.',
+    stage_generation_translation: 'Record coverage for source behavior.',
+    stage_generation_artifact_binding: 'Bind a staged file to tasks and evidence.',
+    stage_generation_basis: 'Record the input-data and behavior basis.',
+    inspect_generation_receipts: 'Inspect the staged receipt inventory.',
+    check_generation_code: 'Check staged code, notebooks and bindings without executing them.',
+    submit_generation_artifact_set: 'Submit the candidate artifact set for validation.',
+    finalize_generation_artifact_set: 'Validate the candidate set against staged file receipts.',
+    commit_generation_receipts: 'Save the staged draft receipts; this does not establish parity.',
+    uc_list_catalogs: 'List available Unity Catalog catalogs.',
+    uc_list_schemas: 'List schemas in a selected catalog.',
+    uc_list_tables: 'List table metadata in a selected schema.',
+    uc_get_table: 'Read metadata for a selected table, not its rows.',
+    record_uc_binding: 'Record a candidate task-to-table binding for review.',
+    uc_metadata_state: 'Inspect recorded Unity Catalog metadata observations.',
+    ls: 'List writer workspace files.',
+    glob: 'Find writer workspace files matching a pattern.',
+    grep: 'Search writer workspace files.',
+    search_official_docs: 'Search permitted official documentation.',
+    fetch_official_doc: 'Read a permitted official documentation page.',
+  });
+  function writerEventDescription(event) {
+    if (event.stage === 'tool') return writerToolDescriptions[event.tool] || 'Writer tool operation; no description was recorded.';
+    return ({
+      writer: 'Writer lifecycle observation.',
+      model: 'Artifact model request and response.',
+      validation: 'Validation model request and response.',
+      review: 'AI review of the candidate draft.',
+      retry: 'Writer retry observation.',
+    })[event.stage] || 'Writer activity observation.';
+  }
+  let writerLogsResizeObserver = null;
+  let agentLogsResizeObserver = null;
+  function observeLogRows(history) {
+    const visibleRows = [...history.children].slice(0, 5);
+    const sizeHistory = () => {
+      const height = visibleRows.reduce((total, row) => total + row.getBoundingClientRect().height, 0);
+      if (height > 0) {
+        const style = getComputedStyle(history);
+        history.style.maxHeight = `${height + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth)}px`;
+      }
+    };
+    sizeHistory();
+    const observer = new ResizeObserver(sizeHistory);
+    visibleRows.forEach(row => observer.observe(row));
+    return observer;
+  }
+  function clearAgentLogs(list) {
+    agentLogsResizeObserver?.disconnect();
+    agentLogsResizeObserver = null;
+    clear(list);
+  }
+  function clearWriterLogs(list) {
+    writerLogsResizeObserver?.disconnect();
+    writerLogsResizeObserver = null;
+    clear(list);
+  }
+  function renderAgentLogs(run) {
+    const summary = $('agent-logs-summary'), list = $('agent-logs-list');
+    const receipt = agentObservationReceipt(run);
+    const tools = agentToolObservation(run, receipt)?.receipt;
+    const modelAvailable = Array.isArray(receipt?.turns);
+    const toolAvailable = tools?.tool_activity_status === 'recorded' && Array.isArray(tools.tool_turns);
+    const events = [];
+    const add = (kind, turn, status, timestamp) => {
+      if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return;
+      const name = kind === 'model' ? turn.endpoint : turn.tool_name;
+      events.push({kind, role: turn.role, name, status, timestamp, callId: turn.call_id});
+    };
+    if (modelAvailable) for (const turn of receipt.turns) {
+      add('model', turn, 'started', turn.started_at);
+      if (['completed', 'failed'].includes(turn.status)) add('model', turn, turn.status, turn[`${turn.status}_at`]);
+    }
+    if (toolAvailable) for (const turn of tools.tool_turns) {
+      add('tool', turn, 'started', turn.started_at);
+      if (['completed', 'failed', 'rejected'].includes(turn.status)) add('tool', turn, turn.status, turn[`${turn.status}_at`]);
+    }
+    events.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    const signature = JSON.stringify([run.id, receipt?.mode, modelAvailable, toolAvailable, events]);
+    if (signature === state.agentLogsSignature) return;
+    state.agentLogsSignature = signature;
+    const scrollTop = list.firstElementChild?.scrollTop || 0;
+    clearAgentLogs(list);
+    if (!receipt || (!modelAvailable && !toolAvailable)) {
+      summary.textContent = `Recorded agent activity is unavailable for run ${run.id}.`;
+      return;
+    }
+    const missing = [!modelAvailable && 'model calls', !toolAvailable && 'tool calls'].filter(Boolean);
+    const basis = receipt.mode === 'historical_not_live' ? 'Saved historical observation' : 'Verified recorded observation';
+    summary.textContent = `${basis} · ${count(events.length)} events · newest first${events.length > 5 ? ' · scroll for more' : ''}${missing.length ? ` · unavailable: ${missing.join(', ')}` : ''}`;
+    if (!events.length) return;
+    const history = el('ol', 'writer-logs-events');
+    history.tabIndex = 0;
+    history.setAttribute('aria-label', 'Recorded agent model and tool events, newest first');
+    for (const event of events) {
+      const item = el('li', 'writer-log-event');
+      const detail = el('span', 'writer-event-detail');
+      const name = typeof event.name === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(event.name)
+        ? event.name : `${event.kind === 'model' ? 'Model' : 'Tool'} not reported`;
+      const description = event.kind === 'tool' ? writerToolDescriptions[name] : null;
+      detail.append(el('strong', 'writer-event-description', description || `${event.kind === 'model' ? 'Model request' : human(name)}: ${human(event.status)}.`),
+        el('span', 'writer-event-metadata', `${roleLabel(event.role)} · ${name} · ${human(event.status)} · call ${event.callId}`));
+      item.append(el('span', 'writer-event-time', historyTime(event.timestamp)), detail);
+      history.append(item);
+    }
+    list.append(history);
+    agentLogsResizeObserver = observeLogRows(history);
+    history.scrollTop = scrollTop;
+  }
+  async function loadWriterLogs(ticket, epoch) {
+    const runId = $('logs-run').value.trim() || state.runId || state.submittedRunId;
+    const summary = $('writer-logs-summary'), list = $('writer-logs-list');
+    if (!runId) {
+      state.writerLogsScope = null; state.writerLogsSignature = null; clearWriterLogs(list);
+      state.agentLogsScope = null; state.agentLogsSignature = null; clearAgentLogs($('agent-logs-list'));
+      $('agent-logs-summary').textContent = 'Select an agent run or enter its run ID to see recorded activity.';
+      summary.textContent = 'Select an agent run or enter its run ID to see writer activity.';
+      return;
+    }
+    if (!/^[a-f0-9]{32}$/.test(runId)) {
+      state.writerLogsScope = null; state.writerLogsSignature = null; clearWriterLogs(list);
+      state.agentLogsScope = null; state.agentLogsSignature = null; clearAgentLogs($('agent-logs-list'));
+      $('agent-logs-summary').textContent = 'Enter a valid agent run ID to see recorded activity.';
+      summary.textContent = 'Enter a valid agent run ID to see writer activity.';
+      return;
+    }
+    const scope = `${epoch}:${runId}`;
+    if (state.agentLogsScope !== scope) {
+      state.agentLogsScope = scope; state.agentLogsSignature = null; clearAgentLogs($('agent-logs-list'));
+      $('agent-logs-summary').textContent = `Loading recorded agent activity for run ${runId}…`;
+    }
+    if (state.writerLogsScope !== scope) {
+      state.writerLogsScope = scope; state.writerLogsSignature = null; clearWriterLogs(list);
+      summary.textContent = `Loading writer activity for run ${runId}…`;
+    }
+    try {
+      const run = await api(`/api/agents/runs/${encodeURIComponent(runId)}?status_only=true`);
+      if (ticket !== state.logsTicket || epoch !== state.epoch || state.page !== 'logs') return;
+      renderAgentLogs(run);
+      const writer = run.candidate_writer;
+      const events = writer?.writer_recent_events?.events;
+      const signature = JSON.stringify([runId, writer?.id, writer?.status, events, run.hosted_save_state]);
+      if (signature === state.writerLogsSignature) return;
+      state.writerLogsSignature = signature;
+      const scrollTop = list.firstElementChild?.scrollTop || 0;
+      clearWriterLogs(list);
+      if (!writer) {
+        summary.textContent = `No writer has been observed for run ${runId}.`;
+      } else if (!Array.isArray(events) || !events.length) {
+        summary.textContent = `Writer ${writer.id}: ${text(writer.status)}. No recent events are available in this app process.`;
+      } else {
+        clear(summary);
+        const headline = el('div', 'writer-logs-headline');
+        headline.append(el('strong', '', 'Writer'), semanticStatus(writer.status),
+          el('span', 'writer-logs-count', `${count(events.length)} recent events · newest first${events.length > 5 ? ' · scroll for more' : ''}`));
+        const identity = el('div', 'writer-logs-identity');
+        identity.append(el('span', '', 'Writer ID'), el('code', '', text(writer.id)));
+        summary.append(headline, identity);
+        const history = el('ol', 'writer-logs-events');
+        history.tabIndex = 0;
+        history.setAttribute('aria-label', 'Recent writer events, newest first');
+        for (const event of [...events].reverse()) {
+          const item = el('li', 'writer-log-event');
+          const detail = el('span', 'writer-event-detail');
+          detail.append(el('strong', 'writer-event-description', writerEventDescription(event)),
+            el('span', 'writer-event-metadata', writerEventText(event, false)));
+          item.append(el('span', 'writer-event-time', historyTime(event.timestamp)),
+            detail);
+          history.append(item);
+        }
+        list.append(history);
+        writerLogsResizeObserver = observeLogRows(history);
+        history.scrollTop = scrollTop;
+      }
+      if (run.hosted_save_state === 'live_uncommitted')
+        summary.append(el('p', 'small caution', 'Live observation; the background save is not yet confirmed.'));
+    } catch (error) {
+      if (ticket !== state.logsTicket || epoch !== state.epoch || state.page !== 'logs') return;
+      state.writerLogsSignature = null;
+      state.agentLogsSignature = null;
+      $('agent-logs-summary').textContent = `Agent activity unavailable for run ${runId}. ${error.message}${$('agent-logs-list').hasChildNodes() ? ' Previous observations are retained below.' : ''}`;
+      summary.textContent = `Writer activity unavailable for run ${runId}. ${error.message}${list.hasChildNodes() ? ' Previous observations are retained below.' : ''}`;
     }
   }
   async function loadLogs(background = false) {
     clearTimeout(state.logsTimer);
     const ticket = ++state.logsTicket, epoch = state.epoch;
+    void loadWriterLogs(ticket, epoch);
     if (!background) {
       $('logs-prev').disabled = true; $('logs-next').disabled = true;
       if (state.logsRenderSignature === null) $('logs-summary').textContent = 'Loading service-recorded logs…';
@@ -1113,6 +1439,7 @@
       const data = await api(`${path}?${logParams()}`);
       if (ticket !== state.logsTicket || epoch !== state.epoch || state.page !== 'logs') return;
       $('logs-list').querySelector(':scope > .logs-unavailable')?.remove();
+      $('logs-list').querySelector(':scope > .empty')?.remove();
       const items = array(data.items);
       const signature = JSON.stringify([path, logParams().toString(), data.total, data.chain_valid, items]);
       if (signature !== state.logsRenderSignature) {
@@ -1134,7 +1461,7 @@
             const badge = el('span', `event-severity ${severity}`);
             badge.append(icon(severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'), el('span', '', human(item.level ?? 'Level not reported')));
             header.append(el('strong', 'record-title', text(item.event)), badge, logCopyButton(item));
-            record.append(header, el('small', 'record-time', text(item.timestamp)));
+            record.append(header, el('small', 'record-time', historyTime(item.timestamp)));
             paragraph(record, text(item.message), 'prose');
             const metadata = el('details', 'event-metadata');
             metadata.append(el('summary', '', 'Event reference, AI agent & token usage'));
@@ -1148,7 +1475,7 @@
         }
         if (!items.length) {
           let empty = list.querySelector(':scope > .logs-empty');
-          if (!empty) { empty = el('p', 'No matching events recorded.', 'logs-empty'); list.append(empty); }
+          if (!empty) { empty = el('p', 'logs-empty', 'No matching events recorded.'); list.append(empty); }
           for (const row of list.querySelectorAll(':scope > [data-log-key]')) row.remove();
         } else {
           list.querySelector(':scope > .logs-empty')?.remove();
@@ -1160,7 +1487,7 @@
           }
         }
       }
-      const summary = `${count(data.total)} events · Log integrity: ${data.chain_valid === true ? 'valid' : data.chain_valid === false ? 'invalid' : 'N/A'} · ${state.projectId ? `Project: ${state.project?.name || 'Selected project'} · XML: ${selectedCompletedPackage()?.name || 'Not selected'}` : 'Legacy workspace events'}`;
+      const summary = `${count(data.total)} events · Log integrity: ${data.chain_valid === true ? 'valid' : data.chain_valid === false ? 'invalid' : 'N/A'} · ${state.projectId ? `Project: ${state.project?.name || 'Selected project'} · XML: ${selectedCompletedPackage()?.name || 'Not selected'}` : 'Legacy workspace events'}${state.hosted ? ' · Selected hosted reads are audited; automatic polling is excluded' : ''}${data.hosted_save_state === 'live_uncommitted' ? ' · Live observation; background save not yet confirmed' : ''}`;
       if ($('logs-summary').textContent !== summary) $('logs-summary').textContent = summary;
       $('logs-prev').disabled = state.logsOffset === 0;
       $('logs-next').disabled = state.logsOffset + items.length >= data.total;
@@ -1168,7 +1495,7 @@
     } catch (error) {
       if (ticket !== state.logsTicket || epoch !== state.epoch) return;
       let note = $('logs-list').querySelector(':scope > .logs-unavailable');
-      if (!note) { note = el('p', '', 'small caution logs-unavailable'); $('logs-list').prepend(note); }
+      if (!note) { note = el('p', 'small caution logs-unavailable'); $('logs-list').prepend(note); }
       note.textContent = `Refresh unavailable. ${error.message} Existing recorded rows are retained; no events or usage are fabricated.`;
       if (state.page === 'logs') state.logsTimer = setTimeout(loadLogs, 15000);
     }
@@ -1262,7 +1589,7 @@
       $('package-graph-assessment').textContent = json(graph);
       renderGraph($('package-graph-area'), graph, { full: true, onSelect: (node) => {
         clear($('package-graph-inspector')); rows($('package-graph-inspector'), { name: node.name, id: node.id, kind: node.kind, assessment: assessmentPresentation(node).summary, evidence: node.evidence }, key => key === 'evidence' ? 'Source details' : human(key));
-        $('package-graph-inspector').append(action('Open in pipeline explorer', () => { navigate('explorer', true); selectObject(node.id); }));
+        $('package-graph-inspector').append(action('Open in Pipeline Explorer', () => { navigate('explorer', true); selectObject(node.id); }));
         // Node activation navigates using the stable canonical ID, never a guessed name.
         navigate('explorer', true); selectObject(node.id, node.assessment);
       } });
@@ -1304,7 +1631,7 @@
     try { localStorage.setItem('lakeflow-studio-theme', theme); } catch { /* In-memory theme still works. */ }
   });
 
-  const pageNames = { projects: 'New or existing project', estate: 'Estate', 'folder-migration': 'Folder migration', 'migration-analytics': 'Migration analytics', readiness: 'Readiness', explorer: 'Pipeline explorer', proposals: 'Agentic Migration Proposals', evidence: 'Legacy Data Integration Artifacts', agents: 'Agent activity', validate: 'Validate', release: 'CI CD (DAB + Github)', logs: 'Logs', 'application-log-analytics': 'Application Log Analytics', support: 'Support', evolution: 'Evolution roadmap' };
+  const pageNames = { projects: 'New or existing project', estate: 'Estate', 'folder-migration': 'Folder Migration', 'migration-analytics': 'Migration Analytics', readiness: 'Readiness', explorer: 'Pipeline Explorer', proposals: 'Agentic Migration Proposals', evidence: 'Legacy Data Integration Artifacts', agents: 'Agent Activity', validate: 'Validate', release: 'CI CD (DAB + Github)', logs: 'Logs', 'application-log-analytics': 'Application Log Analytics', support: 'Support', evolution: 'Evolution roadmap' };
   function navigationPrerequisite(page) {
     if (['projects', 'logs', 'application-log-analytics', 'support', 'evolution'].includes(page)) return '';
     // Keep the selected package's Estate page available as its progress view;
@@ -1332,10 +1659,6 @@
       return state.readinessPreload === 'failed'
         ? 'Readiness evidence could not be loaded. Retry from Estate before opening package views.'
         : 'Wait for initial readiness evidence to finish loading.';
-    if (state.pagePreload === 'not_started' || state.pagePreload === 'loading')
-      return 'Wait for initial saved page data to finish loading.';
-    if (state.pagePreload === 'failed')
-      return 'Initial page data was not confirmed. Use Refresh data on Estate to retry.';
     return '';
   }
   function navigationFallback() {
@@ -1391,8 +1714,6 @@
     }
   }
   all('[data-page]').forEach((button) => button.addEventListener('click', () => {
-    restoreSelectionCancelled = true;
-    restoredPage = null;
     if (initializingNavigation && ['projects', 'logs', 'application-log-analytics', 'support', 'evolution'].includes(button.dataset.page)) startupUserPage = button.dataset.page;
     navigate(button.dataset.page, true);
   }));
@@ -1445,6 +1766,9 @@
       if (analyticsPage.dataset[key] !== value) analyticsPage.dataset[key] = value;
     for (const id of ['page-agents', 'page-proposals'])
       if ($(id).dataset.packageHash !== selectedPackageHash) $(id).dataset.packageHash = selectedPackageHash;
+    $('page-proposals').dataset.retainedServiceReady = String(state.hosted
+      && state.overview?.retained_service_ready === true
+      && state.overview?.package?.sha256 === state.memberHash);
     if ($('page-agents').dataset.packageReady !== agentPackageReady) $('page-agents').dataset.packageReady = agentPackageReady;
     if ($('page-proposals').dataset.packageReady !== agentPackageReady) $('page-proposals').dataset.packageReady = agentPackageReady;
     const agentRunStatus = state.agentSubmitting || state.agentRunning ? 'busy' : !state.agentRunsLoaded ? 'unknown' : 'idle';
@@ -1456,18 +1780,10 @@
       button.title = reason || `Open ${pageNames[button.dataset.page]}`;
     });
     // Redirect only on invalidation, not on every control or polling update.
-    // Startup first establishes hosted/local mode and restores any saved package.
+    // Startup first establishes hosted/local mode before enforcing prerequisites.
     // Do not redirect from the requested deep link using the temporary empty
     // pre-startup state; enforce prerequisites after initialization completes.
     if (!initializingNavigation && !state.overviewLoading && navigationPrerequisite(state.page)) navigate(navigationFallback(), false, false);
-    if (!initializingNavigation && restoredPage && !restoreSelectionCancelled
-        && state.projectId === restoredPage.project && state.memberHash === restoredPage.package
-        && !navigationPrerequisite(restoredPage.page)) {
-        const {page, project, package: packageHash} = restoredPage;
-      restoredPage = null;
-        queueMicrotask(() => { if (!restoreSelectionCancelled && state.projectId === project
-          && state.memberHash === packageHash) navigate(page); });
-    }
     const ingesting = state.jobBusy || Boolean(state.jobId);
     $('load-sample').disabled = ingesting || Boolean(state.projectId);
     $('package-form').querySelector('button').disabled = ingesting || Boolean(state.projectId);
@@ -1536,11 +1852,19 @@
         : 'Package review is available, but Invoke waits for a verified warm workspace. Retry preparation from Estate if needed.'
       : !state.agentRunsLoaded ? 'Waiting for persisted run status to be confirmed.' : '';
     $('agent-submit').textContent = document.getElementById('agent-review-scope')?.value === 'cohort'
-      ? 'Review cohort before invoking' : 'Invoke agents';
+      ? 'Invoke cohort agents' : 'Invoke agents';
     all('#document-form button, #attestation-form button').forEach((button) => { button.disabled = !state.ready; });
     $('settings-submit').disabled = !state.ready || !state.settingsLoaded;
     updateActivity();
+    updateSnapshotActivity();
     window.orionExternalModels?.render();
+  }
+  const snapshotActive = $('snapshot-logs-active');
+  snapshotActive.append(icon('running'), document.createTextNode('Saving'));
+  function updateSnapshotActivity() {
+    snapshotActive.hidden = !(hostedActivity?.busy && hostedActivity.savingSnapshot
+      && hostedActivity.operationId === snapshotLogOperationId
+      && snapshotLogScope.startsWith(`${state.projectId}:${state.memberHash}:`));
   }
   document.addEventListener('orion:hosted-operation-state', event => {
     hostedActivity = event.detail || null;
@@ -1553,8 +1877,57 @@
         || live.workflow_id !== $('agent-workflow').value || !/^[a-f0-9]{32}$/.test(live.run_id || '')) return;
     if (state.submittedRunId === live.run_id) return;
     state.submittedRunId = live.run_id;
+    hostedRunTiming = {id: live.run_id, started: null, confirmedAt: null};
     formStatus($('agent-form'), `Run ${live.run_id} accepted in the active app session. The run is in progress; the final save is not yet confirmed.`);
     selectRun(live.run_id);
+  });
+  document.addEventListener('orion:hosted-agent-final-observation', event => {
+    const live = event.detail, finalStatus = live?.final_status;
+    if (!state.hosted || live.project_id !== state.projectId || live.package_hash !== state.memberHash
+        || live.run_id !== state.runId || finalStatus?.id !== state.runId
+        || latestRunObservation?.id !== state.runId) return;
+    const signature = JSON.stringify(finalStatus);
+    if (signature === latestFinalObservation) return;
+    latestFinalObservation = signature;
+    finalRunStatus = finalStatus;
+    const previousWriter = latestRunObservation.candidate_writer;
+    const writer = finalStatus.candidate_writer;
+    const mergedWriter = writer && writer.id === previousWriter?.id ? {...previousWriter, ...writer} : writer;
+    void pollRun(state.runTicket, {...latestRunObservation, ...finalStatus, candidate_writer: mergedWriter}, true);
+  });
+  document.addEventListener('orion:hosted-snapshot-progress', event => {
+    const detail = event.detail, snapshot = detail?.snapshot;
+    if (detail?.project_id !== state.projectId || detail.package_hash !== state.memberHash
+        || !/^[a-f0-9]{32}$/.test(detail.run_id || '')
+        || !/^[a-f0-9]{32}$/.test(detail.operation_id || '')
+        || !Number.isSafeInteger(snapshot?.observed_at) || typeof detail.label !== 'string') return;
+    const scope = `${detail.project_id}:${detail.package_hash}:${detail.run_id}:${detail.operation_id}`;
+    if (scope !== snapshotLogScope) { snapshotLogScope = scope; snapshotLogEvents = []; }
+    snapshotLogOperationId = detail.operation_id;
+    updateSnapshotActivity();
+    const signature = JSON.stringify(snapshot);
+    if (snapshotLogEvents[0]?.signature === signature) return;
+    snapshotLogEvents.unshift({signature, label: detail.label, ...snapshot});
+    snapshotLogEvents = snapshotLogEvents.slice(0, 100);
+    const list = $('snapshot-logs-list'), summary = $('snapshot-logs-summary');
+    const scrollTop = list.firstElementChild?.scrollTop || 0;
+    snapshotLogsResizeObserver?.disconnect();
+    clear(list);
+    summary.textContent = `Run ${detail.run_id} · ${count(snapshotLogEvents.length)} observations · newest first${snapshotLogEvents.length > 5 ? ' · scroll for more' : ''}`;
+    const history = el('ol', 'writer-logs-events');
+    history.tabIndex = 0;
+    history.setAttribute('aria-label', 'Hosted save observations, newest first');
+    for (const entry of snapshotLogEvents) {
+      const item = el('li', 'writer-log-event');
+      const measured = Number.isSafeInteger(entry.completed) && Number.isSafeInteger(entry.total);
+      const suffix = measured ? ` · ${count(entry.completed)} of ${count(entry.total)} ${entry.stage === 'artifact_upload' ? 'artifacts' : 'tables'}` : '';
+      item.append(el('span', 'writer-event-time', historyTime(new Date(entry.observed_at * 1000).toISOString())),
+        el('span', 'writer-event-detail', `${entry.label}${suffix}`));
+      history.append(item);
+    }
+    list.append(history);
+    snapshotLogsResizeObserver = observeLogRows(history);
+    history.scrollTop = scrollTop;
   });
   document.addEventListener('orion:external-model-state', updateControls);
   window.orionModelRouteConfigured = (result) => {
@@ -1694,14 +2067,8 @@
     $('overview-details').textContent = json({ package: data.package, coverage: data.coverage, diagnostics_count: data.diagnostics_count, diagnostics: data.diagnostics, status: data.status });
     renderCapabilities(data.capabilities);
     const workflows = array(data.workflows);
-    let rememberedWorkflow = '';
-    try {
-      const saved = JSON.parse(sessionStorage.getItem('orion-workflow-selection') || 'null');
-      if (saved?.project === state.projectId && saved?.package === data.package?.sha256)
-        rememberedWorkflow = saved.workflow || '';
-    } catch { /* Session storage is optional. */ }
     all('[data-workflow-select]').forEach((select) => {
-      const selected = select.value || (select.id === 'agent-workflow' ? rememberedWorkflow : '');
+      const selected = select.value;
       clear(select);
       const optional = select.dataset.optional === 'true';
       const placeholder = el('option', '', optional ? 'No workflow association' : 'Choose a workflow');
@@ -1727,16 +2094,7 @@
   }
 
   document.addEventListener('change', event => {
-    if (!['agent-workflow', 'redesign-workflow'].includes(event.target.id)) return;
     if (state.hosted && event.target.id === 'agent-workflow') updateControls();
-    const workflow = event.target.value;
-    const packageHash = state.overview?.package?.sha256;
-    if (!packageHash) return;
-    try {
-      sessionStorage.setItem('orion-workflow-selection', JSON.stringify({
-        project: state.projectId, package: packageHash, workflow
-      }));
-    } catch { /* In-memory selection remains available. */ }
   });
 
   function renderCapabilities(capabilities) {
@@ -1754,7 +2112,7 @@
       const assessed = document.getElementById('capability-assessed-at');
       if (assessed) {
         const date = new Date(inventory.assessed_at);
-        assessed.textContent = Number.isNaN(date.getTime()) ? 'Assessment time not reported' : `Assessed ${date.toLocaleString()} (server implementation, not deployment date)`;
+        assessed.textContent = Number.isNaN(date.getTime()) ? 'Assessment time not reported' : `Assessed ${historyTime(inventory.assessed_at)} (server implementation, not deployment date)`;
         assessed.dateTime = Number.isNaN(date.getTime()) ? '' : inventory.assessed_at;
       }
       for (const row of entries) {
@@ -1859,6 +2217,7 @@
     state.agentRunning = false;
     state.agentSubmitting = false;
     state.submittedRunId = null;
+    state.submittedRunConfirmed = false;
     state.agentRunsLoaded = false;
     state.runtimeWarmKey = null; state.runtimeWarmStatus = 'not_started';
     state.runtimeWarmFlight = null; state.runtimeWarmTicket += 1; state.runtimeWarmError = '';
@@ -3114,7 +3473,7 @@
     });
     host.append(form);
     const links = el('div', 'button-row');
-    links.append(action('Open workflow', () => { navigate('explorer', true); selectObject(proposal.workflow_id); }), action('Agent activity', () => { navigate('agents', true); $('agent-workflow').value = proposal.workflow_id; $('agent-scenario').value = proposal.scenario; }), action('Save proposal JSON', () => downloadJSON(proposal, 'proposal.json')));
+    links.append(action('Open workflow', () => { navigate('explorer', true); selectObject(proposal.workflow_id); }), action('Agent Activity', () => { navigate('agents', true); $('agent-workflow').value = proposal.workflow_id; $('agent-scenario').value = proposal.scenario; }), action('Save proposal JSON', () => downloadJSON(proposal, 'proposal.json')));
     host.append(links);
     const history = el('div', 'section-gap');
     host.append(history);
@@ -3129,7 +3488,7 @@
         const record = el('article', 'record review-card');
         const header = el('div', 'record-heading');
         header.append(el('strong', '', human(review.action)), semanticStatus(review.action === 'reject' ? 'rejected' : review.action === 'request_rework' ? 'draft' : review.status));
-        record.append(header, el('small', 'record-time', `v${text(review.version)} · ${text(review.created_at)}`));
+        record.append(header, el('small', 'record-time', `v${text(review.version)} · ${historyTime(review.created_at)}`));
         if (review.comment != null) paragraph(record, review.comment, 'prose');
         jsonDetails(record, 'Complete review record', review); history.append(record);
       });
@@ -3261,7 +3620,7 @@
         formStatus(form, 'A configured agent, selected workflow and confirmed idle run status are required.', 'error'); return;
       }
       document.dispatchEvent(new CustomEvent('orion:open-cohort-review', {detail: {
-        workflow_id: $('agent-workflow').value, scenario: $('agent-scenario').value}}));
+        workflow_id: $('agent-workflow').value, scenario: $('agent-scenario').value, invoke: true}}));
       return;
     }
     if (!assessmentReady() || !agentModelAvailable() || state.agentRunning || state.agentSubmitting || !state.agentRunsLoaded) { formStatus(form, 'A configured agent and confirmed idle run status are required.', 'error'); return; }
@@ -3269,6 +3628,7 @@
     $('agent-submit').disabled = true;
     state.agentSubmitting = true;
     state.agentRunning = true;
+    state.submittedRunConfirmed = false;
     updateControls();
     formStatus(form, 'Submitting the explicitly requested agent run…');
     let responseFailure = null;
@@ -3279,11 +3639,18 @@
       if (!run.id) throw new Error('The service did not return a run ID. Refresh recorded runs before submitting again.');
       formStatus(form, `Run ${run.id} submitted. Actual status: ${text(run.status)}. Design and candidate-code drafting are part of this run; execution and deployment are not.`, 'success');
       state.submittedRunId = String(run.id);
-      await loadRuns();
-      if (epoch !== state.epoch) return;
+      state.submittedRunConfirmed = true;
+      if (state.hosted) {
+        if (hostedRunTiming?.id !== String(run.id))
+          hostedRunTiming = {id: String(run.id), started: null, confirmedAt: null};
+        const started = Date.parse(run.started_at || run.created_at || '');
+        if (Number.isFinite(started)) hostedRunTiming.started = started;
+        hostedRunTiming.confirmedAt = Date.now();
+      }
       // The list can lag the accepted submission. Keep the slot locked until
       // this run is observed and a terminal observation triggers a fresh list.
       state.agentRunning = true; state.agentRunsLoaded = false;
+      state.agentSubmitting = false;
       updateControls();
       selectRun(run.id);
     } catch (error) {
@@ -3306,7 +3673,7 @@
             const event = result.item;
             if (!event || event.id !== failure.failureId) return;
             formStatus(form, `Run submission failed during ${human(event.phase || failure.phase || 'hosted request')}. `
-              + `${event.error?.resource_name ? `Databricks denied metadata access to ${event.error.resource_name}. ` : ''}`
+              + `${event.error?.resource_name ? `Databricks resource: ${event.error.resource_name}. ` : ''}`
               + 'The worker/result may have completed without a confirmed saved run. Inspect Logs and committed run status before retrying.', 'error');
             const runPanel = $('run-detail');
             const note = el('section', 'hosted-run-failure', 'hosted-run-failure');
@@ -3322,6 +3689,35 @@
     }
   });
   let runsPending = null;
+  function runHistoryRow(run) {
+    const button = action('', () => selectRun(run.id), 'object-item');
+    button.dataset.runId = run.id;
+    const header = el('span', 'record-heading');
+    const workflowLabel = run.workflow_name || run.name
+      || [...$('agent-workflow').options].find(option => option.value === run.workflow_id)?.textContent
+      || 'Workflow name unavailable';
+    header.append(title(el('strong', 'record-title', workflowLabel), `${workflowLabel} | ${run.workflow_id ?? ''}`), semanticStatus(run.status));
+    const start = run.started_at || run.created_at;
+    const finished = Date.parse(run.finished_at || '');
+    const began = Date.parse(start || '');
+    const seconds = Number.isFinite(finished) && Number.isFinite(began) ? Math.max(0, Math.floor((finished - began) / 1000)) : null;
+    const duration = seconds === null ? 'Not available' : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m ${seconds % 60}s`;
+    button.append(header, el('small', 'record-time', `Started: ${historyTime(start)}`),
+      el('small', 'record-time', `Finished: ${run.finished_at ? historyTime(run.finished_at) : terminal.has(String(run.status).toLowerCase()) ? 'Not recorded' : 'Not finished'}`),
+      el('small', 'record-time', `Total duration: ${run.finished_at ? duration : 'Not finished'}`));
+    if (run.candidate_writer) button.append(el('small', 'record-time',
+      `Candidate writer: ${text(run.candidate_writer.status)}${run.candidate_writer.manifest_status ? ` · ${text(run.candidate_writer.manifest_status)}` : ''}`));
+    button.title = `${workflowLabel}\nRun ID: ${run.id}`;
+    return button;
+  }
+  function showObservedActiveRun(run) {
+    const history = $('runs-list');
+    if (!activeRun(run) || history.dataset.offset !== '0'
+        || [...history.querySelectorAll('[data-run-id]')].some(row => row.dataset.runId === String(run.id))) return;
+    if (!history.querySelector('[data-run-id]')) clear(history);
+    history.prepend(runHistoryRow(run));
+    history.scrollTop = 0;
+  }
   function loadRuns(offset = 0) {
     if (runsPending?.epoch === state.epoch && runsPending.offset === offset) return runsPending.promise;
     const pending = { epoch: state.epoch, offset, promise: null };
@@ -3354,27 +3750,8 @@
       clear($('runs-list'));
       $('runs-list').dataset.offset = String(offset);
       if (!array(data.items).length) message($('runs-list'), 'No agent runs recorded. No AI activity has been fabricated.');
-      for (const run of array(data.items)) {
-        const button = action('', () => selectRun(run.id), 'object-item');
-        button.dataset.runId = run.id;
-        const header = el('span', 'record-heading');
-        const workflowLabel = run.workflow_name || run.name
-          || [...$('agent-workflow').options].find(option => option.value === run.workflow_id)?.textContent
-          || 'Workflow name unavailable';
-        header.append(title(el('strong', 'record-title', workflowLabel), `${workflowLabel} | ${run.workflow_id ?? ''}`), semanticStatus(run.status));
-        const start = run.started_at || run.created_at;
-        const finished = Date.parse(run.finished_at || '');
-        const began = Date.parse(start || '');
-        const seconds = Number.isFinite(finished) && Number.isFinite(began) ? Math.max(0, Math.floor((finished - began) / 1000)) : null;
-        const duration = seconds === null ? 'Not available' : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m ${seconds % 60}s`;
-        button.append(header, el('small', 'record-time', `Started: ${historyTime(start)}`),
-          el('small', 'record-time', `Finished: ${run.finished_at ? historyTime(run.finished_at) : terminal.has(String(run.status).toLowerCase()) ? 'Not recorded' : 'Not finished'}`),
-          el('small', 'record-time', `Total duration: ${run.finished_at ? duration : 'Not finished'}`));
-        if (run.candidate_writer) button.append(el('small', 'record-time',
-          `Candidate writer: ${text(run.candidate_writer.status)}${run.candidate_writer.manifest_status ? ` · ${text(run.candidate_writer.manifest_status)}` : ''}`));
-        button.title = `${workflowLabel}\nRun ID: ${run.id}`;
-        $('runs-list').append(button);
-      }
+      for (const run of array(data.items)) $('runs-list').append(runHistoryRow(run));
+      showObservedActiveRun(latestRunObservation);
       if (data.truncated) paragraph($('runs-list'), `Showing ${array(data.items).length} of ${data.total} saved agent runs. ${prefetch ? 'Saved history is not a current active-status check.' : 'Active status was checked across the complete committed history.'}`, 'small muted');
       if (offset > 0) $('runs-list').append(action('Previous saved agent runs', () => loadRuns(Math.max(0, offset - 50))));
       if (data.truncated) $('runs-list').append(action('Next saved agent runs', () => loadRuns(offset + 50)));
@@ -3409,15 +3786,10 @@
   $('refresh-runs').addEventListener('click', () => { loadRuns(); if (state.runId) selectRun(state.runId); });
   const actualCounter = value => Number.isSafeInteger(value) && value >= 0;
   function historyTime(value) {
-    const stamp = Date.parse(value || '');
-    if (!Number.isFinite(stamp)) return 'Not recorded';
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return `${new Intl.DateTimeFormat(undefined, {year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZoneName: 'short'}).format(stamp)} (${zone}, local)`;
+    return window.orionTime?.dateTime(value) ?? (value ? 'Local time unavailable' : 'Time not recorded');
   }
   function activityTime(value) {
-    const stamp = typeof value === 'string' ? Date.parse(value) : NaN;
-    return Number.isFinite(stamp) ? new Date(stamp).toLocaleTimeString(undefined,
-      { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : 'Not recorded';
+    return window.orionTime?.time(value) ?? (value ? 'Local time unavailable' : 'Time not recorded');
   }
   function savedAgentObservation(run) {
     const saved = run.observation_snapshot;
@@ -3980,34 +4352,45 @@
     }
     const kind = String(event.event || '').startsWith('tool_') ? 'tool'
       : String(event.event || '').startsWith('model_') ? 'model' : 'other';
-    const card = el('article', `agent-latest-event agent-event-${kind}${completed ? '' : ' is-active'}`);
+    const card = el('article', `agent-latest-event agent-event-${kind}`);
     const role = roleLabel(event.role);
-    card.append(el('strong', '', role), el('span', 'agent-event-kind', human(event.event || 'event not reported')));
+    const eventHeader = el('div', 'agent-event-header');
+    const eventState = el('span', 'status-pill agent-event-state', human(event.event || 'event not reported'));
+    eventState.dataset.event = event.event || '';
+    eventHeader.append(el('strong', 'agent-role-badge', role), eventState);
     const timestamp = typeof event.created_at === 'string' ? Date.parse(event.created_at) : NaN;
     const time = el('time', 'agent-event-time', Number.isFinite(timestamp)
-      ? new Date(timestamp).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'medium'}) : 'Timestamp not recorded');
-    if (Number.isFinite(timestamp)) time.dateTime = new Date(timestamp).toISOString();
-    card.append(time);
+      ? historyTime(event.created_at) : event.created_at ? 'Local time unavailable' : 'Timestamp not recorded');
+    if (Number.isFinite(timestamp)) time.dateTime = window.orionTime?.iso(event.created_at) || new Date(timestamp).toISOString();
+    eventHeader.append(time); card.append(eventHeader);
     const workflow = run.workflow_name || run.name || run.workflow_id || 'Workflow not recorded';
-    const scenario = run.scenario ? human(run.scenario) : 'Scenario not recorded';
+    const scenario = run.scenario ? scenarioLabel(run.scenario) : 'Scenario not recorded';
     const started = Date.parse(run.started_at || run.created_at || '');
     const elapsed = Number.isFinite(started) && Number.isFinite(timestamp)
       ? ` · event at ${Math.max(0, Math.floor((timestamp - started) / 1000))}s from run start` : '';
-    card.append(el('span', 'agent-event-context', `Run ${text(run.id)} · ${text(workflow)} · ${scenario}${elapsed}`));
+    card.append(el('span', 'agent-event-context', `Run ${text(run.id)} · ${text(workflow)} · ${scenario} · ${run.cohort_id ? 'Cohort' : 'Standalone'}${elapsed}`));
     const label = kind === 'tool' ? event.tool_name : kind === 'model' ? event.endpoint : null;
     if (label) card.append(el('span', 'agent-event-detail', `${kind === 'tool' ? 'Tool' : 'Endpoint'}: ${text(label)}`));
     const counts = live.counts || {};
+    const counters = el('div', 'agent-event-counters');
+    counters.setAttribute('aria-label', 'Recorded run-level call counts');
     const relevant = kind === 'tool' ? ['tool_started', 'tool_completed', 'tool_rejected', 'tool_failed']
       : kind === 'model' ? ['model_started', 'model_completed', 'model_failed'] : [];
     for (const key of relevant) {
       const value = key === 'tool_failed' ? recordedFailureCount('tool', counts, live, completed)
         : key === 'model_failed' ? recordedFailureCount('model', counts, live, completed) : counts[key];
-      card.append(el('span', 'agent-event-detail', `${human(key)}: ${Number.isSafeInteger(value) && value >= 0 ? value : 'not recorded'}`));
+      const measured = Number.isSafeInteger(value) && value >= 0;
+      const counter = el('span', `agent-event-counter${!measured ? ' is-unavailable' : key.endsWith('_failed') && value > 0 ? ' is-failed' : ''}`);
+      counter.append(el('span', 'agent-event-counter-label', human(key)),
+        el('strong', 'agent-event-counter-value', measured ? count(value) : 'Not recorded'));
+      counters.append(counter);
     }
-    card.append(el('p', 'small muted', completed
+    if (relevant.length) card.append(counters);
+    const footer = el('div', 'agent-event-footer');
+    footer.append(el('p', 'small muted', completed
       ? 'This is the latest event retained in the completed run receipt, not a live activity indicator.'
       : 'This is the latest committed event receipt. It may have completed; see in-flight calls above for current recorded state.'));
-    card.append(logCopyButton(event));
+    footer.append(logCopyButton(event)); card.append(footer);
     row.append(card);
     return row;
   }
@@ -4112,17 +4495,35 @@
     const numbered = /^candidate_code_generation:(\d+)\/(\d+)$/.exec(phase);
     return {phase, label: numbered ? `Preparing draft ${numbered[1]} of ${numbered[2]}` : labels[phase] || human(phase)};
   }
-  function renderDesignRevisionStatus(run, writerActive) {
+  function renderDesignRevisionStatus(run, writerActive, completed) {
     const history = Array.isArray(run.candidate_draft_history) ? run.candidate_draft_history
       : array(run.output?.candidate_code_drafts);
     const entries = array(run.revision_ledger?.entries);
     const summary = run.design_revision_status;
     if (run.generate_code !== true && !history.length && !entries.length && !summary) return null;
 
-    const panel = el('section', 'agent-writer-progress');
+    const panel = el('section', 'agent-writer-progress agent-design-revision-status');
     panel.setAttribute('aria-label', 'Design correction and candidate status');
     heading(panel, 'Design correction and candidate status', 'h3');
     panel.append(el('p', 'small muted', 'AI-generated designs and code require human review. The original candidate may be followed by up to two design revision rounds.'));
+    const finalDraft = history.filter(draft => draft?.status === 'completed'
+      && Number.isSafeInteger(draft.design_version) && draft.design_version > 0).at(-1);
+    if (finalDraft) {
+      const result = el('div', 'agent-design-result');
+      result.append(el('strong', 'agent-design-result-title', `Generated design v${finalDraft.design_version}`),
+        el('p', '', completed
+          ? 'Review the generated design and notebook code in Proposals. Generation is not approval or deployment.'
+          : 'Generation finished; the workspace save is not yet confirmed.'));
+      const link = verifiedSubmittedLinks(run).find(item =>
+        item.id === finalDraft.design_id && item.version === finalDraft.design_version);
+      if (completed && link) result.append(action(`Review v${link.version} in Proposals`, () => {
+        document.dispatchEvent(new CustomEvent('orion:review-submitted-design', {detail: link}));
+      }, 'primary'));
+      else if (completed) result.append(action('Open Proposals to review saved designs', () => {
+        $('scenario').value = run.scenario; navigate('proposals', true);
+      }, 'secondary'));
+      panel.append(result);
+    }
 
     const reasons = new Set([
       'Cancellation requested; no further writer was started.',
@@ -4253,7 +4654,7 @@
     const {label} = writerPhaseLabel(run, writerActive);
     const started = Date.parse(writer.started_at || writer.created_at || '');
     const ended = Date.parse(writer.finished_at || '');
-    const now = completed && Number.isFinite(ended) ? ended : Date.now();
+    const now = Number.isFinite(ended) ? ended : Date.now();
     const writerElapsed = Number.isFinite(started) ? formatClockDuration(Math.max(0, (now - started) / 1000)) : 'Not recorded';
     const phaseStamp = Date.parse(run.phase_updated_at || run.writer_progress?.updated_at || writer.phase_updated_at || '');
     const phaseAge = Number.isFinite(phaseStamp) ? Math.max(0, Math.floor((Date.now() - phaseStamp) / 1000)) : null;
@@ -4302,12 +4703,7 @@
       paragraph(history, 'Process-local observations, newest first. Staged notebooks are not final saved artifacts. Event history is lost if the app restarts.', 'small muted');
       const list = el('ol');
       for (const event of [...writerEvents.events].reverse()) {
-        const detail = [event.timestamp, event.stage, event.status, event.role, event.endpoint, event.tool,
-          event.review_status && `review: ${human(event.review_status)}`,
-          Number.isSafeInteger(event.tasks_reviewed) && Number.isSafeInteger(event.tasks_total)
-            ? `AI-reviewed tasks: ${event.tasks_reviewed}/${event.tasks_total}` : '',
-          Number.isSafeInteger(event.issue_count) ? `issues: ${event.issue_count}` : '', event.failure_class].filter(Boolean).join(' · ');
-        list.append(el('li', '', detail));
+        list.append(el('li', '', writerEventText(event)));
       }
       history.append(list); panel.append(history);
     }
@@ -4369,6 +4765,50 @@
     paragraph(panel, staleMessage, `agent-writer-progress-note${stale ? ' is-stale' : ''}`);
     return panel;
   }
+  function agentProgressTime(run) {
+    const live = agentObservationReceipt(run);
+    const stamps = [run.started_at || run.created_at, run.phase_updated_at,
+      run.writer_progress?.updated_at, run.candidate_writer?.phase_updated_at,
+      live?.last_event?.created_at].map(stamp => Date.parse(stamp || '')).filter(Number.isFinite);
+    return stamps.length ? Math.max(...stamps) : null;
+  }
+  function renderLiveRunStatus(observed, elapsed, age, progressAge = null) {
+    const target = $('agent-form').querySelector('.form-status');
+    if (!target) return;
+    if (target.dataset.liveRunId !== observed.id || !target.querySelector('.agent-status-heading')) {
+      clear(target); target.className = 'form-status agent-live-status'; target.dataset.liveRunId = observed.id;
+      const heading = el('span', 'agent-status-heading');
+      heading.append(el('span', 'agent-status-badge'), el('code', 'agent-status-run-id', `Run ${observed.id}`),
+        el('span', 'agent-status-mode'));
+      target.append(heading);
+      for (const [label, className] of [['Agent elapsed', 'agent-status-elapsed'], ['Since last status check', 'agent-status-age'],
+        ['Since last recorded progress', 'agent-status-progress-age']]) {
+        const metric = el('span', 'agent-status-metric'), time = el('time', className);
+        time.setAttribute('aria-live', 'off');
+        metric.append(el('span', 'agent-status-metric-label', label), time); target.append(metric);
+      }
+      target.append(el('span', 'agent-status-note'));
+    }
+    const status = observed.workspacePending ? 'queued' : observed.statusKey || 'unknown';
+    const stalled = !observed.workspacePending && progressAge !== null && progressAge >= 300;
+    const freshness = observed.statusUnconfirmed || age === null ? 'unknown' : age > 30 || stalled ? 'stale' : 'fresh';
+    target.dataset.status = status; target.dataset.freshness = freshness;
+    const badge = target.querySelector('.agent-status-badge');
+    const label = observed.workspacePending ? 'Workspace save pending' : `Last reported: ${observed.status}`;
+    if (badge.textContent !== label || badge.firstElementChild?.dataset.status !== status) badge.replaceChildren(semanticStatus(status, label));
+    target.querySelector('.agent-status-mode').textContent = observed.runMode || 'Mode not recorded';
+    target.querySelector('.agent-status-metric-label').textContent = observed.workspacePending ? 'Workspace total elapsed (browser observed)' : 'Agent elapsed';
+    setClockTime(target.querySelector('.agent-status-elapsed'), elapsed, 'Elapsed time');
+    setClockTime(target.querySelector('.agent-status-age'), age, 'Time since last successful status check');
+    setClockTime(target.querySelector('.agent-status-progress-age'), progressAge, 'Time since last recorded execution progress');
+    const note = target.querySelector('.agent-status-note');
+    note.textContent = observed.workspacePending
+      ? 'Saving workspace state to Delta; confirmation pending.'
+      : observed.statusUnconfirmed ? 'Current status unconfirmed. Execution clocks and activity animations are paused while reconnecting to the same run.'
+        : stalled ? `No agent progress has been persisted for ${formatClockDuration(progressAge)}. This may be a long model/tool request or a stalled worker; a successful status check does not prove execution progress. The app does not auto-stop the run.`
+      : freshness !== 'fresh' ? 'Current status is not freshly confirmed; the badge shows the last service report.'
+        : observed.pending ? 'Checking current status…' : 'Waiting for the next service update.';
+  }
   function updateLiveRunClock() {
     const observed = liveRunObservation;
     if (!observed || observed.epoch !== state.epoch || observed.ticket !== state.runTicket) {
@@ -4376,9 +4816,18 @@
     }
     const now = Date.now();
     const elapsed = Number.isFinite(observed.started) ? Math.max(0, Math.floor((now - observed.started) / 1000)) : null;
-    document.dispatchEvent(new CustomEvent('orion:agent-clock', {detail: {id: observed.id, elapsed}}));
+    const total = observed.workspacePending ? elapsed : null;
+    const progressAge = Number.isFinite(observed.progressAt) ? Math.max(0, Math.floor((now - observed.progressAt) / 1000)) : null;
+    const progressStalled = !observed.workspacePending && progressAge !== null && progressAge >= 300;
+    const recorded = recordedRunStates.get(observed.id);
+    if (recorded && recorded.progress_stalled !== progressStalled) {
+      recorded.progress_stalled = progressStalled;
+      updateActivity();
+    }
+    document.dispatchEvent(new CustomEvent('orion:agent-clock', {detail: {id: observed.id, elapsed,
+      workspaceElapsed: total, progressStalled, progressAge}}));
     const age = Number.isFinite(observed.receivedAt) ? Math.max(0, Math.floor((now - observed.receivedAt) / 1000)) : null;
-    formStatus($('agent-form'), `Run ${observed.id}: last reported ${observed.status}${elapsed === null ? '' : ` · elapsed ${formatClockDuration(elapsed)}`}. Last successful status check ${age === null ? 'unavailable' : `${formatClockDuration(age)} ago`}. ${observed.pending ? 'Checking current status…' : 'Waiting for the next service update.'}`);
+    renderLiveRunStatus(observed, elapsed, age, progressAge);
     const clock = document.querySelector('#run-detail .agent-live-clock');
     if (clock) {
       const elapsedNode = clock.querySelector('.agent-live-elapsed');
@@ -4389,7 +4838,9 @@
       clock.setAttribute('aria-label', `Elapsed ${elapsed === null ? 'time unavailable' : formatClockDuration(elapsed)}. Last successful status check ${age === null ? 'unavailable' : `${formatClockDuration(age)} ago`}${observed.pending ? '. Status request pending.' : ''}`);
     }
     const summaryElapsed = document.querySelector('#run-detail .agent-run-elapsed');
-    if (summaryElapsed) summaryElapsed.textContent = elapsed === null ? 'N/A' : formatClockDuration(elapsed);
+    if (summaryElapsed && !observed.agentFinished) summaryElapsed.textContent = elapsed === null ? 'N/A' : formatClockDuration(elapsed);
+    const totalElapsed = document.querySelector('#run-detail .agent-workspace-elapsed');
+    if (totalElapsed && observed.workspacePending) totalElapsed.textContent = total === null ? 'Not available' : `${formatClockDuration(total)} (browser observed)`;
     for (const phaseAgeNode of document.querySelectorAll('#run-detail .agent-writer-phase-age[data-phase-updated-at]')) {
       const stamp = Number(phaseAgeNode.dataset.phaseUpdatedAt);
       if (Number.isFinite(stamp)) {
@@ -4454,20 +4905,40 @@
   }
   function selectRun(id) {
     clearInterval(liveRunClock); liveRunClock = null; liveRunObservation = null;
+    latestRunObservation = null; latestFinalObservation = ''; finalRunStatus = null;
     renderedRunId = null; renderedRunSignature = null;
+    document.dispatchEvent(new CustomEvent('orion:agent-run', {detail: null}));
     state.runId = String(id);
     state.runTicket += 1;
     clearTimeout(state.runTimer);
     message($('run-detail'), 'Reading saved run status…');
     pollRun(state.runTicket);
   }
-  async function pollRun(ticket, completedRecord = null) {
+  function verifiedSubmittedLinks(run) {
+    return array(run.submitted_design_links).filter(link => link && /^[a-f0-9]{64}$/.test(link.id)
+      && Number.isInteger(link.version) && link.version > 0 && link.record_id === run.id
+      && link.workflow_id === run.workflow_id && link.scenario === run.scenario
+      && link.package_hash === run.package_hash);
+  }
+  async function pollRun(ticket, completedRecord = null, suppressScheduling = false) {
     const id = state.runId, epoch = state.epoch;
+    const observationBeforeRead = latestRunObservation;
     if (!id) return;
     if (liveRunObservation?.ticket === ticket) liveRunObservation.pending = true;
     try {
-      const run = completedRecord ?? await api(`/api/agents/runs/${encodeURIComponent(id)}?status_only=true`);
+      let run = completedRecord ?? await api(`/api/agents/runs/${encodeURIComponent(id)}?status_only=true`);
       if (epoch !== state.epoch || ticket !== state.runTicket) return;
+      if (state.hosted && state.agentSubmitting && finalRunStatus?.id === run.id) {
+        const writer = finalRunStatus.candidate_writer;
+        const previousWriter = run.candidate_writer;
+        run = {...run, ...finalRunStatus, candidate_writer:
+          writer && writer.id === previousWriter?.id ? {...previousWriter, ...writer} : writer};
+      }
+      const progressAt = agentProgressTime(run);
+      run = {...run, status_unconfirmed: false, progress_stalled: activeRun(run)
+        && Number.isFinite(progressAt) && Date.now() - progressAt >= 300000};
+      latestRunObservation = run;
+      showObservedActiveRun(run);
       const saved = savedAgentObservation(run);
       // Status-only terminal reads carry their own immutable renderer inputs.
       // A subsequent full read keeps the same graphs, with complete output intact.
@@ -4479,6 +4950,13 @@
       const writerActive = activeWriter(run);
       const commitPending = state.hosted && state.agentSubmitting;
       const completed = parentTerminal && !writerActive && !commitPending;
+      const startedForTiming = Date.parse(run.started_at || run.created_at || '');
+      if (hostedRunTiming?.id === run.id && Number.isFinite(startedForTiming))
+        hostedRunTiming.started = startedForTiming;
+      const totalEnd = commitPending ? Date.now() : hostedRunTiming?.id === run.id ? hostedRunTiming.confirmedAt : null;
+      const workspaceElapsed = state.hosted && hostedRunTiming?.id === run.id
+        && Number.isFinite(hostedRunTiming.started) && Number.isFinite(totalEnd)
+        ? Math.max(0, Math.floor((totalEnd - hostedRunTiming.started) / 1000)) : null;
       const docsConsent = $('agent-official-search-consent');
       if (docsConsent && (!parentTerminal || writerActive) && typeof run.official_docs_consent === 'boolean') {
         docsConsent.checked = run.official_docs_consent;
@@ -4493,23 +4971,55 @@
         completed, writerActive, commitPending]);
       const unchanged = renderedRunId === run.id && renderedRunSignature === renderSignature;
       recordedRunStates.set(run.id, runState(run, epoch));
-      if (!unchanged) document.dispatchEvent(new CustomEvent('orion:agent-run', { detail: run }));
+      if (!unchanged) document.dispatchEvent(new CustomEvent('orion:agent-run', {
+        detail: {...run, workspace_save_pending: commitPending && parentTerminal,
+          workspace_save_applicable: state.hosted, workspace_elapsed_seconds: workspaceElapsed}
+      }));
       void loadModelListPrices();
       if (completed && state.submittedRunId === String(run.id)) {
         state.submittedRunId = null;
         state.agentRunsLoaded = false;
+        if (state.submittedRunConfirmed) {
+          document.dispatchEvent(new CustomEvent('orion:agent-result-saved', {detail: {
+            projectId: state.projectId, packageHash: state.memberHash,
+            workflowId: run.workflow_id, scenario: run.scenario, runId: run.id,
+            links: verifiedSubmittedLinks(run)
+          }}));
+          savedResultNotice = {runId: run.id, signature: JSON.stringify(verifiedSubmittedLinks(run))};
+        }
+        state.submittedRunConfirmed = false;
+      }
+      if (completed && savedResultNotice?.runId === run.id) {
+        const links = verifiedSubmittedLinks(run);
+        const signature = JSON.stringify(links);
+        if (links.length && signature !== savedResultNotice.signature) {
+          savedResultNotice.signature = signature;
+          document.dispatchEvent(new CustomEvent('orion:agent-result-saved', {detail: {
+            projectId: state.projectId, packageHash: state.memberHash,
+            workflowId: run.workflow_id, scenario: run.scenario, runId: run.id, links
+          }}));
+        }
       }
       if (completed) {
         clearInterval(liveRunClock); liveRunClock = null; liveRunObservation = null;
       } else if (liveRunObservation?.id === id && liveRunObservation.ticket === ticket) {
         liveRunObservation.status = text(writerActive ? `candidate writer ${run.candidate_writer.status}` : run.status);
+        liveRunObservation.statusKey = writerActive ? run.candidate_writer.status : run.status;
+        liveRunObservation.runMode = run.cohort_id ? 'Cohort' : 'Standalone';
         liveRunObservation.started = Date.parse(run.started_at || run.created_at || '');
+        liveRunObservation.agentFinished = parentTerminal && !writerActive;
+        liveRunObservation.workspacePending = commitPending && parentTerminal;
+        liveRunObservation.progressAt = progressAt;
         liveRunObservation.receivedAt = Date.now(); liveRunObservation.pending = false;
       } else {
         clearInterval(liveRunClock);
         liveRunObservation = {id,
           status: text(writerActive ? `candidate writer ${run.candidate_writer.status}` : run.status), epoch, ticket,
+          statusKey: writerActive ? run.candidate_writer.status : run.status,
+          runMode: run.cohort_id ? 'Cohort' : 'Standalone',
           started: Date.parse(run.started_at || run.created_at || ''),
+          agentFinished: parentTerminal && !writerActive, workspacePending: commitPending && parentTerminal,
+          progressAt,
           receivedAt: Date.now(), pending: false};
         liveRunClock = setInterval(updateLiveRunClock, 1000);
       }
@@ -4535,16 +5045,16 @@
         || [...$('agent-workflow').options].find(option => option.value === run.workflow_id)?.textContent
         || 'Workflow name unavailable';
       const started = Date.parse(run.started_at || run.created_at || '');
-      const observedEnd = completed ? Date.parse(run.finished_at || '') : Date.now();
+      const observedEnd = parentTerminal && !writerActive ? Date.parse(run.finished_at || '') : Date.now();
       const elapsedSeconds = Number.isFinite(started) && Number.isFinite(observedEnd)
         ? Math.max(0, Math.floor((observedEnd - started) / 1000)) : null;
       const elapsed = elapsedSeconds === null ? '' : ` · elapsed ${formatClockDuration(elapsedSeconds)}`;
-      formStatus($('agent-form'), `Run ${run.id}: ${text(run.status)}${writerActive ? ` · Candidate writer ${text(run.candidate_writer.status)}` : ''}${phase ? ` · ${phase}` : ''}${run.output?.status ? ` · ${human(run.output.status)}` : ''}${elapsed}. ${commitPending && parentTerminal ? 'Run finished in the active session; Delta commit is not yet confirmed.' : completed ? 'Review the recorded findings and generated draft below.' : 'Waiting for the next service status update.'}`, run.status === 'failed' ? 'error' : completed ? 'success' : '');
+      if (!liveRunObservation) formStatus($('agent-form'), `Run ${run.id}: ${text(run.status)}${writerActive ? ` · Candidate writer ${text(run.candidate_writer.status)}` : ''}${phase ? ` · ${phase}` : ''}${run.output?.status ? ` · ${human(run.output.status)}` : ''}${elapsed}. ${commitPending && parentTerminal ? 'Saving workspace state to Delta; the save is not yet confirmed.' : completed ? 'Review the recorded findings and generated draft below.' : 'Waiting for the next service status update.'}`, run.status === 'failed' ? 'error' : completed ? 'success' : '');
       if (!completed) state.agentRunning = true;
       updateControls();
       if (unchanged) {
         if (liveRunObservation) updateLiveRunClock();
-        if (!completed) state.runTimer = setTimeout(() => pollRun(ticket), 2000);
+        if (!completed && !suppressScheduling) state.runTimer = setTimeout(() => pollRun(ticket), 2000);
         return;
       }
       const oldCharts = $('run-detail').querySelector('.agent-usage-charts');
@@ -4558,14 +5068,16 @@
       const previousSkillsOpen = oldSkills?.dataset.runId === run.id ? oldSkills.querySelector('details')?.open : false;
       const previousWriterEventsOpen = $('run-detail').querySelector('.agent-writer-event-history')?.open ?? false;
       clear($('run-detail'));
-      const activeAgentRoles = [...new Set(array(live?.active_calls).map(call => String(call?.role || '').trim()).filter(Boolean))];
+      const activeAgentRoles = run.progress_stalled ? []
+        : [...new Set(array(live?.active_calls).map(call => String(call?.role || '').trim()).filter(Boolean))];
       const activeAgents = activeAgentRoles.map(roleLabel);
-      if (writerActive) activeAgents.push('Spark and SQL notebook code writer (writer job reported active)');
+      if (writerActive && !run.progress_stalled) activeAgents.push('Spark and SQL notebook code writer (writer job reported active)');
       const configuredRoles = $('agent-roles')?.textContent?.match(/^Configured AI agents:\s*(.*)$/i)?.[1]?.trim();
       const runSummary = el('section', 'agent-run-summary');
       runSummary.setAttribute('aria-label', 'AGENTIC MIGRATION RUN DETAILS');
       heading(runSummary, 'AGENTIC MIGRATION RUN DETAILS', 'h3');
       if (completed) paragraph(runSummary, `Historical observation, not live.${saved ? ` Snapshot captured ${activityTime(saved.captured_at)}.` : ' No terminal snapshot was saved for this older run.'} Elapsed time is frozen at the recorded finish.`, 'small muted');
+      else if (commitPending && parentTerminal) paragraph(runSummary, 'Saving workspace state to Delta. The agent finished, but the workspace save is not yet confirmed.', 'notice');
       runSummary.append(semanticStatus(run.status));
       if (run.delivery_summary) paragraph(runSummary, run.delivery_summary,
         run.status === 'partial' ? 'small caution' : 'small muted');
@@ -4573,8 +5085,10 @@
         agent: 'ORION multi-agent migration workflow',
         configured_agents: configuredRoles || 'Not reported',
         active_agent_role: activeAgents.length ? activeAgents.join(', ')
-          : completed ? 'No active agent, run finished' : 'Not reported by service',
-        id: run.id, workflow: workflowName, status: run.status,
+          : completed ? 'No active agent, run finished' : run.progress_stalled
+            ? 'No recent recorded execution progress; last reported state is nonterminal' : 'Not reported by service',
+        id: run.id, workflow: workflowName, scenario: scenarioLabel(run.scenario),
+        review_scope: run.cohort_id ? 'Cohort' : 'Standalone', status: run.status,
         candidate_writer: run.candidate_writer
           ? `${run.candidate_writer.status}${run.candidate_writer.manifest_status ? ` · ${run.candidate_writer.manifest_status}` : ''}`
           : 'none recorded',
@@ -4583,12 +5097,19 @@
         finished_at: run.finished_at
           ? historyTime(run.finished_at)
           : completed ? 'Not recorded' : 'Not finished',
-        elapsed_seconds: elapsedSeconds === null ? 'N/A' : formatClockDuration(elapsedSeconds)
+        elapsed_seconds: elapsedSeconds === null ? 'N/A' : formatClockDuration(elapsedSeconds),
+        ...(state.hosted && parentTerminal ? {workspace_elapsed_seconds: workspaceElapsed === null
+          ? 'Not recorded in this browser session' : `${formatClockDuration(workspaceElapsed)} (browser observed)`} : {})
       }, key => key === 'active_agent_role' ? 'ACTIVE AI AGENT'
-        : key === 'elapsed_seconds' ? 'ELAPSED TIME' : human(key).toUpperCase());
+        : key === 'elapsed_seconds' ? 'AGENT ELAPSED TIME'
+        : key === 'finished_at' ? 'AGENT FINISHED AT'
+        : key === 'workspace_elapsed_seconds' ? 'TOTAL THROUGH WORKSPACE SAVE' : human(key).toUpperCase());
       const elapsedValue = [...runSummary.querySelectorAll('.detail-row')]
-        .find(row => row.querySelector('.detail-key')?.textContent === 'ELAPSED TIME')?.querySelector('.detail-value');
+        .find(row => row.querySelector('.detail-key')?.textContent === 'AGENT ELAPSED TIME')?.querySelector('.detail-value');
       if (elapsedValue) elapsedValue.classList.add('agent-run-elapsed');
+      const totalValue = [...runSummary.querySelectorAll('.detail-row')]
+        .find(row => row.querySelector('.detail-key')?.textContent === 'TOTAL THROUGH WORKSPACE SAVE')?.querySelector('.detail-value');
+      if (totalValue) totalValue.classList.add('agent-workspace-elapsed');
       const writerRow = [...runSummary.querySelectorAll('.detail-row')]
         .find(row => row.querySelector('.detail-key')?.textContent === 'CANDIDATE WRITER');
       const writerValue = writerRow?.querySelector('.detail-value');
@@ -4599,7 +5120,7 @@
           semanticStatus(run.candidate_writer.manifest_status));
       }
       $('run-detail').append(runSummary);
-      const revisionStatus = renderDesignRevisionStatus(run, writerActive);
+      const revisionStatus = renderDesignRevisionStatus(run, writerActive, completed);
       if (revisionStatus) $('run-detail').append(revisionStatus);
       const writerProgress = renderWriterProgress(run, writerActive, completed);
       if (writerProgress) {
@@ -4772,6 +5293,9 @@
         findingText(summaryView, run.output?.summary ?? run.error ?? 'No analysis summary was recorded.');
         review.append(summaryView);
         paragraph(review, 'Historical assessment: the saved findings below describe this run, not a fresh analysis. Original records and downloads remain unchanged.', 'small muted');
+        if (run.candidate_writer?.manifest_status === 'generation_complete') {
+          paragraph(review, 'Analysis findings may predate the completed writer. Claims that code is missing can be outdated; inspect the saved artifact receipts. Other findings are not automatically resolved by code generation.', 'small muted');
+        }
         if (run.diagnostic_assessment) {
           const assessment = run.diagnostic_assessment;
           paragraph(review, `Selected saved analysis, not reparsed: ${Object.entries(assessment.counts ?? {}).map(([category, count]) => `${count} ${human(category)}`).join('; ')}. Run inputs ${assessment.run_input_matches_current ? 'match' : 'do not match or are not verified against'} current selected inputs. No historical warning is automatically resolved.`, 'small muted');
@@ -4815,9 +5339,7 @@
         const controls = el('div', 'button-row');
         controls.append(action('Download run JSON', () => downloadJSON(run, `agent-run-${run.id}.json`)));
         controls.append(action('View original workflow graph', () => { navigate('explorer', true); selectObject(run.workflow_id); selectView('graph'); }));
-        const links = array(run.submitted_design_links).filter(link => /^[a-f0-9]{64}$/.test(link.id)
-          && Number.isInteger(link.version) && link.version > 0 && link.record_id === run.id
-          && link.workflow_id === run.workflow_id && link.scenario === run.scenario && link.package_hash === run.package_hash);
+        const links = verifiedSubmittedLinks(run);
         for (const link of links) controls.append(action(`View proposal & code · v${link.version}`, () => {
           if (epoch !== state.epoch || ticket !== state.runTicket || state.runId !== run.id) return;
           document.dispatchEvent(new CustomEvent('orion:review-submitted-design', { detail: link }));
@@ -4856,9 +5378,9 @@
       if (!completed) {
         updateLiveRunClock();
         paragraph($('run-detail'), commitPending && parentTerminal
-          ? 'The run finished in this session. Waiting for the hosted commit to be confirmed.'
+          ? 'The run finished in this session. Saving workspace state to Delta; waiting for confirmation.'
           : 'Status is nonterminal. Checking the service every 2 seconds.', 'small muted');
-        state.runTimer = setTimeout(() => pollRun(ticket), 2000);
+        if (!suppressScheduling) state.runTimer = setTimeout(() => pollRun(ticket), 2000);
       } else {
         loadRuns();
         if (run.status_only === true) {
@@ -4872,14 +5394,55 @@
           });
         }
       }
-    } catch (error) { if (epoch === state.epoch && ticket === state.runTicket) {
+    } catch (error) {
+      if (epoch !== state.epoch || ticket !== state.runTicket) return;
+      const previous = latestRunObservation?.id === id ? latestRunObservation : null;
+      if (previous && previous !== observationBeforeRead && !previous.status_unconfirmed
+          && terminal.has(String(previous.status).toLowerCase()) && !activeWriter(previous)
+          && !(state.hosted && state.agentSubmitting)) {
+        paragraph($('run-detail'), `An earlier status read failed. ${error.message} The newer confirmed terminal status remains visible.`, 'small caution agent-status-read-error');
+        return;
+      }
+      if (previous) {
+        const workspaceElapsed = liveRunObservation?.workspacePending && Number.isFinite(liveRunObservation.started)
+          ? Math.max(0, Math.floor((Date.now() - liveRunObservation.started) / 1000))
+          : previous.workspace_elapsed_seconds;
+        latestRunObservation = {...previous, status_unconfirmed: true, workspace_elapsed_seconds: workspaceElapsed};
+        recordedRunStates.set(id, runState(latestRunObservation, epoch));
+        document.dispatchEvent(new CustomEvent('orion:agent-run', {detail: {...latestRunObservation,
+          workspace_save_pending: state.hosted && state.agentSubmitting && terminal.has(String(previous.status).toLowerCase()),
+          workspace_save_applicable: state.hosted}}));
+        renderedRunSignature = null;
+      }
+      if (liveRunObservation) {
+        const observed = liveRunObservation, now = Date.now();
+        renderLiveRunStatus({...observed, statusUnconfirmed: true},
+          Number.isFinite(observed.started) ? Math.max(0, Math.floor((now - observed.started) / 1000)) : null,
+          Number.isFinite(observed.receivedAt) ? Math.max(0, Math.floor((now - observed.receivedAt) / 1000)) : null,
+          Number.isFinite(observed.progressAt) ? Math.max(0, Math.floor((now - observed.progressAt) / 1000)) : null);
+      } else {
+        formStatus($('agent-form'), `Current status unconfirmed. ${error.message} Reconnecting to the same run; no completion or new execution is assumed.`, 'error');
+      }
       state.agentRunsLoaded = false; updateControls();
-      if (liveRunObservation) liveRunObservation.pending = false;
+      clearInterval(liveRunClock); liveRunClock = null; liveRunObservation = null;
+      if (Number(error.status) === 404) {
+        clearTimeout(state.runTimer);
+        state.submittedRunId = null;
+        state.submittedRunConfirmed = false;
+        state.runId = null;
+        recordedRunStates.delete(id);
+        latestRunObservation = null;
+        document.dispatchEvent(new CustomEvent('orion:agent-run', {detail: null}));
+        updateControls();
+        message($('run-detail'), 'Run unavailable. It was restarted, belongs to a different scope, or is no longer retained. No completion or new execution is assumed. Refresh the run list before selecting another run.');
+        loadRuns();
+        return;
+      }
       const notice = document.querySelector('#run-detail .agent-status-read-error') || el('p', 'small caution agent-status-read-error');
       notice.textContent = `Current status unconfirmed. ${error.message} Reconnecting to the same run; no completion or new execution is assumed.`;
       if (!notice.isConnected) $('run-detail').append(notice);
       state.runTimer = setTimeout(() => pollRun(ticket), 3000);
-    } }
+    }
   }
 
   const settingNames = ['github_owner', 'github_repo', 'default_branch', 'dev_host', 'test_host', 'prod_host'];
@@ -4955,13 +5518,6 @@
     if (state.jobId) { clearTimeout(state.jobTimer); pollJob(); }
   });
   window.addEventListener('pagehide', () => {
-    try {
-      if (/^[a-f0-9]{32}$/.test(state.projectId) && /^[a-f0-9]{64}$/.test(state.memberHash)
-          && selectedCompletedPackage() && Object.hasOwn(pageNames, state.page)) {
-        sessionStorage.setItem('orion-tab-context-v1', JSON.stringify({project: state.projectId,
-          package: state.memberHash, page: state.page}));
-      } else sessionStorage.removeItem('orion-tab-context-v1');
-    } catch { /* Browser storage is optional; no credentials or run state are saved. */ }
     clearTimeout(state.overviewTimer); clearTimeout(state.jobTimer); clearTimeout(state.runTimer); clearTimeout(searchTimer);
     clearTimeout(state.projectTimer); clearTimeout(state.logsTimer);
   });
@@ -4975,12 +5531,7 @@
   });
   async function initialize() {
     const requestedPage = location.hash.slice(1);
-    let savedContext = null;
-    try {
-      const candidate = JSON.parse(sessionStorage.getItem('orion-tab-context-v1') || 'null');
-      if (/^[a-f0-9]{32}$/.test(candidate?.project || '') && /^[a-f0-9]{64}$/.test(candidate?.package || '')
-          && Object.hasOwn(pageNames, candidate?.page)) savedContext = candidate;
-    } catch { /* Storage is optional and malformed hints are ignored. */ }
+    try { sessionStorage.removeItem('orion-tab-context-v1'); } catch { /* Browser storage is optional. */ }
     const navIcons = { projects: 'plus', estate: 'grid', 'migration-analytics': 'graph', readiness: 'help', explorer: 'graph', proposals: 'draft', evidence: 'file', agents: 'partial', validate: 'check', release: 'arrow', logs: 'file', 'application-log-analytics': 'file', support: 'help', evolution: 'draft' };
     all('[data-page]').forEach((button) => {
       const glyph = button.querySelector('span[aria-hidden]');
@@ -5011,18 +5562,6 @@
     state.legacyWorkspaceSelected = false;
     $('connection-status').textContent = 'API connected · choose a project';
     $('workspace-scope').textContent = 'Choose a project and completed XML package to load package understanding. Nothing is selected automatically.';
-    if (savedContext && !restoreSelectionCancelled && !startupUserPage) {
-      await loadProjects();
-      if (!restoreSelectionCancelled && !startupUserPage && state.projectsLoaded
-          && [...$('project-select').options].some(option => option.value === savedContext.project)) {
-        await switchProject(savedContext.project, savedContext.package);
-        if (!restoreSelectionCancelled && state.projectId === savedContext.project
-            && state.memberHash === savedContext.package && selectedCompletedPackage()) {
-          const desiredPage = Object.hasOwn(pageNames, requestedPage) ? requestedPage : savedContext.page;
-          restoredPage = {project: savedContext.project, package: savedContext.package, page: desiredPage};
-        }
-      }
-    }
     initializingNavigation = false;
     navigate(startupUserPage || requestedPage || 'projects');
     updateControls();
