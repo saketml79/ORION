@@ -212,3 +212,42 @@ References:
 [serverless Jobs](https://docs.databricks.com/aws/en/jobs/run-serverless-jobs),
 [Workspace file interactions](https://docs.databricks.com/aws/en/files/workspace-interact),
 [Delta isolation](https://docs.databricks.com/aws/en/optimizations/isolation/isolation-levels).
+
+## GitHub release coverage and issue #52
+
+The source-generation and target-completion scripts were already packaged in the
+app release. Packaging did not execute full target provisioning or verify the
+separate source-seeding Job. The read-only audit found all 583 canonical source
+tables but only 21/20/20 of 307 expected targets in bronze/silver/gold. It also
+verified a previously successful source-seeding Job receipt covering all 583
+tables and 5,826 observed rows. That receipt is historical, not a current row-count
+or business-parity certification.
+
+The [release gate](../deployment/check_fixture_deployment.py) now checks the
+entire canonical source/target inventory, ordered schemas, fixture provenance,
+managed Delta format and ownership before app activation. It also verifies the
+existing source Job's exact definition, owner/Run-as, plan checksum, notebook
+generator and runtime bytes against the
+[reviewed fingerprint](../deployment/source-seed-deployment-fingerprint.json).
+The deployed runtime has CRLF bytes; its exact fingerprint is checked without
+normalizing the remote artifact or modifying the working Job.
+
+Missing fixtures or drift fail the release. The gate never creates tables,
+loads data, executes/resets/recreates Jobs, changes grants or deploys the app.
+Additive target setup uses the existing
+[one-attempt owner operator](../workbench/complete_target_fixtures.py), with a
+fresh offline `--plan`, its exact plan SHA, and explicit checksum-bound
+`CREATE MISSING TARGET FIXTURES <SHA>` consent for `--apply`. A claimed plan
+must not be rerun after an uncertain CREATE; inspect its durable journal first.
+These remain empty structural fixtures, not approved semantic destination bindings.
+
+Before using the revised GitHub workflow, separately approve the deployment
+principal's required **read-only** metadata, source-Job and private Workspace
+artifact access. Do not add grants implicitly or grant data-row/write access.
+After approval, retain the canonical target plan in an owner-controlled private
+Workspace file and configure protected-environment secrets
+`ORION_FIXTURE_PLAN_PATH` and `ORION_SOURCE_SEED_JOB_ID`, plus the reviewed
+`ORION_FIXTURE_PLAN_SHA` variable. Private plan contents must not enter the public
+repository, logs or Actions artifacts. Missing configuration/access holds the
+release rather than silently skipping verification. Existing exact-SHA and
+active-work-replacement approvals remain mandatory.

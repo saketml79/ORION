@@ -1,0 +1,6 @@
+{
+  "format": "orion-source-seed-deployment-fingerprint-v1",
+  "job_settings_sha256": "f03f0d2cfe08f78a3cad5f53a4a609132c1483567cac9dbb21b79247543f73fa",
+  "runtime_sha256": "27cf234dfbc03c9bc5019525f95fd72c78da17d3ec3e143225cc024d8e3634a7",
+  "runtime_git_sha256": "a7ca713e41047d4113151503ec75e57f0db4bcbfc177861f9e01dcd0ca06edfc"
+}
