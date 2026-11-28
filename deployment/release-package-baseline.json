@@ -1,0 +1,3564 @@
+{
+  "format": "orion-original-app-source-v1",
+  "app_name": "orion-migration-workbench",
+  "deployment_id": "01f1eac261e815b5b62a9a2a220c5a7d",
+  "identity_sha256": "4d29daeaa80084a29574c05a9f5be5a21c79aef679ce750df602adefa4b9c35e",
+  "files": {
+    "app.yaml": {
+      "size": 677,
+      "sha256": "2988dc0511b836d453b6a2001a4cb9175a311e584c68a7bfbb6956c9f8cc19b0"
+    },
+    "databricks.yml": {
+      "size": 1580,
+      "sha256": "70f85885f271efdb968c3c1390df5b62d514a971c86f2cba23ed035ee8bd6d2d"
+    },
+    "empty-fixture-operator.json": {
+      "size": 1161,
+      "sha256": "5d5fc16235813a7020934e026863682077ab1eeffa8f2360db944ac045a75ac1"
+    },
+    "requirements.txt": {
+      "size": 675,
+      "sha256": "381fa4225c3cc697616672cd8fd0de51edbe5c62920278eb75f819a61d20c061"
+    },
+    "workbench/__init__.py": {
+      "size": 231,
+      "sha256": "86e64de15ee4e0fff3b0fa12be28c32fa621e4ff2fdb6f751e2453236de7dc3e"
+    },
+    "workbench/__main__.py": {
+      "size": 1008,
+      "sha256": "4af31788a338cd3a137abf8730cd8650728ede736c455021c8e713bd5cbf5ea6"
+    },
+    "workbench/agent_library.py": {
+      "size": 25380,
+      "sha256": "bc4ff0768091e17445e34f67cc1400d7f13cf8670bd03035f15c657921425adc"
+    },
+    "workbench/agent_recovery.py": {
+      "size": 19429,
+      "sha256": "1c256307fcd88bfa81d771c29f59c31186b5ee5956ba9d6f99af93e78e93a7eb"
+    },
+    "workbench/agent_skill_receipt.py": {
+      "size": 7570,
+      "sha256": "8828f62bfff479fb4a4fa43f9a8cae31df6aa169e4029ed9cc21e43b20a005f4"
+    },
+    "workbench/agent_uc_metadata.py": {
+      "size": 20778,
+      "sha256": "b9b1a806634d9671669f75a6dd20552c7e64107cee377a5f4ac55279d0d43bbe"
+    },
+    "workbench/agent_usage_receipt.py": {
+      "size": 14387,
+      "sha256": "9f7a7dddf20114811f6fdd897dbb14cd69c3e83e42df5504e478fb2906891a6c"
+    },
+    "workbench/agents.py": {
+      "size": 200627,
+      "sha256": "ea25a933176c9fada164b17bd6c178f0ae1d556f01f08445615682c0b6a29b2f"
+    },
+    "workbench/app.py": {
+      "size": 210579,
+      "sha256": "3a100e39f95f66a7154eb6aa38c4a77850379820c595ee5cef6f93827bc404fc"
+    },
+    "workbench/application_log_analytics.py": {
+      "size": 3640,
+      "sha256": "fd81652766f4b4df57640f9d40d5cba791db5c31abc26b18a35e05bc878a78f4"
+    },
+    "workbench/architecture_knowledge.py": {
+      "size": 22435,
+      "sha256": "660d01638e0ab821245107ed0c5e2a3dfb6d80cf15009a73fdde9516d199cee2"
+    },
+    "workbench/audit.py": {
+      "size": 7559,
+      "sha256": "50f5b05181ec87861aeb50fc69621f2e53680c39e0f2c4866dcd8e83fd62bf26"
+    },
+    "workbench/campaign_artifacts.py": {
+      "size": 4154,
+      "sha256": "cef1ac14e5816567cd1fd3a4216c00877c8b944eb5072e708b7dc0b34022dfb1"
+    },
+    "workbench/candidate_retry.py": {
+      "size": 10743,
+      "sha256": "60ca4bd1f5bb327a4017fdecdf02bd53e7551be815699fbc3f1a0f66ee7f4539"
+    },
+    "workbench/capabilities.py": {
+      "size": 8794,
+      "sha256": "b5de96d9e21c045d16c048a96e46b0ccda6712c29478e820434dbaaa74e9b77b"
+    },
+    "workbench/cohort_review.py": {
+      "size": 22739,
+      "sha256": "5d9a49a40ea524e45d72cb49889b6982e227f5f7c0e3507973371eac2689bcbe"
+    },
+    "workbench/complete_target_fixtures.py": {
+      "size": 23198,
+      "sha256": "52160e6d9c037f5b8dcad1a5c4d6d98546b20e735b7f8c9682b381e44c0bd303"
+    },
+    "workbench/connections.py": {
+      "size": 7741,
+      "sha256": "133102adb49f489620b85549a8c31655d78298f874a938db4acf6be468b222e0"
+    },
+    "workbench/conversion_acceptance.py": {
+      "size": 34121,
+      "sha256": "b41926840a16f64e3fc98561bbd7b3d9e6aff62fd39714bafb5402c4a7102faa"
+    },
+    "workbench/cow_inventory.py": {
+      "size": 11943,
+      "sha256": "a2a5384f1d1d55cf1170a0a95178ce8a3f0374be3858fb8370dbda69ce695ed5"
+    },
+    "workbench/databricks_models.py": {
+      "size": 33803,
+      "sha256": "961671a03837aba37c9e1dd4544b32fc9302e0d559f36c939e8e4dc9c0ca8e3c"
+    },
+    "workbench/delta_runtime.py": {
+      "size": 104359,
+      "sha256": "cfd5151542a5b4656171ed318b9ce6d6605b54056415549d8a736c8757d39725"
+    },
+    "workbench/delta_state.py": {
+      "size": 55229,
+      "sha256": "c849036b9d20bb05affad345253190afce1cce216835fe69c6907e62c41637a6"
+    },
+    "workbench/demo_conversion.py": {
+      "size": 30468,
+      "sha256": "c0c95f30181749526435826b9493d645e7c71d538cdee9e2b625dea6f0e1ae49"
+    },
+    "workbench/dependency_compiler.py": {
+      "size": 9576,
+      "sha256": "c9e9c00cd330a0b4498bcddfa604e99f1771b6e96fda7573c791879b814925d1"
+    },
+    "workbench/design_revision.py": {
+      "size": 25287,
+      "sha256": "7141830d1c8d4722e881272f74510af824dce7f0f7a513efddeb1366222ac9dd"
+    },
+    "workbench/diagnostic_relevance.py": {
+      "size": 2847,
+      "sha256": "c5ad8f21cd82e19636d19ac6deb33fbdf8fe633156afda7226ddbd6108126402"
+    },
+    "workbench/domain.py": {
+      "size": 31267,
+      "sha256": "44326ee950a977bd7e1f4d05feadbaa67698f0d616d0d1a44af5f048021d43b6"
+    },
+    "workbench/draft_artifact_reads.py": {
+      "size": 8851,
+      "sha256": "b27fc3b645252b4f532d1034b3890cacf418ab29e5e79e8360cf348bb2240cce"
+    },
+    "workbench/draft_bundle.py": {
+      "size": 6083,
+      "sha256": "93d93a7a3684f27b6fc2c58c576bc83bc5597916eae7bc099d66538154e7ebbf"
+    },
+    "workbench/draft_completeness.py": {
+      "size": 3593,
+      "sha256": "b96bd8f9847e009ca24e09607fe49a60b412de94a839fd9a41e20bc7bc022476"
+    },
+    "workbench/explanations.py": {
+      "size": 22676,
+      "sha256": "aa52ce84f0ff1a24c5b0253d7af5c62a66ed566809056219e5e725af337286e3"
+    },
+    "workbench/external_model_transport.py": {
+      "size": 3170,
+      "sha256": "9485ea9a356e31dc52a1f9ca80b40b751a9f4a71544b2a6c94b41235f8ac9a04"
+    },
+    "workbench/external_models.py": {
+      "size": 23190,
+      "sha256": "8f628c69300d555fcdf830c5d127bdd355caad8e6eef2943b5d03073f956e749"
+    },
+    "workbench/fixture_metadata.py": {
+      "size": 9303,
+      "sha256": "a6d77382571cac683bc6bbf8ce891435324738b37f5a3d9794b183eebce88906"
+    },
+    "workbench/folder_migration.py": {
+      "size": 30944,
+      "sha256": "e24061eb4282a98a1afd0857f957efb3d946ff1f4e35c0662e51c96b61877939"
+    },
+    "workbench/generated_code_review.py": {
+      "size": 42474,
+      "sha256": "15af7b071c07882d35d607757a47b897ec4fe9c134f229f4184f19fcd7c2802e"
+    },
+    "workbench/heartbeat.py": {
+      "size": 9111,
+      "sha256": "a809d9c04fa669867a9c517cb10a2a1c5c30ec6c53c1fc265ca9ce5d2a83d6a1"
+    },
+    "workbench/hosted.py": {
+      "size": 133593,
+      "sha256": "46cbe29cfb916760b76895fadc538ae865fefcafe31f9b0ceecdbcedfc4d43ae"
+    },
+    "workbench/hosted_agent_ledger.py": {
+      "size": 17841,
+      "sha256": "384029bee652aa600c6c153548a137e60d84938b7322b94913b019c2d2eab8b3"
+    },
+    "workbench/hosted_agent_reads.py": {
+      "size": 13697,
+      "sha256": "39cdf6a998b00aed5861fc3bd778a0912e16fe546ef010102fff6c21c1633325"
+    },
+    "workbench/hosted_artifact_migration.py": {
+      "size": 14576,
+      "sha256": "4c223da962e503142b3f42042e81fe19e1cfd835e3780e5a9fcb4254d1cff8ae"
+    },
+    "workbench/hosted_artifacts.py": {
+      "size": 11156,
+      "sha256": "902ac60550adfcf4477fbf740ec5913c223c9567d049da362b79602bef717258"
+    },
+    "workbench/hosted_audit.py": {
+      "size": 11297,
+      "sha256": "590e0aab1d3bdb6ae5ea59d9fd5c9a0aab352dd8098faee4e479b8fbf9fc6b69"
+    },
+    "workbench/hosted_buffered_checkpoints.py": {
+      "size": 6277,
+      "sha256": "7d60b6d9f2e85c7ae791cc8378c8b836ef1bd4eba9a630081463e83806e2941d"
+    },
+    "workbench/hosted_checkpoint_migration.py": {
+      "size": 9699,
+      "sha256": "7fb0cba06608dfd4fa97ec85381f934dde23b189d9970541b75eee18070ae2ac"
+    },
+    "workbench/hosted_checkpoints.py": {
+      "size": 26415,
+      "sha256": "cb4d4e95ac5163a31f6aa217a4fc31f179d72bec9888688d5e4bfde0930a9620"
+    },
+    "workbench/hosted_delta_objects.py": {
+      "size": 6598,
+      "sha256": "c68bc4836825c13a580e179ae6d06b49c65b3ffb621e3b5bde8e89d294c80667"
+    },
+    "workbench/hosted_diagnostics.py": {
+      "size": 17446,
+      "sha256": "ad72813e63242847dab6f457110b58a73554c5e7d447b7543cb3ea6dfac7a4b2"
+    },
+    "workbench/hosted_loading.py": {
+      "size": 6645,
+      "sha256": "b6649b5ef4ffbc2016b498ae284b82703ae4122f2c9e40bba91009f0cf321bb3"
+    },
+    "workbench/hosted_model_reads.py": {
+      "size": 7587,
+      "sha256": "c2c94afc656a8a7fc074e6863c95eed6afb8e1723b738f195b459b20a6a7a697"
+    },
+    "workbench/hosted_model_writes.py": {
+      "size": 9140,
+      "sha256": "6305726ab196dddc6e3b0c462d8e74021fc77f9c71a6dbf9ff3af133cf7fe845"
+    },
+    "workbench/hosted_notebook_revisions.py": {
+      "size": 34456,
+      "sha256": "ac9d056a3d5095f1cb1e2d79fae5f2d6d2a7edaef08df71dd2cd3eee7891eb3c"
+    },
+    "workbench/hosted_object_reads.py": {
+      "size": 32966,
+      "sha256": "df6d33e9dc6013f29ba136d4d50b5d3e772bd8dcd256b5efd8196a4b18401170"
+    },
+    "workbench/hosted_operations.py": {
+      "size": 66283,
+      "sha256": "7e1920e408a9b488f504bed72bc4694f0409cde55f5d7c7cc6b3cfc3ff33832f"
+    },
+    "workbench/hosted_project_registry.py": {
+      "size": 14379,
+      "sha256": "e4c6b2a48a258bced1fd0ce38ec32809a0d90ae5cc5c87bd44e806069a0c2e4d"
+    },
+    "workbench/hosted_registry.py": {
+      "size": 13163,
+      "sha256": "60f215eb5cfdfd0f199dcceb9e05089635da18059583a26d7850853515d2fb16"
+    },
+    "workbench/hosted_review_reads.py": {
+      "size": 22642,
+      "sha256": "64d0fb0e4282142740787566ebd6102cb1f43aeb4395f0d6939acf9281341914"
+    },
+    "workbench/hosted_runtime_session.py": {
+      "size": 6030,
+      "sha256": "c6748198bab271574d9dd2424c4fc5aafb5940fef5c3fd2b985179bb6acb4d6f"
+    },
+    "workbench/hosted_session.py": {
+      "size": 9653,
+      "sha256": "191b979f0d729f9796435e0a81e9db7213951827fbec3d3d5fe1da4722af9807"
+    },
+    "workbench/hosted_storage.py": {
+      "size": 27037,
+      "sha256": "d32936b9a9426fe6611c9fa29ff610ba43d8fdbeaf589a26a0cdc85463403a96"
+    },
+    "workbench/hosted_uploads.py": {
+      "size": 26625,
+      "sha256": "a37f6fab896081b36a40484b0e1c617472e79617c40c4f782e5c249dff0309a5"
+    },
+    "workbench/hosted_volumes.py": {
+      "size": 2485,
+      "sha256": "fc255a5a51c65e0b8b32e5fa2a4a93a3273c31989c17e27f827215eaeaff5412"
+    },
+    "workbench/hosted_write_lock.py": {
+      "size": 513,
+      "sha256": "365861beeaa7de926b9a0da7a2dfbc3a44e28e2c0bd055496084b7aab3fd4dd7"
+    },
+    "workbench/hosted_writer_checkpoints.py": {
+      "size": 1912,
+      "sha256": "10d07674382a4adfa624c74d1bf40b01925d170000135de74bde3ed401b3fd82"
+    },
+    "workbench/intake_limits.py": {
+      "size": 810,
+      "sha256": "25c827629b4caba2c41df43624ac87066673d583807442dd79e1ac528cb95e09"
+    },
+    "workbench/inventory_browser.py": {
+      "size": 9709,
+      "sha256": "740bb86632ce4e2898bb0ef04adbc57d34cbf1fcf651106e722236d871eb99c6"
+    },
+    "workbench/knowledge_curation.py": {
+      "size": 8419,
+      "sha256": "b4c3577e8942f3a5e0f5698a34b5a3e7fb5d4277c8e1e42f40a9b2dc1753f0f8"
+    },
+    "workbench/knowledge_store.py": {
+      "size": 7866,
+      "sha256": "d8db77564c4e52be63db8aba8cfd848a96f7fa1900f5fcf2d916a2019afcfbac"
+    },
+    "workbench/lineage_example.py": {
+      "size": 862,
+      "sha256": "1514a598ef6a2c2175ffa4a563ca4be74a06066d6cc8c4914b0401398bd12498"
+    },
+    "workbench/loops.py": {
+      "size": 30544,
+      "sha256": "dd9628114e16e808931d1f0d14ebc0ca43ce10f02a411135e641331270a2cf3c"
+    },
+    "workbench/migration_activity.py": {
+      "size": 28663,
+      "sha256": "08084f914b61559029e4d2f38d4b74a2c3bada0de694a3cc0fb4a8694faee2a4"
+    },
+    "workbench/migration_evaluation.py": {
+      "size": 6011,
+      "sha256": "28da4b6dcfc9ad8843354c037568c71c7d0b6d2b216b385d60baf6af371e5479"
+    },
+    "workbench/migration_lineage.py": {
+      "size": 26210,
+      "sha256": "306d20c8eeac58feb61ce500d6e9f852d5e3d9c725fe1a0fd073f0bc109e835b"
+    },
+    "workbench/migration_planning.py": {
+      "size": 28556,
+      "sha256": "9d38b7aa9b6bed577930614df1ad81308799a441eee0de2305bf91cb05df6ee3"
+    },
+    "workbench/model_access.py": {
+      "size": 6247,
+      "sha256": "01c6d81bb1a03f0eda32bf6dabe640c7876d57624f9dd616867a09f88af47bab"
+    },
+    "workbench/model_price_rates.py": {
+      "size": 13663,
+      "sha256": "5080987c6b4d18cb9d1dd6c3e291607c90eb23c00f131af2059ce5cd830eac95"
+    },
+    "workbench/native_job_draft.py": {
+      "size": 24509,
+      "sha256": "13057df9703d0d04bdfaae809402472b76f0ed13f7ec4c3b37a3236c7983af22"
+    },
+    "workbench/notebook_edits.py": {
+      "size": 45613,
+      "sha256": "94e7542ca644ac0d225ecbdd0718d69c9803c219d3864a8faccbc71498eddaf6"
+    },
+    "workbench/notebook_runner.py": {
+      "size": 32007,
+      "sha256": "6c5b93e763e48d5aa76082d690ab1a06e4a3ea2e7efd16f3116cc9a35f3fda8b"
+    },
+    "workbench/object_views.py": {
+      "size": 1838,
+      "sha256": "a432881db87c4323bb1716e0a002ca106a24ee20068f8823f97ddffd5a592e52"
+    },
+    "workbench/official_skill_library.py": {
+      "size": 17326,
+      "sha256": "fc4bc0c92e9c9b61d8a3ccc49c411aec831e86a73bc9e4f31b1287e4678a73a7"
+    },
+    "workbench/official_skills/anthropic/README.md": {
+      "size": 5643,
+      "sha256": "5ba4553df954f0b7220e58e17101d68ac5461a527888c617f6880119c1227490"
+    },
+    "workbench/official_skills/anthropic/skills/academy-guide/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/academy-guide/SKILL.md": {
+      "size": 7902,
+      "sha256": "102ce9bf7624e88cf29b80b18fe5c6e1959dc58b1d66915acf808cca1704f610"
+    },
+    "workbench/official_skills/anthropic/skills/algorithmic-art/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/algorithmic-art/SKILL.md": {
+      "size": 20173,
+      "sha256": "6688fc81bb2051d3f234385b50ce160834eb0b0510ed8a5816cc412c1d28c352"
+    },
+    "workbench/official_skills/anthropic/skills/algorithmic-art/templates/generator_template.js": {
+      "size": 8048,
+      "sha256": "d4a1d449cbfb92b96009c8f2ad3b1c6cf6215d6ce75d68cf44a1aa7681077e88"
+    },
+    "workbench/official_skills/anthropic/skills/algorithmic-art/templates/viewer.html": {
+      "size": 21442,
+      "sha256": "281d5559d06b93ff5c55a69163dd235fa91b8dab52870cd3260e4a9fccd46480"
+    },
+    "workbench/official_skills/anthropic/skills/brand-guidelines/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/brand-guidelines/SKILL.md": {
+      "size": 2308,
+      "sha256": "a0aa0a21ebf9e8511a045cc234bc839adc2b6706db727add14e9855f242e11a7"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/ArsenalSC-OFL.txt": {
+      "size": 4466,
+      "sha256": "7a87a0c469fedc802e3acef550db9a728f621275984b46c6c51e731d7212520a"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/BigShoulders-OFL.txt": {
+      "size": 4490,
+      "sha256": "9ce6294be745093338c51e62d7efaddbf32b90ac9a7ffde8a12ce92e0413fe25"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Boldonse-OFL.txt": {
+      "size": 4483,
+      "sha256": "f5fe122e06e26a0277b07d6f6d171a60156aef5fe138281538498cee767b6bd4"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/BricolageGrotesque-OFL.txt": {
+      "size": 4496,
+      "sha256": "a093964b3ca71526ae129d0d5f39bc9dba905ae5ebeb72d741bb0d4ed2d5d5b0"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/CrimsonPro-OFL.txt": {
+      "size": 4487,
+      "sha256": "fd2bc485bc16b876b09f97ab0a218092c0c78f533be0d7750aca9e9df9e3ab7b"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/DMMono-OFL.txt": {
+      "size": 4485,
+      "sha256": "0f2c192cfa63e591f680392d1792ff06e52a76ef81f70841ccb0b36c11b61826"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/EricaOne-OFL.txt": {
+      "size": 4504,
+      "sha256": "cb7900ec9382f84f51ec5c79b6cddd9c17892bc3a2e90bfb74d6d710bdabf5fd"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/GeistMono-OFL.txt": {
+      "size": 4481,
+      "sha256": "0acca17d633ecc7180aa12d8a60a95889d87a439cb83884597ff278046743dcb"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Gloock-OFL.txt": {
+      "size": 4474,
+      "sha256": "e5a3c37f36d4484c7818fad6953828f74168cc1218421c913006c84fd4d14c14"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/IBMPlexMono-OFL.txt": {
+      "size": 4456,
+      "sha256": "0fc74640fdcd67c036e1fced58d7e4478897a333cd92b981115a3e324337577f"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/InstrumentSans-OFL.txt": {
+      "size": 4496,
+      "sha256": "6c98bea402c5bfed70c42c0d6fcc6a31ea793979537d1becf4a5dae65a26a34f"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Italiana-OFL.txt": {
+      "size": 4487,
+      "sha256": "3edefd97c07108eb7151fa6ed58fc7ce79bb697fc1fc50a1da25398d54cdf588"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/JetBrainsMono-OFL.txt": {
+      "size": 4492,
+      "sha256": "4d9694c4844a13ea377458c3f98c90d2bf83d3c214612dcae2b7808406520708"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Jura-OFL.txt": {
+      "size": 4473,
+      "sha256": "707f27f18ff5c786e2b41f44873201b34c3a3694ca6ea4aa24cbb52cbd46fbc2"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/LibreBaskerville-OFL.txt": {
+      "size": 4542,
+      "sha256": "3624eddd4c8f8a908130a417ae7cd089c9da69899c4e0ca1a5217d0a6fae16fd"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Lora-OFL.txt": {
+      "size": 4516,
+      "sha256": "41cf75bf229a1435b7df209ac7419622516eff7e8cab79260fb0fb9b1cc8ced2"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/NationalPark-OFL.txt": {
+      "size": 4492,
+      "sha256": "29618a33c9871519e77e75f7db9df6ba894b9f2208d97975ba419d3f6e46d9f7"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/NothingYouCouldDo-OFL.txt": {
+      "size": 4456,
+      "sha256": "179d94a7a42ce98cc0ef2bfad604b77e9b0a9cc03e6a9ae8844844e3028d04b2"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Outfit-OFL.txt": {
+      "size": 4482,
+      "sha256": "8fc6af31312082959cc8297b30e04d94ff457faecc9fb0aeeb8906bf448f20e6"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/PixelifySans-OFL.txt": {
+      "size": 4488,
+      "sha256": "34b5d28aebcb26adae3e1fb74842b5c6a3915fb721036ea2b3444f18954331dd"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/PoiretOne-OFL.txt": {
+      "size": 4459,
+      "sha256": "26f2bc9434e40e75d2378fd9a8125c16f5ee1d0e7bbdf14daabd7109f7d87a6d"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/RedHatMono-OFL.txt": {
+      "size": 4487,
+      "sha256": "3f7ee3287416a0a1b2f90f4230306098268efa63504fa12d6436acd994a69b68"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Silkscreen-OFL.txt": {
+      "size": 4487,
+      "sha256": "b841352f14bfc3e79b872ede3c05aa49ba816218a53cb2a07c6624ccf38a2ea1"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/SmoochSans-OFL.txt": {
+      "size": 4489,
+      "sha256": "ed57f8cd1429e35d68ad4b3edb44b142e2245467a2f537bf05044ee015447438"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/Tektur-OFL.txt": {
+      "size": 4478,
+      "sha256": "360ef927fe156e4c7d8d7b1900375594f7db95fc3e04c1f0ce8cbbc55bc76eb8"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/WorkSans-OFL.txt": {
+      "size": 4490,
+      "sha256": "4f8cbaf2a5494148a8064db9b5eb7c23a0f9098683244803b11c0eec857b81a9"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/canvas-fonts/YoungSerif-OFL.txt": {
+      "size": 4491,
+      "sha256": "0f15fb928a39deedb71e9198dbeece4403f827561b0cdbcff450aacbcf772212"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/canvas-design/SKILL.md": {
+      "size": 12068,
+      "sha256": "7bebc4a2cf108c55c1e52bb96b1050dc1ab2f9492e9c2d43f1fe57f826728f4d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/csharp/claude-api/batches.md": {
+      "size": 427,
+      "sha256": "a009e559cd09c41863c6f7090aa0c52697d1f15f59e955e3f8c4d54e025428a0"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/csharp/claude-api/files-api.md": {
+      "size": 925,
+      "sha256": "3d2d6f2e897a544390fda482a78048b9287e751fe8ce36d7f766517258c629ea"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/csharp/claude-api/README.md": {
+      "size": 19296,
+      "sha256": "74dd82330148ad1cd409edc4c9e5857c04ec44093a898910adc6cdb70b05856a"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/csharp/claude-api/streaming.md": {
+      "size": 815,
+      "sha256": "fa4fcc6cbd228d586a0ea744f2ea99f6e5ae36d36668236609caca2e993f36e4"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/csharp/claude-api/tool-use.md": {
+      "size": 7801,
+      "sha256": "d744812544e08f0e170a01530e19534dcfc40ba451c5d1fcb886178ef8656823"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/curl/examples.md": {
+      "size": 9971,
+      "sha256": "be9022585fe6c455f03fea7ab6c156b6f7621267c89c39d56d12f4d8976d1c15"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/curl/managed-agents.md": {
+      "size": 11205,
+      "sha256": "46b5b21216061a351925b8d2fc4eda75bc80927c8f9c94966f0494b13275b973"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/go/claude-api/files-api.md": {
+      "size": 959,
+      "sha256": "2a5803d4c3752163e6e9669d6abf17be0db966ccdb8368ebe3aaa8b76c91d6ab"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/go/claude-api/README.md": {
+      "size": 8667,
+      "sha256": "43b7f66a1b16159f6a15bc262c26007c0be995502c26df2d09d3dc51d140d2b1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/go/claude-api/streaming.md": {
+      "size": 1069,
+      "sha256": "4c886320453dc4de120f837f7482cc1df51eca2259d6004131430f3bfe872372"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/go/claude-api/tool-use.md": {
+      "size": 10252,
+      "sha256": "a8c5ef27b517e6b53d4d2950e20336db4c6c589f6ee6aea3db842f0ac88cacf0"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/go/managed-agents/README.md": {
+      "size": 23071,
+      "sha256": "66f9260a76d020fb68a98c167aba69077ca720add5c2efeb36c937d2e37d92be"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/java/claude-api/files-api.md": {
+      "size": 1225,
+      "sha256": "e73673834e52313ec54cd1ea524b9bed1aa1fd0934ecb05ef356b408fe6262d0"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/java/claude-api/README.md": {
+      "size": 12185,
+      "sha256": "abdcde9b7994a2ccb6905e6aed2262147a88e0540b90e63c79055678166597cf"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/java/claude-api/streaming.md": {
+      "size": 679,
+      "sha256": "3e377835446edf0c8a3d1a031ace8bef26745c43a0b7a9e21cbdae76fa2aa5a2"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/java/claude-api/tool-use.md": {
+      "size": 11376,
+      "sha256": "2715eda58cc87b4665c11b1bf7e153bb6823fbb8b0b5b174eec343466b9b878b"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/java/managed-agents/README.md": {
+      "size": 20952,
+      "sha256": "e07827db72b4a383be0fe634c284308d01fe470f2391af221ce3264b8a4ee4e5"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/php/claude-api/batches.md": {
+      "size": 462,
+      "sha256": "8fecddc3d2f568204c85f9280c09fba7862aca49ab28540f52596ad563c33e1d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/php/claude-api/files-api.md": {
+      "size": 489,
+      "sha256": "66a1fa21a73fedef16016bfb0048c2cab6ef34470c08e4e8c5ad7a17558b5693"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/php/claude-api/README.md": {
+      "size": 6729,
+      "sha256": "19c34f46635e0d2e7a88552472d42c8b2837be431fbd6b5140336c1525eccacf"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/php/claude-api/streaming.md": {
+      "size": 709,
+      "sha256": "3e3ae6dbdcfd62e550043ef8822632f489104fb6a45c2f0cb7c012d3a1262e21"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/php/claude-api/tool-use.md": {
+      "size": 9989,
+      "sha256": "25367fe85bed248bb9d7ac182936fd08b0f311916d389ed7a036d9d4772c0bc1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/php/managed-agents/README.md": {
+      "size": 17045,
+      "sha256": "3e479cb50a1ecc832ffcd760ce9693b008185a634f7c1d1e91ee7cd94fde0ea3"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/claude-api/batches.md": {
+      "size": 5923,
+      "sha256": "0ecc72c8e4723fd003aeca3c1209827b51ffaa0dcb25c86de9a521bf016ee431"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/claude-api/files-api.md": {
+      "size": 4669,
+      "sha256": "7ee515def5f5268e157a1da1f19c3708005d038e870f16187fb301d6ac24d2ac"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/claude-api/README.md": {
+      "size": 21191,
+      "sha256": "9831a6f265073cee4d803c52ed15911ea2eeeca79e0515ec7c5756e90f368686"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/claude-api/sdk-upgrade.md": {
+      "size": 29046,
+      "sha256": "a6f3f082aeb72594e90f8110c800bec56cd5a54e0701641f8361d2c49b926d19"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/claude-api/streaming.md": {
+      "size": 12195,
+      "sha256": "e0214335cb89ef30ef540995fe9d53369923410c416ce1030a62aacb3c7923ba"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/claude-api/tool-use.md": {
+      "size": 22054,
+      "sha256": "23349dc3d277600e6dde2dc47d37791e85a4c4f61829507da646ad96e849a35d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/python/managed-agents/README.md": {
+      "size": 15223,
+      "sha256": "b62b660b6467228dd4405eb7697da92d27a6810e3ea3739b6eb5e0ac6ee26401"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/ruby/claude-api/README.md": {
+      "size": 4978,
+      "sha256": "cea94e149e739a0169a9d178165e966a8d7302cbcbe867f4346af09c96363630"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/ruby/claude-api/streaming.md": {
+      "size": 251,
+      "sha256": "86c8585184f949d9c58ee575a03e0c02ada74609d24a9f35c74231409e4eb05f"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/ruby/claude-api/tool-use.md": {
+      "size": 2743,
+      "sha256": "6c41d789a9cec4efe53e3570b16772b8c719fe4e0876d44047484154559af188"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/ruby/managed-agents/README.md": {
+      "size": 12626,
+      "sha256": "5eb273979236e5090818fb3649eb758a349a07445e17724246f626f2426db7a2"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/admin-api.md": {
+      "size": 11785,
+      "sha256": "5ff467c2a48e1a41c103167dfebe4361fc0ae4402e32304ddc4a8bb253b858e6"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/agent-design.md": {
+      "size": 8837,
+      "sha256": "b179ea16233b16f53a3d8f6ed58465464050142de80dedcc9e453b672d06a201"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/anthropic-cli.md": {
+      "size": 24307,
+      "sha256": "435f6574dfad3c4c7ecf06835d76696135410c850df9e25c4f67589b12fb70e1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/claude-platform-on-aws.md": {
+      "size": 4479,
+      "sha256": "6122d69be5bf88219dc895f905522fd7652d94d323dac37cb52c80414aaf8450"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/cost-optimization.md": {
+      "size": 58693,
+      "sha256": "b3d7b340e690d893d54743877142344c2f1c2b3041130b67746fca6b3b8f388e"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/error-codes.md": {
+      "size": 21073,
+      "sha256": "7079330aabb132eb3427f9268384879ad2be2378bce08cfe4a99989ee8015231"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/build-eval.md": {
+      "size": 55068,
+      "sha256": "4464b0704fa519cc937c119748061e911091271fbe1c928406876b70ace257ec"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/cost-hillclimb.md": {
+      "size": 32153,
+      "sha256": "4afc5aa79e37490824c40cdda3886b6c05fcdfe9a4bd99d0ba5994e428339855"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/eval-audit.md": {
+      "size": 28096,
+      "sha256": "ee40ffada6d5e10967e713184e49f7e65c936e5c7702ca753221405fb168a79e"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/eval-hillclimb.md": {
+      "size": 69491,
+      "sha256": "e91f88a97d3a8bf30eea1673fcdd30170235b019538ba3f559dd19b3d5814676"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/report/build-report-lite.mjs": {
+      "size": 27817,
+      "sha256": "908a74d1909b451a864a0ceea367b9943ebe853ad56469d1971604fde77d517d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/report/runner-scaffold.mjs": {
+      "size": 33744,
+      "sha256": "1c75568243b82ccb7c3ddc4b0799518c832ed4acd5c96b3f067defbee678e39d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/evals/report/SCHEMA.md": {
+      "size": 16460,
+      "sha256": "4194d6589efb511a5aed23bcc00c936ea1d3cb0ed362558c8dfbdb68ba6a4426"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/live-sources.md": {
+      "size": 17899,
+      "sha256": "3060ce829c426fa0062b82b73a0b3094d13f81c7a3d54a4c0ae8265a9845c65b"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-api-reference.md": {
+      "size": 35758,
+      "sha256": "fdef0893ef847b1ec3fe51807ef5f25cef2778d10c8c4c37f784973e20a781e6"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-client-patterns.md": {
+      "size": 12315,
+      "sha256": "c5abb01444d7dededcec7b59fb8c8fe6643517949a5e5209ec3cf5adbb877266"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-core.md": {
+      "size": 33890,
+      "sha256": "23c3c021e52ed132e9ea01ff6b3b4064bb16d634ac3874c1446a6f11761bc7b8"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-environments.md": {
+      "size": 14473,
+      "sha256": "939683679230d08f60231d6f91cdb398e5214e28073fddcb7cc275f16da690dc"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-events.md": {
+      "size": 26306,
+      "sha256": "936cb18f01fb50ba901b6b6dba1e34e9f6956ae42fcc59cca8f64eed5c5d07c9"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-memory.md": {
+      "size": 11563,
+      "sha256": "ce6e0381ee5caaaf14805cb40232d324c0a1b373d9d8b95c1ca96c709173f80e"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-multiagent.md": {
+      "size": 67086,
+      "sha256": "d634a9f896cc685b446867f3b91a0f54822bee05a6e44984a12c2032b516b913"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-onboarding-from-quickstart.md": {
+      "size": 19960,
+      "sha256": "8e2fe9e120b81405cf0fcc13aa5bfedd1883ce79c9dfaaf8c16761c469f50f6d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-onboarding-from-url.md": {
+      "size": 33019,
+      "sha256": "ad54c57dc1deb6ee7b1597dc7993945416297ffaf61fde7de434a06ec89cbc64"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-onboarding.md": {
+      "size": 16873,
+      "sha256": "195ba8fbf866c6140d7aaa7c03927d6bb018abd1ef36be8e8d084f19a2eefc09"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-outcomes.md": {
+      "size": 9070,
+      "sha256": "72d80055610e602c494499da699591ccd558451dacc4bfef9ad02e3a3ea27584"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-overview.md": {
+      "size": 14651,
+      "sha256": "1314a8f24d743e990bc423600b0173405a881b19b7c7124b677164bc7d998e39"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/bug-hunter.md": {
+      "size": 8202,
+      "sha256": "06225d56746406f671de12e49d36fea3b9b0cf87681104fd30e182d14935e575"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/contract-tracker.md": {
+      "size": 1850,
+      "sha256": "fb2691f3dff259c5066da3c1678dbddd4d5ddabb3d5fecc0dec08216a8074fe1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/data-analyst.md": {
+      "size": 1603,
+      "sha256": "e9523921b6fc8b4fe7eb8412ddc49dbf89894467e924fc7f2be8f9a424b7d450"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/deep-researcher.md": {
+      "size": 2480,
+      "sha256": "390ddec8764f967e57e7195460fa764f5ed72f8b9223f6640a41861b1c749e40"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/explainer-video-maker.md": {
+      "size": 4986,
+      "sha256": "69e4144f9e95b0a02764eff40c7e42a76072835224474889f1a2feaf2defcca1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/field-monitor.md": {
+      "size": 2171,
+      "sha256": "4a10f6a798b9954aa7fbef4a3b2093ffdd0fe5c2cc5bbe0b65bd9e8a1e74a53e"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/incident-commander.md": {
+      "size": 1778,
+      "sha256": "7f7497fb47965e2234bbc01e4f77e27ac3275ee6f393e25f9732353b94839b50"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/performance-tuner.md": {
+      "size": 11576,
+      "sha256": "c5dfaf88a572c2dcd176d78f301fc40cfc0e0fa1af4b3f557e297ab1fd9b60c2"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/sprint-retro-facilitator.md": {
+      "size": 2164,
+      "sha256": "d3262ae495902991364f9c0681dba2439d5dd4f29d9cc61bae4675fee5ffdb0d"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/structured-extractor.md": {
+      "size": 1576,
+      "sha256": "3e620387b15a2837915cd46a55aa58616af828f552678e86df3e14bb1328b9cd"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/support-agent.md": {
+      "size": 1526,
+      "sha256": "e993e36b29b5238cd3bb0b309656d4a67f5e47ebf6bc6b858b52ea65a0bc75c7"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/support-to-eng-escalator.md": {
+      "size": 1894,
+      "sha256": "7ec75df72ef3dcb6c586012bd578aea487c0a023d92953fd2871f3162e2d2868"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-quickstarts/watchlist-scanner.md": {
+      "size": 5738,
+      "sha256": "cce8bc2f5087855931aa5a1f5e5bd85b2e46735e6dbf8183bfc431a6da24eec2"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-scheduled-deployments.md": {
+      "size": 9717,
+      "sha256": "b93e0dfad2e8877c8a55a0c74a5a14b975de656e02e793aaf51f1b44eecbc758"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-self-hosted-sandboxes.md": {
+      "size": 28208,
+      "sha256": "e1d4e8f0ba02ea998fc5764b8218c3683438ce9025aae678e13698175459e254"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-tools.md": {
+      "size": 38375,
+      "sha256": "d2429071fdec95692cf18f37e6fd4a782ca5f646dcc774e1e505c22c0021bd9b"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/managed-agents-webhooks.md": {
+      "size": 11464,
+      "sha256": "3161555cd1c40d071f70fc3ec4e6454e90f4d512d64a286c2c0397133cc8e276"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/model-migration.md": {
+      "size": 348675,
+      "sha256": "420ad74ca099ae01195353c1cf4aa3ac4305ed14fec8a63ca5b893aad658ab74"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/models.md": {
+      "size": 17655,
+      "sha256": "1601794b74c4a9415eb272d5ad459ab2776f224d731285c4b492a4c5c6f9a2ec"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/platform-availability.md": {
+      "size": 7469,
+      "sha256": "9dacc56aaf22095f0969f60a689676fe8a65ff0ac78c15cb9f7a0a1074e3fa28"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/preserved-thinking-migration/causes.md": {
+      "size": 39803,
+      "sha256": "a03f56d025fb850de59c05d4924bfc5d27b5305496dfd0df46b2129589fc376f"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/preserved-thinking-migration/drop_block_probe.py": {
+      "size": 67648,
+      "sha256": "dc1c3140a291f676a55f89b8d2a5e71cbf0b895d05c067598960167269d68ed5"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/preserved-thinking-migration/prefix_diff.py": {
+      "size": 95540,
+      "sha256": "7067de24db3ac99de222895a0634c88aaa4d188ba9784b48ae5f047f62a0fcc1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/preserved-thinking-migration.md": {
+      "size": 64298,
+      "sha256": "dd3ebf4d1c6ed3a504ca1c619bcdd9c198504d860cd68cfe1222e0831e826135"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/prompt-audit.md": {
+      "size": 49581,
+      "sha256": "42d8f6f87ce12fa71d8fd3ed24dc5625f5f6ba17c3a9638ba8b346673ef1f090"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/prompt-caching.md": {
+      "size": 33413,
+      "sha256": "e1981b7d6978061812e2ca5c32b66cda179ee16fcfee715c53b16b64e9bde3d1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/token-counting.md": {
+      "size": 1659,
+      "sha256": "c9b89bb919eba1e6a3dd73c737672c2702b6f365632b8d2b69885cfc6991bfa1"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/shared/tool-use-concepts.md": {
+      "size": 44936,
+      "sha256": "ef067626afab0b736c55724444ed1e6832df0c54583a9a10ea71e97e3c60e168"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/SKILL.md": {
+      "size": 105762,
+      "sha256": "8e75de73fc85704940a75e7fab234fb48d201372dcacd501a7f492f89f94601f"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/typescript/claude-api/batches.md": {
+      "size": 2700,
+      "sha256": "e43defcd1dd1cee9d4899af60f176ce6e87a521b3c6c866d29c8b5dc630ab9ad"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/typescript/claude-api/files-api.md": {
+      "size": 2482,
+      "sha256": "c47994378d82daea0e80d3bc237591330c68bd5e1e1271f5d6086dc22d94bf97"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/typescript/claude-api/README.md": {
+      "size": 16240,
+      "sha256": "9c047fb266e81a22a8bbca1e81df725f10b5b97917cc8ac4ba95b34fa95d7b6a"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/typescript/claude-api/streaming.md": {
+      "size": 9735,
+      "sha256": "bd734fdc972910cd4f5ac9072ba21e75ef1e8e79c120c70d3fcdc01697a060a2"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/typescript/claude-api/tool-use.md": {
+      "size": 24960,
+      "sha256": "e711781e4d936f0fb296f2130fbcd949afda35b8a64d15a5d6fcbc8e266df051"
+    },
+    "workbench/official_skills/anthropic/skills/claude-api/typescript/managed-agents/README.md": {
+      "size": 14449,
+      "sha256": "1709f62bc9b26b88accbdf0a2369e379c60c5c37c6ed9cdde22869436cc035fe"
+    },
+    "workbench/official_skills/anthropic/skills/discernment-nudge/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/discernment-nudge/SKILL.md": {
+      "size": 10801,
+      "sha256": "8e498a6c417b707a845a5373d56dabf5f812c50a25152752ace76251a9515c1c"
+    },
+    "workbench/official_skills/anthropic/skills/doc-coauthoring/SKILL.md": {
+      "size": 16190,
+      "sha256": "acb9b89b228fb818ffe2f464e40b1cdbf6948b50ceeeb7378f0e5b9d78c996ad"
+    },
+    "workbench/official_skills/anthropic/skills/docx/LICENSE.txt": {
+      "size": 11558,
+      "sha256": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/__init__.py": {
+      "size": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/accept_changes.py": {
+      "size": 4186,
+      "sha256": "4996798dfae55153079fd03b7c3b2fd7e9f4466a10c8101e7592d72d68b059fb"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/comment.py": {
+      "size": 14422,
+      "sha256": "edda239444220c74b41544e2ca9dc66d86561e9500df4d24abc966af797fe890"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/merge_runs.py": {
+      "size": 9708,
+      "sha256": "a0d4e28d4875a2d4445f2bb5e950fc48244578c5380f45c4059cb60a56138676"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/helpers/__init__.py": {
+      "size": 4171,
+      "sha256": "76f39741394ce04105ee578a1cbf784e61987c4077da1fe45d85c03cf0bfba52"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/helpers/pptx_chart.py": {
+      "size": 10221,
+      "sha256": "4e50694720d6efcf6d308b1b8e6fdb8f797981afddb49b33ea6d2c4a755246aa"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/helpers/pptx_slide.py": {
+      "size": 3452,
+      "sha256": "e2b8176fa850674d653044642fe741b346221d14fd4f1d93250021e1d99d34b5"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/helpers/pptx_theme.py": {
+      "size": 3624,
+      "sha256": "903ad967f6bd11bde628f74d39a9f8c1f5ade40c7cc85f96143781e29463bbcd"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-contentTypes.xsd": {
+      "size": 2005,
+      "sha256": "49ec1c03440a9b5590e69acdf92b200fe133697de0b05f43a129fb94d1885026"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-coreProperties.xsd": {
+      "size": 2565,
+      "sha256": "69688ea15f82a870053b9a60c79359063dbcfeec9cdabafabad51a53934bc35b"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-digSig.xsd": {
+      "size": 2905,
+      "sha256": "ee7e7e1b9a1340536e25e87c8650a2b90a43b0e67d02d6746cd430048b3c1439"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ecma/fouth-edition/opc-relationships.xsd": {
+      "size": 1377,
+      "sha256": "607ffb6879cf5d5d765bfdfb2548f3f427ea964ddee6d08a15f0dc781749866d"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chart.xsd": {
+      "size": 76483,
+      "sha256": "4de4390a26e7e44e682ed98b39872cce2620f807f5b0de421567a43f74526388"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chartDrawing.xsd": {
+      "size": 7102,
+      "sha256": "71a6e04d3dbb21e4b705da8bb9a3c71e4295a389c15c09bd255f216de238097b"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-diagram.xsd": {
+      "size": 52387,
+      "sha256": "809f77f658f71e10f5cfbf99e25c895a23a4e62c81210b59a2fe8c7fb24849d2"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-lockedCanvas.xsd": {
+      "size": 635,
+      "sha256": "06555ced1e626ebcd9bb4a495b78d9596555f945b09161dea6c4cd4d8874a0ba"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-main.xsd": {
+      "size": 155120,
+      "sha256": "6978ba7e889070b0c3cb5b546b23e5a6c3516134afc53b87a21f482ca33f3858"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-picture.xsd": {
+      "size": 1254,
+      "sha256": "17581a2683f0ecbfd4c64656f1dff7236a4563127b5d056da750a9fd61e26f67"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-spreadsheetDrawing.xsd": {
+      "size": 9047,
+      "sha256": "aabcbb126609a518a78b007c1e6ab76e1016f136964f3afb3a5eda51584e983d"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-wordprocessingDrawing.xsd": {
+      "size": 15082,
+      "sha256": "2dbfd4719505bf39b568005994a433997cbeac59cebc9d4867d564c94e9ba03a"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/pml.xsd": {
+      "size": 85288,
+      "sha256": "39c6396b7b1f096885c3ceba5dab30e3ee14291c45a1d6fa6038ec4db69d88d0"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-additionalCharacteristics.xsd": {
+      "size": 1297,
+      "sha256": "57567431dcaf5dae08c5f7ae1eeb2c9a4d2d762a912cd09758f620469d226947"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-bibliography.xsd": {
+      "size": 7472,
+      "sha256": "6ec3425c89d6bf6eec5dd0d82c0ed0fb606064b6d4692a696323ee86814de0e4"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-commonSimpleTypes.xsd": {
+      "size": 6556,
+      "sha256": "d90722af8f1439ae6b82d57858ee0b0720e320eb309cf30371666338aa66d106"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlDataProperties.xsd": {
+      "size": 1273,
+      "sha256": "1624b1ee04781508421fd5d8a7a8fd054196be5e1e122736c7ed350161bf4b89"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlSchemaProperties.xsd": {
+      "size": 898,
+      "sha256": "4048c35b8949bab9f8ac58c2fcd0b534c5626fbe1d2bc88522a3724a0514d091"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesCustom.xsd": {
+      "size": 2667,
+      "sha256": "7f112630ff0a2bf450fb80ccc7d891fb2bfd70866c4913590d3a91f43744d4ec"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesExtended.xsd": {
+      "size": 3563,
+      "sha256": "2dd1b7ce7cf5be453fd2db72b6d6072259ede8193db7518c72439fa26fd7ad72"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesVariantTypes.xsd": {
+      "size": 7702,
+      "sha256": "ec24c8039acb44422b65c2d99af82d4f21007d17bc33c87d36549904a29702d8"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-math.xsd": {
+      "size": 23895,
+      "sha256": "f812dffca0bb66db6e2ec2e01dd19258636b2a5a3a0bb949a2e7295665e0ce61"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-relationshipReference.xsd": {
+      "size": 1392,
+      "sha256": "2a6b823a7c6da33bedb8ea9be74199db8a907530ecf9d3b31f31f92c4539a4c2"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/sml.xsd": {
+      "size": 246716,
+      "sha256": "495debc8fa967b77ed37799747b049832f2c95b2ecdb9f19ddcd68f8c9f96ab9"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-main.xsd": {
+      "size": 26718,
+      "sha256": "335e9ecd40bb594ec4b916ac8c7b9eead4e16fe1b79f9d4105fdb1c43b66bb1c"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-officeDrawing.xsd": {
+      "size": 25788,
+      "sha256": "86c9ac8549d84af107daac8f6b3b0b9ed1113eae22be8fef4c5f2b606f23ae36"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-presentationDrawing.xsd": {
+      "size": 547,
+      "sha256": "db28df195a3a1da2c749162c4e5736c94fc4e3d5e20d767d5ff68a37fdd46fd5"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-spreadsheetDrawing.xsd": {
+      "size": 5820,
+      "sha256": "2f7c6b2a8a9d7a7e0dfa32ff3f13856275d83d0bbe968c7fc9954d0f665e7588"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-wordprocessingDrawing.xsd": {
+      "size": 4106,
+      "sha256": "f5e69bc0280a2aae659766f782d2af47738c6c97ffabb0b10a871489f60280bc"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/wml.xsd": {
+      "size": 175013,
+      "sha256": "a5db454991de6c9d52db8d2dda43d2f27f4cfa2e62c012d6bf202deef90659ce"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/ISO-IEC29500-4_2016/xml.xsd": {
+      "size": 4762,
+      "sha256": "70a3c67959f9ad2333016328716101bf8b476e682f29830cc9ee8da63dca7cc2"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/mce/mc.xsd": {
+      "size": 3202,
+      "sha256": "fc3d4398375c68a8aa0d608dad9003a3e5cc566f3d16a443f92fca3799ed2df3"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-2010.xsd": {
+      "size": 27109,
+      "sha256": "60580c222b22548a4c306438a631ae2355db889ff59847cfcfd47943445a7132"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-2012.xsd": {
+      "size": 3812,
+      "sha256": "85e17de88d4c1af45a571732eb862024cd7897e380efa5825bcfdbe57db21a64"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-2018.xsd": {
+      "size": 915,
+      "sha256": "b8bf0d8670a8ba8ea2dd441e7f22a81be7dfca520ca93306e99e4403c234a3b2"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-cex-2018.xsd": {
+      "size": 1798,
+      "sha256": "6731624fcb1b0df9ab0533bc8fa2d8caa09d419b2280285bdda6c9e94d874f7d"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-cid-2016.xsd": {
+      "size": 1015,
+      "sha256": "73dde8f5752d4047975fe2948d2ea99d26c1dab981a9739e77624a666090272a"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-sdtdatahash-2020.xsd": {
+      "size": 604,
+      "sha256": "441556f2bfff0b49a3a4bae82cac5188aaee5419ddfa288dc0a58ce271f2237d"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/schemas/microsoft/wml-symex-2015.xsd": {
+      "size": 753,
+      "sha256": "1973a7ede01d55d351c50422ff451a1ad1f8f52cc792178f14b62f75c123e01f"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/soffice.py": {
+      "size": 9376,
+      "sha256": "4c7552b67f201639be3a4460a9dc6e3e1962f3b94a373232e0c7b89b6a97127d"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/validate.py": {
+      "size": 8024,
+      "sha256": "a665e391b6d85dfd982d697b108b9707bde90fb87bf89e7a6eec259179001de0"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/validators/__init__.py": {
+      "size": 351,
+      "sha256": "09a53b0969b042794ce29e5ee2487db365d57f7e95d691b145f5c60cb98144df"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/validators/base.py": {
+      "size": 35256,
+      "sha256": "906056aeb02255c4cc0d7f7ad4db28712e238e18995b68bdaf3d445c1b39a3e6"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/validators/docx.py": {
+      "size": 20264,
+      "sha256": "760e1ba11f707e804adc865eeb82a14ee41810e199ef54765caacdafc20cd962"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/validators/pptx.py": {
+      "size": 21607,
+      "sha256": "670a057b2348def8a579903599fdcab9dad1c00bb89a009e8ef9a5545a354e20"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/office/validators/redlining.py": {
+      "size": 19461,
+      "sha256": "04092727b041df9613d0dbd7cddd3af695acac22872c790376adcd24165d5e9e"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/templates/comments.xml": {
+      "size": 2606,
+      "sha256": "c89bad9ffa3b3fc843d10b1542b54ede87b5c3f3bbf8a12b791ea35f6bac3f73"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/templates/commentsExtended.xml": {
+      "size": 2614,
+      "sha256": "1e630582dbb214661b00588d3937722588405374b6d444cc1f0601506c402a3b"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/templates/commentsExtensible.xml": {
+      "size": 2710,
+      "sha256": "0bd252f89a34dcbfec414a88fba101b77726ed7c87fdc96a76dc9b54304bb4a7"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/templates/commentsIds.xml": {
+      "size": 2622,
+      "sha256": "84cdf36ba354077a87c8ac5448d68ada3737d747e1a8a7b6e38c060049975a47"
+    },
+    "workbench/official_skills/anthropic/skills/docx/scripts/templates/people.xml": {
+      "size": 118,
+      "sha256": "3d3273c725e85f7dce810103055072d6c1577c7e51d88b2f7794b647e7a9cc37"
+    },
+    "workbench/official_skills/anthropic/skills/docx/SKILL.md": {
+      "size": 7580,
+      "sha256": "3ccd72b7b52907e3079dbac41f513603f92f94551cf3943bc85e01afa45cbbe1"
+    },
+    "workbench/official_skills/anthropic/skills/frontend-design/LICENSE.txt": {
+      "size": 10351,
+      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549"
+    },
+    "workbench/official_skills/anthropic/skills/frontend-design/SKILL.md": {
+      "size": 9461,
+      "sha256": "b8009ae690dfa69edc7f08bb8715f32db8817112cfa4388741dbaf876c237df8"
+    },
+    "workbench/official_skills/anthropic/skills/internal-comms/examples/3p-updates.md": {
+      "size": 3320,
+      "sha256": "5ea581bce7bc7030e5d9b5f65c192fd9aa05db8460837c485057ee9ad1b4e736"
+    },
+    "workbench/official_skills/anthropic/skills/internal-comms/examples/company-newsletter.md": {
+      "size": 3360,
+      "sha256": "408275de740b7a849df557abd2136dc4f689c9aaa35a76fe5549a745bcc1df09"
+    },
+    "workbench/official_skills/anthropic/skills/internal-comms/examples/faq-answers.md": {
+      "size": 2395,
+      "sha256": "02808d0a5dc3c0fe03c6b03a4e291fbda51dfc970a91cc4f28a82faa62d16251"
+    },
+    "workbench/official_skills/anthropic/skills/internal-comms/examples/general-comms.md": {
+      "size": 617,
+      "sha256": "c30fa95415e6b03b7501b9dcfbf4aa5a37494408c3b7bd8ae2a72e750dc456d2"
+    },
+    "workbench/official_skills/anthropic/skills/internal-comms/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/internal-comms/SKILL.md": {
+      "size": 1543,
+      "sha256": "c5c061ab25b33fab2358a9be53a5cc0d528ec7c3e8a29285a041ffc95d0d8947"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/reference/evaluation.md": {
+      "size": 22264,
+      "sha256": "830d9a3a69c9d6d01b638ce3497e0a7680b1d422d318929181a101f7d3816983"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/reference/mcp_best_practices.md": {
+      "size": 7579,
+      "sha256": "900b5c9ec725b594ea04270d27c33cc51a0c8e866f5cb7ad4f57fb48d3838380"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/reference/node_mcp_server.md": {
+      "size": 29716,
+      "sha256": "f03d7eb0be6849a8f4014e61463a3827f1e3efc38569c2cfc456a3bf69bacede"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/reference/node_mcp_server_v2.md": {
+      "size": 35918,
+      "sha256": "8f7429c82e9883cd8cad964dceca5d1d5aa06c3a92b2a1f27b8392dddbe9c514"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/reference/python_mcp_server.md": {
+      "size": 25817,
+      "sha256": "890a64d0949e5b40c639682cda46661311ab818fc03976884ce46f00e2eff462"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/scripts/connections.py": {
+      "size": 5026,
+      "sha256": "9db2f1ff6442010b131817c1ec127dcf29949c787e7d7948049145c0a39627a9"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/scripts/evaluation.py": {
+      "size": 12952,
+      "sha256": "0797ae0f3c50bfa5d7281ebc8bc936ac89f33450aca6a36b95c4862ca8c21482"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/scripts/example_evaluation.xml": {
+      "size": 1216,
+      "sha256": "4df64ca67ca193021364d4d148997b8821f392353dab73c852fa41cfaa822048"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/scripts/requirements.txt": {
+      "size": 31,
+      "sha256": "f53f4d884919bbc75bc971f62d196c6f0a443eccf2539f534fd2b66e0618c49d"
+    },
+    "workbench/official_skills/anthropic/skills/mcp-builder/SKILL.md": {
+      "size": 11381,
+      "sha256": "323a42dcf2bd27b8dcd8e903f060414643c65987d77fce5af13f9357a4fba49d"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/FORMS.md": {
+      "size": 12151,
+      "sha256": "30b4fe7e98445e3c704f3c7ec8bbeea35f2e1df61765abe26e12465f81725607"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/LICENSE.txt": {
+      "size": 11558,
+      "sha256": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/REFERENCE.md": {
+      "size": 17336,
+      "sha256": "b12b821b0a862460d9ab9e9600de1db32d489396b0d3af6e941d5f0458570d6c"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/check_bounding_boxes.py": {
+      "size": 2839,
+      "sha256": "da8ef6c5dac036b39636b1e9b89600f87791190873d21adbf518023deea49a0a"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/check_fillable_fields.py": {
+      "size": 279,
+      "sha256": "6575c07d6c687483013f5bcf429264d63639d4690279fb235cb01859c257a6aa"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/convert_pdf_to_images.py": {
+      "size": 1041,
+      "sha256": "489abb23e89417d58b344c19a4cd6f846b6a79a1d453aa9349cc295339846838"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/create_validation_image.py": {
+      "size": 1295,
+      "sha256": "7086c2951718080c74034ebbec31f2be136645a968674f0053e484138e7d94c8"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/extract_form_field_info.py": {
+      "size": 4422,
+      "sha256": "1fd07e40d6ce7417df142e397da2036449b50a0d22e86ccb555cda3f145afb9a"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/extract_form_structure.py": {
+      "size": 4060,
+      "sha256": "e81c6f43e3c253c8f5edaf277bbcdec70e1b5e133b675c6dbd35471438a5f550"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/fill_fillable_fields.py": {
+      "size": 3917,
+      "sha256": "6691ee0fd6944a333e81c588bb53f07aa8a838ca6e1116ce7861677f348f2b52"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/scripts/fill_pdf_form_with_annotations.py": {
+      "size": 3342,
+      "sha256": "a91969ba615747a32222aa3627cf0d4af70ad021bed440baac3707daab34a08f"
+    },
+    "workbench/official_skills/anthropic/skills/pdf/SKILL.md": {
+      "size": 8372,
+      "sha256": "10f158ac9e24070fe88d7c31fbc3d2b515f2fb0b85baadc2838e2e2935ed9c9d"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/LICENSE.txt": {
+      "size": 11558,
+      "sha256": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/add_slide.py": {
+      "size": 19294,
+      "sha256": "aa950bca0e864c77e113a43188a68796d0d414cf6812db09c2b633bb8f8cff2c"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/apply_theme.js": {
+      "size": 7398,
+      "sha256": "c504c3b373f11d7f877adb34077b64e01eb010a003bd598c73b4b23397141c2c"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/clean.py": {
+      "size": 10724,
+      "sha256": "cb2d3a270c6a1a4c12ce9bed4dbf749a5a774bff5ddc3a931ea06a41b0064dee"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/helpers/__init__.py": {
+      "size": 4171,
+      "sha256": "76f39741394ce04105ee578a1cbf784e61987c4077da1fe45d85c03cf0bfba52"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/helpers/pptx_chart.py": {
+      "size": 10221,
+      "sha256": "4e50694720d6efcf6d308b1b8e6fdb8f797981afddb49b33ea6d2c4a755246aa"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/helpers/pptx_slide.py": {
+      "size": 3452,
+      "sha256": "e2b8176fa850674d653044642fe741b346221d14fd4f1d93250021e1d99d34b5"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/helpers/pptx_theme.py": {
+      "size": 3624,
+      "sha256": "903ad967f6bd11bde628f74d39a9f8c1f5ade40c7cc85f96143781e29463bbcd"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-contentTypes.xsd": {
+      "size": 2005,
+      "sha256": "49ec1c03440a9b5590e69acdf92b200fe133697de0b05f43a129fb94d1885026"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-coreProperties.xsd": {
+      "size": 2565,
+      "sha256": "69688ea15f82a870053b9a60c79359063dbcfeec9cdabafabad51a53934bc35b"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-digSig.xsd": {
+      "size": 2905,
+      "sha256": "ee7e7e1b9a1340536e25e87c8650a2b90a43b0e67d02d6746cd430048b3c1439"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ecma/fouth-edition/opc-relationships.xsd": {
+      "size": 1377,
+      "sha256": "607ffb6879cf5d5d765bfdfb2548f3f427ea964ddee6d08a15f0dc781749866d"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chart.xsd": {
+      "size": 76483,
+      "sha256": "4de4390a26e7e44e682ed98b39872cce2620f807f5b0de421567a43f74526388"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chartDrawing.xsd": {
+      "size": 7102,
+      "sha256": "71a6e04d3dbb21e4b705da8bb9a3c71e4295a389c15c09bd255f216de238097b"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-diagram.xsd": {
+      "size": 52387,
+      "sha256": "809f77f658f71e10f5cfbf99e25c895a23a4e62c81210b59a2fe8c7fb24849d2"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-lockedCanvas.xsd": {
+      "size": 635,
+      "sha256": "06555ced1e626ebcd9bb4a495b78d9596555f945b09161dea6c4cd4d8874a0ba"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-main.xsd": {
+      "size": 155120,
+      "sha256": "6978ba7e889070b0c3cb5b546b23e5a6c3516134afc53b87a21f482ca33f3858"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-picture.xsd": {
+      "size": 1254,
+      "sha256": "17581a2683f0ecbfd4c64656f1dff7236a4563127b5d056da750a9fd61e26f67"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-spreadsheetDrawing.xsd": {
+      "size": 9047,
+      "sha256": "aabcbb126609a518a78b007c1e6ab76e1016f136964f3afb3a5eda51584e983d"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-wordprocessingDrawing.xsd": {
+      "size": 15082,
+      "sha256": "2dbfd4719505bf39b568005994a433997cbeac59cebc9d4867d564c94e9ba03a"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/pml.xsd": {
+      "size": 85288,
+      "sha256": "39c6396b7b1f096885c3ceba5dab30e3ee14291c45a1d6fa6038ec4db69d88d0"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-additionalCharacteristics.xsd": {
+      "size": 1297,
+      "sha256": "57567431dcaf5dae08c5f7ae1eeb2c9a4d2d762a912cd09758f620469d226947"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-bibliography.xsd": {
+      "size": 7472,
+      "sha256": "6ec3425c89d6bf6eec5dd0d82c0ed0fb606064b6d4692a696323ee86814de0e4"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-commonSimpleTypes.xsd": {
+      "size": 6556,
+      "sha256": "d90722af8f1439ae6b82d57858ee0b0720e320eb309cf30371666338aa66d106"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlDataProperties.xsd": {
+      "size": 1273,
+      "sha256": "1624b1ee04781508421fd5d8a7a8fd054196be5e1e122736c7ed350161bf4b89"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlSchemaProperties.xsd": {
+      "size": 898,
+      "sha256": "4048c35b8949bab9f8ac58c2fcd0b534c5626fbe1d2bc88522a3724a0514d091"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesCustom.xsd": {
+      "size": 2667,
+      "sha256": "7f112630ff0a2bf450fb80ccc7d891fb2bfd70866c4913590d3a91f43744d4ec"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesExtended.xsd": {
+      "size": 3563,
+      "sha256": "2dd1b7ce7cf5be453fd2db72b6d6072259ede8193db7518c72439fa26fd7ad72"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesVariantTypes.xsd": {
+      "size": 7702,
+      "sha256": "ec24c8039acb44422b65c2d99af82d4f21007d17bc33c87d36549904a29702d8"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-math.xsd": {
+      "size": 23895,
+      "sha256": "f812dffca0bb66db6e2ec2e01dd19258636b2a5a3a0bb949a2e7295665e0ce61"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-relationshipReference.xsd": {
+      "size": 1392,
+      "sha256": "2a6b823a7c6da33bedb8ea9be74199db8a907530ecf9d3b31f31f92c4539a4c2"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/sml.xsd": {
+      "size": 246716,
+      "sha256": "495debc8fa967b77ed37799747b049832f2c95b2ecdb9f19ddcd68f8c9f96ab9"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-main.xsd": {
+      "size": 26718,
+      "sha256": "335e9ecd40bb594ec4b916ac8c7b9eead4e16fe1b79f9d4105fdb1c43b66bb1c"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-officeDrawing.xsd": {
+      "size": 25788,
+      "sha256": "86c9ac8549d84af107daac8f6b3b0b9ed1113eae22be8fef4c5f2b606f23ae36"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-presentationDrawing.xsd": {
+      "size": 547,
+      "sha256": "db28df195a3a1da2c749162c4e5736c94fc4e3d5e20d767d5ff68a37fdd46fd5"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-spreadsheetDrawing.xsd": {
+      "size": 5820,
+      "sha256": "2f7c6b2a8a9d7a7e0dfa32ff3f13856275d83d0bbe968c7fc9954d0f665e7588"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-wordprocessingDrawing.xsd": {
+      "size": 4106,
+      "sha256": "f5e69bc0280a2aae659766f782d2af47738c6c97ffabb0b10a871489f60280bc"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/wml.xsd": {
+      "size": 175013,
+      "sha256": "a5db454991de6c9d52db8d2dda43d2f27f4cfa2e62c012d6bf202deef90659ce"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/ISO-IEC29500-4_2016/xml.xsd": {
+      "size": 4762,
+      "sha256": "70a3c67959f9ad2333016328716101bf8b476e682f29830cc9ee8da63dca7cc2"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/mce/mc.xsd": {
+      "size": 3202,
+      "sha256": "fc3d4398375c68a8aa0d608dad9003a3e5cc566f3d16a443f92fca3799ed2df3"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-2010.xsd": {
+      "size": 27109,
+      "sha256": "60580c222b22548a4c306438a631ae2355db889ff59847cfcfd47943445a7132"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-2012.xsd": {
+      "size": 3812,
+      "sha256": "85e17de88d4c1af45a571732eb862024cd7897e380efa5825bcfdbe57db21a64"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-2018.xsd": {
+      "size": 915,
+      "sha256": "b8bf0d8670a8ba8ea2dd441e7f22a81be7dfca520ca93306e99e4403c234a3b2"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-cex-2018.xsd": {
+      "size": 1798,
+      "sha256": "6731624fcb1b0df9ab0533bc8fa2d8caa09d419b2280285bdda6c9e94d874f7d"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-cid-2016.xsd": {
+      "size": 1015,
+      "sha256": "73dde8f5752d4047975fe2948d2ea99d26c1dab981a9739e77624a666090272a"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-sdtdatahash-2020.xsd": {
+      "size": 604,
+      "sha256": "441556f2bfff0b49a3a4bae82cac5188aaee5419ddfa288dc0a58ce271f2237d"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/schemas/microsoft/wml-symex-2015.xsd": {
+      "size": 753,
+      "sha256": "1973a7ede01d55d351c50422ff451a1ad1f8f52cc792178f14b62f75c123e01f"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/soffice.py": {
+      "size": 9376,
+      "sha256": "4c7552b67f201639be3a4460a9dc6e3e1962f3b94a373232e0c7b89b6a97127d"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/validate.py": {
+      "size": 8024,
+      "sha256": "a665e391b6d85dfd982d697b108b9707bde90fb87bf89e7a6eec259179001de0"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/validators/__init__.py": {
+      "size": 351,
+      "sha256": "09a53b0969b042794ce29e5ee2487db365d57f7e95d691b145f5c60cb98144df"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/validators/base.py": {
+      "size": 35256,
+      "sha256": "906056aeb02255c4cc0d7f7ad4db28712e238e18995b68bdaf3d445c1b39a3e6"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/validators/docx.py": {
+      "size": 20264,
+      "sha256": "760e1ba11f707e804adc865eeb82a14ee41810e199ef54765caacdafc20cd962"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/validators/pptx.py": {
+      "size": 21607,
+      "sha256": "670a057b2348def8a579903599fdcab9dad1c00bb89a009e8ef9a5545a354e20"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/office/validators/redlining.py": {
+      "size": 19461,
+      "sha256": "04092727b041df9613d0dbd7cddd3af695acac22872c790376adcd24165d5e9e"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/slide_text.py": {
+      "size": 4578,
+      "sha256": "de6865239a8969d257592844888fda4b7b1b0fe78c9fdde11c9430176d446b27"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/scripts/thumbnail.py": {
+      "size": 10113,
+      "sha256": "7630ecee9954a572017bd203e12ff81baa7253757e63581dd3bd5ce92b0e9a80"
+    },
+    "workbench/official_skills/anthropic/skills/pptx/SKILL.md": {
+      "size": 28636,
+      "sha256": "2a41b36d856c83c31c80e2ef649adce023247ca462fde0fda991db9301bb86b3"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/agents/analyzer.md": {
+      "size": 10650,
+      "sha256": "8ccce0d9755f7684277870e791ffb643b026d5dd4508e5c1bdc8dfec9e8532b5"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/agents/comparator.md": {
+      "size": 7489,
+      "sha256": "ee90af43eb0dbe2fdadbb96d01f9776f387ed5c529ce083c22b8bec4e3ae10d3"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/agents/grader.md": {
+      "size": 9272,
+      "sha256": "6ec1c6950fcafa3e00d5e845b2498c5ea3e8f7f012bd9c6abad25425f3ee619c"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/assets/eval_review.html": {
+      "size": 7204,
+      "sha256": "2cc6071b35ac897b17cf0388ce240fd959396f35f95a1f7d3e74a248dd060d0f"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/eval-viewer/generate_review.py": {
+      "size": 16836,
+      "sha256": "44d97a35be977331b13b04932927b3beb285862a173f0f15dd052d4f31de5c76"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/eval-viewer/viewer.html": {
+      "size": 46323,
+      "sha256": "46abd4e19e482b4aeebea24b135c2d88fb122a63346dbeab7fcecd83828a826d"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/references/schemas.md": {
+      "size": 12491,
+      "sha256": "5ef5fd3c1ac7baae965b5bda6b4f2cf6a191a2d712c7fef2a12dde84573b4833"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/aggregate_benchmark.py": {
+      "size": 14787,
+      "sha256": "16c5a53e4cbf55a679a42c244cba39cee463d99ce507ecc9fafc4cb4e0a133e0"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/generate_report.py": {
+      "size": 13173,
+      "sha256": "d90ec4cfc2dd539564edd332880fb7561309a1f0097d082de88e3101d6c8031e"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/improve_description.py": {
+      "size": 11363,
+      "sha256": "09425704c5717656fffd346ba075a390bb55d494dd1082bccd4fe2423117fa05"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/package_skill.py": {
+      "size": 4370,
+      "sha256": "2cd9a9891844516fd30466eae30e4a9b9a199802522de3fb12f59a063fba58ab"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/quick_validate.py": {
+      "size": 4074,
+      "sha256": "99f76b23da5882ccc9301890e4c31837e4a9262bd1a9a75dc729df0b12459d52"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/run_eval.py": {
+      "size": 11774,
+      "sha256": "252ac58feedf233673d6a605661158db20806f724c7d1dd32c92ae316b24ef67"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/run_loop.py": {
+      "size": 13933,
+      "sha256": "85b36782ec856e066257cf8e917606945e6df098428005e17f8d60a5b6789c29"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/scripts/utils.py": {
+      "size": 1708,
+      "sha256": "b396f920bfbb422822427d800656ab125876e1e42ae242ed3c9380338f9d0833"
+    },
+    "workbench/official_skills/anthropic/skills/skill-creator/SKILL.md": {
+      "size": 33653,
+      "sha256": "e030e7685e26283b4a76f5202aa3ae8516fb41dde799be5ae8ea6393ec009fe9"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/core/easing.py": {
+      "size": 6499,
+      "sha256": "241adbc2d649a1e762615fe5f4e56593b3b5a52e28f6c9dda492588d7e02d653"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/core/frame_composer.py": {
+      "size": 4724,
+      "sha256": "0b3e5561b238fa804b8443af8a65c3b6cb8e5286e83f7ae611217ea5c2388fae"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/core/gif_builder.py": {
+      "size": 10116,
+      "sha256": "a47a2cda9505e5e7f25cd0dd1c53a0bdb88193ddb1eea2161f87541c1fb390f2"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/core/validators.py": {
+      "size": 3921,
+      "sha256": "83d43a5884187fc7a1e309acfd3b91ccfb4b7e70581b855718f1cdb6e9ebbece"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/requirements.txt": {
+      "size": 69,
+      "sha256": "46f28d66846632623a1a83ad36613fa241c96abef1fe514e6496de99306a0d33"
+    },
+    "workbench/official_skills/anthropic/skills/slack-gif-creator/SKILL.md": {
+      "size": 8095,
+      "sha256": "561c85ffeab639a1e84bb51cfc49f66e868a2a4c4b8945bf77b7bdaeca145a7d"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/SKILL.md": {
+      "size": 3183,
+      "sha256": "7c765e6626bf61eca30224ceeb0da51ac003c7c2f1c1743ace9b3baa305ea632"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/arctic-frost.md": {
+      "size": 563,
+      "sha256": "4ca393c5a61d4400f4e3f2ab79bb52a547568b04b60ac1227e254947b4842b41"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/botanical-garden.md": {
+      "size": 538,
+      "sha256": "b5bc2b394e6e9543267ba34445b6202157acbd3a68adaea94891695d52f44950"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/desert-rose.md": {
+      "size": 515,
+      "sha256": "6f0a7b6e4c792c98a6b2fa3d16683e5147d81c44b426bd93f059358ca94725fd"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/forest-canopy.md": {
+      "size": 525,
+      "sha256": "b05f11b64e22b6291b8b5841db1d06a68a6b3910865f1aadd5f72f6a9de1f841"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/golden-hour.md": {
+      "size": 547,
+      "sha256": "182c7db9217ae7f8e4cd2608c80a41a10538f1d904b4e78c45238efff59ae32a"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/midnight-galaxy.md": {
+      "size": 532,
+      "sha256": "8c133bbb26924bd47d432f7300176610bc3337737483ee5b6d70b10c5482a1ef"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/modern-minimalist.md": {
+      "size": 568,
+      "sha256": "839f95ff8dfc5699e93ba463839aa24ef057dc49a94b8ef369adec05bf4021fc"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/ocean-depths.md": {
+      "size": 574,
+      "sha256": "062fcb48d08ab8a2fb8c75e8e49d69eb1b7869d80de6d2b6aaa1089b33f28934"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/sunset-boulevard.md": {
+      "size": 577,
+      "sha256": "5c5d442403b0736615824fa8375b745f906265262dc0e80c4167a9528fc0ddbc"
+    },
+    "workbench/official_skills/anthropic/skills/theme-factory/themes/tech-innovation.md": {
+      "size": 566,
+      "sha256": "953b7bde08a782266b511a70bf55d4365897bc30835e4c214a46bb6734b4b8dd"
+    },
+    "workbench/official_skills/anthropic/skills/web-artifacts-builder/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/web-artifacts-builder/scripts/bundle-artifact.sh": {
+      "size": 1570,
+      "sha256": "8415e4453b50f38e899f9e513d7ea477b6a9f13d7404ab30a5b967d0cbcdc8ea"
+    },
+    "workbench/official_skills/anthropic/skills/web-artifacts-builder/scripts/init-artifact.sh": {
+      "size": 10246,
+      "sha256": "33c69d29a9d0cce95df7c1fa2e39e556b3c0c5c984c3a408894031456f842977"
+    },
+    "workbench/official_skills/anthropic/skills/web-artifacts-builder/SKILL.md": {
+      "size": 3160,
+      "sha256": "fed403699c30a8dfc91b43bc82e76c06a0e935e86395cab943644767878a48d4"
+    },
+    "workbench/official_skills/anthropic/skills/webapp-testing/examples/console_logging.py": {
+      "size": 1061,
+      "sha256": "f06fbca7cdfa44ecf5bae40813b30fc758ec3280af1aab5586aa2dd384db7ad6"
+    },
+    "workbench/official_skills/anthropic/skills/webapp-testing/examples/element_discovery.py": {
+      "size": 1502,
+      "sha256": "7e99c7caf1593a75a8b2e36847128c41962fefc604f7947426581c2b9fc2361b"
+    },
+    "workbench/official_skills/anthropic/skills/webapp-testing/examples/static_html_automation.py": {
+      "size": 985,
+      "sha256": "6633d0b7c3b3bef31e6baa9cef6fac57490767ee481702fe11c281d8d013b769"
+    },
+    "workbench/official_skills/anthropic/skills/webapp-testing/LICENSE.txt": {
+      "size": 11546,
+      "sha256": "52b223c318576d65c32f70cb745f31352730e9f4c2c2c2570a66ce700f4f5a64"
+    },
+    "workbench/official_skills/anthropic/skills/webapp-testing/scripts/with_server.py": {
+      "size": 3798,
+      "sha256": "529b5f10f6ecf2e6234747be6d6601be7ef9011ee29a3eee0879e7823f608238"
+    },
+    "workbench/official_skills/anthropic/skills/webapp-testing/SKILL.md": {
+      "size": 4008,
+      "sha256": "8bc27790f6e6dfc2bfa6692326d4518baacf6a31dcc646d963c729adad2f7e34"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/LICENSE.txt": {
+      "size": 11558,
+      "sha256": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/helpers/__init__.py": {
+      "size": 4171,
+      "sha256": "76f39741394ce04105ee578a1cbf784e61987c4077da1fe45d85c03cf0bfba52"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/helpers/pptx_chart.py": {
+      "size": 10221,
+      "sha256": "4e50694720d6efcf6d308b1b8e6fdb8f797981afddb49b33ea6d2c4a755246aa"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/helpers/pptx_slide.py": {
+      "size": 3452,
+      "sha256": "e2b8176fa850674d653044642fe741b346221d14fd4f1d93250021e1d99d34b5"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/helpers/pptx_theme.py": {
+      "size": 3624,
+      "sha256": "903ad967f6bd11bde628f74d39a9f8c1f5ade40c7cc85f96143781e29463bbcd"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ecma/fouth-edition/opc-contentTypes.xsd": {
+      "size": 2005,
+      "sha256": "49ec1c03440a9b5590e69acdf92b200fe133697de0b05f43a129fb94d1885026"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ecma/fouth-edition/opc-coreProperties.xsd": {
+      "size": 2565,
+      "sha256": "69688ea15f82a870053b9a60c79359063dbcfeec9cdabafabad51a53934bc35b"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ecma/fouth-edition/opc-digSig.xsd": {
+      "size": 2905,
+      "sha256": "ee7e7e1b9a1340536e25e87c8650a2b90a43b0e67d02d6746cd430048b3c1439"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ecma/fouth-edition/opc-relationships.xsd": {
+      "size": 1377,
+      "sha256": "607ffb6879cf5d5d765bfdfb2548f3f427ea964ddee6d08a15f0dc781749866d"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chart.xsd": {
+      "size": 76483,
+      "sha256": "4de4390a26e7e44e682ed98b39872cce2620f807f5b0de421567a43f74526388"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-chartDrawing.xsd": {
+      "size": 7102,
+      "sha256": "71a6e04d3dbb21e4b705da8bb9a3c71e4295a389c15c09bd255f216de238097b"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-diagram.xsd": {
+      "size": 52387,
+      "sha256": "809f77f658f71e10f5cfbf99e25c895a23a4e62c81210b59a2fe8c7fb24849d2"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-lockedCanvas.xsd": {
+      "size": 635,
+      "sha256": "06555ced1e626ebcd9bb4a495b78d9596555f945b09161dea6c4cd4d8874a0ba"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-main.xsd": {
+      "size": 155120,
+      "sha256": "6978ba7e889070b0c3cb5b546b23e5a6c3516134afc53b87a21f482ca33f3858"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-picture.xsd": {
+      "size": 1254,
+      "sha256": "17581a2683f0ecbfd4c64656f1dff7236a4563127b5d056da750a9fd61e26f67"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-spreadsheetDrawing.xsd": {
+      "size": 9047,
+      "sha256": "aabcbb126609a518a78b007c1e6ab76e1016f136964f3afb3a5eda51584e983d"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/dml-wordprocessingDrawing.xsd": {
+      "size": 15082,
+      "sha256": "2dbfd4719505bf39b568005994a433997cbeac59cebc9d4867d564c94e9ba03a"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/pml.xsd": {
+      "size": 85288,
+      "sha256": "39c6396b7b1f096885c3ceba5dab30e3ee14291c45a1d6fa6038ec4db69d88d0"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-additionalCharacteristics.xsd": {
+      "size": 1297,
+      "sha256": "57567431dcaf5dae08c5f7ae1eeb2c9a4d2d762a912cd09758f620469d226947"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-bibliography.xsd": {
+      "size": 7472,
+      "sha256": "6ec3425c89d6bf6eec5dd0d82c0ed0fb606064b6d4692a696323ee86814de0e4"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-commonSimpleTypes.xsd": {
+      "size": 6556,
+      "sha256": "d90722af8f1439ae6b82d57858ee0b0720e320eb309cf30371666338aa66d106"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlDataProperties.xsd": {
+      "size": 1273,
+      "sha256": "1624b1ee04781508421fd5d8a7a8fd054196be5e1e122736c7ed350161bf4b89"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-customXmlSchemaProperties.xsd": {
+      "size": 898,
+      "sha256": "4048c35b8949bab9f8ac58c2fcd0b534c5626fbe1d2bc88522a3724a0514d091"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesCustom.xsd": {
+      "size": 2667,
+      "sha256": "7f112630ff0a2bf450fb80ccc7d891fb2bfd70866c4913590d3a91f43744d4ec"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesExtended.xsd": {
+      "size": 3563,
+      "sha256": "2dd1b7ce7cf5be453fd2db72b6d6072259ede8193db7518c72439fa26fd7ad72"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-documentPropertiesVariantTypes.xsd": {
+      "size": 7702,
+      "sha256": "ec24c8039acb44422b65c2d99af82d4f21007d17bc33c87d36549904a29702d8"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-math.xsd": {
+      "size": 23895,
+      "sha256": "f812dffca0bb66db6e2ec2e01dd19258636b2a5a3a0bb949a2e7295665e0ce61"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/shared-relationshipReference.xsd": {
+      "size": 1392,
+      "sha256": "2a6b823a7c6da33bedb8ea9be74199db8a907530ecf9d3b31f31f92c4539a4c2"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/sml.xsd": {
+      "size": 246716,
+      "sha256": "495debc8fa967b77ed37799747b049832f2c95b2ecdb9f19ddcd68f8c9f96ab9"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-main.xsd": {
+      "size": 26718,
+      "sha256": "335e9ecd40bb594ec4b916ac8c7b9eead4e16fe1b79f9d4105fdb1c43b66bb1c"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-officeDrawing.xsd": {
+      "size": 25788,
+      "sha256": "86c9ac8549d84af107daac8f6b3b0b9ed1113eae22be8fef4c5f2b606f23ae36"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-presentationDrawing.xsd": {
+      "size": 547,
+      "sha256": "db28df195a3a1da2c749162c4e5736c94fc4e3d5e20d767d5ff68a37fdd46fd5"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-spreadsheetDrawing.xsd": {
+      "size": 5820,
+      "sha256": "2f7c6b2a8a9d7a7e0dfa32ff3f13856275d83d0bbe968c7fc9954d0f665e7588"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/vml-wordprocessingDrawing.xsd": {
+      "size": 4106,
+      "sha256": "f5e69bc0280a2aae659766f782d2af47738c6c97ffabb0b10a871489f60280bc"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/wml.xsd": {
+      "size": 175013,
+      "sha256": "a5db454991de6c9d52db8d2dda43d2f27f4cfa2e62c012d6bf202deef90659ce"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/ISO-IEC29500-4_2016/xml.xsd": {
+      "size": 4762,
+      "sha256": "70a3c67959f9ad2333016328716101bf8b476e682f29830cc9ee8da63dca7cc2"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/mce/mc.xsd": {
+      "size": 3202,
+      "sha256": "fc3d4398375c68a8aa0d608dad9003a3e5cc566f3d16a443f92fca3799ed2df3"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-2010.xsd": {
+      "size": 27109,
+      "sha256": "60580c222b22548a4c306438a631ae2355db889ff59847cfcfd47943445a7132"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-2012.xsd": {
+      "size": 3812,
+      "sha256": "85e17de88d4c1af45a571732eb862024cd7897e380efa5825bcfdbe57db21a64"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-2018.xsd": {
+      "size": 915,
+      "sha256": "b8bf0d8670a8ba8ea2dd441e7f22a81be7dfca520ca93306e99e4403c234a3b2"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-cex-2018.xsd": {
+      "size": 1798,
+      "sha256": "6731624fcb1b0df9ab0533bc8fa2d8caa09d419b2280285bdda6c9e94d874f7d"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-cid-2016.xsd": {
+      "size": 1015,
+      "sha256": "73dde8f5752d4047975fe2948d2ea99d26c1dab981a9739e77624a666090272a"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-sdtdatahash-2020.xsd": {
+      "size": 604,
+      "sha256": "441556f2bfff0b49a3a4bae82cac5188aaee5419ddfa288dc0a58ce271f2237d"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/schemas/microsoft/wml-symex-2015.xsd": {
+      "size": 753,
+      "sha256": "1973a7ede01d55d351c50422ff451a1ad1f8f52cc792178f14b62f75c123e01f"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/soffice.py": {
+      "size": 9376,
+      "sha256": "4c7552b67f201639be3a4460a9dc6e3e1962f3b94a373232e0c7b89b6a97127d"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/validate.py": {
+      "size": 8024,
+      "sha256": "a665e391b6d85dfd982d697b108b9707bde90fb87bf89e7a6eec259179001de0"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/validators/__init__.py": {
+      "size": 351,
+      "sha256": "09a53b0969b042794ce29e5ee2487db365d57f7e95d691b145f5c60cb98144df"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/validators/base.py": {
+      "size": 35256,
+      "sha256": "906056aeb02255c4cc0d7f7ad4db28712e238e18995b68bdaf3d445c1b39a3e6"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/validators/docx.py": {
+      "size": 20264,
+      "sha256": "760e1ba11f707e804adc865eeb82a14ee41810e199ef54765caacdafc20cd962"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/validators/pptx.py": {
+      "size": 21607,
+      "sha256": "670a057b2348def8a579903599fdcab9dad1c00bb89a009e8ef9a5545a354e20"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/office/validators/redlining.py": {
+      "size": 19461,
+      "sha256": "04092727b041df9613d0dbd7cddd3af695acac22872c790376adcd24165d5e9e"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/scripts/recalc.py": {
+      "size": 35243,
+      "sha256": "e25c2d7b09401bba8d123c7932972d338d7d41de4a725f8380a160b933a90f53"
+    },
+    "workbench/official_skills/anthropic/skills/xlsx/SKILL.md": {
+      "size": 9874,
+      "sha256": "cffd0a82f6765cd931e8ef30c382548e36de1da846edf2aedb3862a414d3dddd"
+    },
+    "workbench/official_skills/anthropic/THIRD_PARTY_NOTICES.md": {
+      "size": 46566,
+      "sha256": "5a06c53e3390e7be926597eccf9b01cac7f7d5219dfc47520ced340d8f1d2904"
+    },
+    "workbench/official_skills/databricks/databricks-agent-bricks/agents/openai.yaml": {
+      "size": 480,
+      "sha256": "22e717a2e3bec3e93bfce8812ef9e07086db74edf57b29972c41524dd590b3b5"
+    },
+    "workbench/official_skills/databricks/databricks-agent-bricks/references/1-knowledge-assistants.md": {
+      "size": 1849,
+      "sha256": "0a8c007386f868d44607e4c1abe3b67965a85099d597717662e24573a4e8a891"
+    },
+    "workbench/official_skills/databricks/databricks-agent-bricks/references/2-supervisor-agents.md": {
+      "size": 3864,
+      "sha256": "9fc0388a001c0e802fe990f5bb73a320b9a1581e0977474066200fcc20884d8e"
+    },
+    "workbench/official_skills/databricks/databricks-agent-bricks/SKILL.md": {
+      "size": 6950,
+      "sha256": "7081f696e100cd933f40e2aaf248095eaba6e45ae2209166848cce04bca9eee2"
+    },
+    "workbench/official_skills/databricks/databricks-ai-functions/agents/openai.yaml": {
+      "size": 634,
+      "sha256": "9bad8d3971dec8c4b2471411bfa15696e264e90793dac1d6fbb9efebbedc59fa"
+    },
+    "workbench/official_skills/databricks/databricks-ai-functions/references/1-task-functions.md": {
+      "size": 18519,
+      "sha256": "a7f373a9189d8978aa08ac5bcdbe862cc1f85eeb28e41b240580cf22f27a7070"
+    },
+    "workbench/official_skills/databricks/databricks-ai-functions/references/2-ai-query.md": {
+      "size": 4355,
+      "sha256": "d6e4bcbc4c151f90aeaa206456fafff3033e540e58e9cbd7d192b51822ea4c54"
+    },
+    "workbench/official_skills/databricks/databricks-ai-functions/references/3-ai-forecast.md": {
+      "size": 3363,
+      "sha256": "8b2c8fec783b4ad07a59586e6335f78954a4b726e1086ddffef8369244f8de1f"
+    },
+    "workbench/official_skills/databricks/databricks-ai-functions/SKILL.md": {
+      "size": 15414,
+      "sha256": "1d6e6ae7f9aa96465e464abe03276e7bd3a98be1a97deff3eed9c9de44f84b15"
+    },
+    "workbench/official_skills/databricks/databricks-ai-runtime/agents/openai.yaml": {
+      "size": 419,
+      "sha256": "fe23ee4c0d538e525debb72e41471441d02b2e28809e27a82e97c58b6bd894ec"
+    },
+    "workbench/official_skills/databricks/databricks-ai-runtime/docker-images.md": {
+      "size": 16766,
+      "sha256": "d8f6d7154e502cd8d25671a94ece9a11b44eea6a80abfcb791a5cdf55cf32902"
+    },
+    "workbench/official_skills/databricks/databricks-ai-runtime/SKILL.md": {
+      "size": 13317,
+      "sha256": "075f24a3764be610279c5ac92f8ca7107f6a0914f10c422ebb5afcddd543497e"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/agents/openai.yaml": {
+      "size": 639,
+      "sha256": "4d69741bcf1ca059e1625ed0e99f4380474e416d84f6eb787d4fbe1d7fbdfed6"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/references/1-widget-specifications.md": {
+      "size": 22404,
+      "sha256": "52ed69dec3960c24f81fa67cf8b578a8b2a80706e363d333840d9c45f30b60df"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/references/2-advanced-widget-specifications.md": {
+      "size": 17104,
+      "sha256": "9c757de87447dca8358cd36e6c75614c8a745508d4a8246a49223036da38b7ba"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/references/3-filters.md": {
+      "size": 12162,
+      "sha256": "a58cee615b1c63c783fcf3dff11df257543c943c9ccb209f26538549c926ca96"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/references/4-examples.md": {
+      "size": 33078,
+      "sha256": "8e32fa7056f9933e798f247634cd6bc0131b8e02f41c741c431a342d6258bbdf"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/references/5-troubleshooting.md": {
+      "size": 6988,
+      "sha256": "cb89beb1af8da6efcfc656c6daadc4d1ab5beb02ed6438634d25ee13279a1675"
+    },
+    "workbench/official_skills/databricks/databricks-aibi-dashboards/SKILL.md": {
+      "size": 32635,
+      "sha256": "c3698a388fda2dcea47fe5e683091db275cfd6fca72e78fa474384d228b77eab"
+    },
+    "workbench/official_skills/databricks/databricks-app-design/agents/openai.yaml": {
+      "size": 445,
+      "sha256": "44bad3bd763070293d471b2329ac3159f42bf26a569274eeebb4fbd9dd187565"
+    },
+    "workbench/official_skills/databricks/databricks-app-design/references/appkit-cheatsheet.md": {
+      "size": 3824,
+      "sha256": "cd444d066d8ab5f908dfcd7e7edba25c5cbd1066fc758a1896e9316c5f843c68"
+    },
+    "workbench/official_skills/databricks/databricks-app-design/references/dashboard-patterns.md": {
+      "size": 4033,
+      "sha256": "5d4966d5da80d122cbd274e167bd4dd67028fcc162eae051734259c6ddd28336"
+    },
+    "workbench/official_skills/databricks/databricks-app-design/references/genie-ai-trust.md": {
+      "size": 4183,
+      "sha256": "a29438b526b6c04c9dde552af57ef00220c937da6f4aeb1c1ae074befeed7eeb"
+    },
+    "workbench/official_skills/databricks/databricks-app-design/references/ibcs-notation.md": {
+      "size": 4840,
+      "sha256": "949a2cfb692744f4e4f19195d0c73459c35707ec47a44947a0e2549672b58594"
+    },
+    "workbench/official_skills/databricks/databricks-app-design/SKILL.md": {
+      "size": 7076,
+      "sha256": "c41195b58a80939770fd289fb4b054283ae22af25d3984d504dea55c9b962f49"
+    },
+    "workbench/official_skills/databricks/databricks-apps/agents/openai.yaml": {
+      "size": 294,
+      "sha256": "010472ad6bbdadb45e22283d4a0f39048e8d88a2a2011361f2e9ef3da444f278"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/agents.md": {
+      "size": 14553,
+      "sha256": "6a7355861a1706a09f9b52a3849705efdda05f7cf0062b9676186bf2a796315e"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/appkit-sdk.md": {
+      "size": 4666,
+      "sha256": "6e017f42afd243815beadfc805fc9b909613e27ccc87bb199361cd73cd871d1b"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/custom-endpoints.md": {
+      "size": 6154,
+      "sha256": "9f21d355793eccd0ea5a9237370faa774008da1556b795a78f892d2745a58200"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/files.md": {
+      "size": 13610,
+      "sha256": "471316f398323d76ea83f2a45186e32f59db3fe48ad516874f6b53df72baec8a"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/frontend.md": {
+      "size": 7406,
+      "sha256": "ad3bed478cc719db71f2899607aee8e138e4667a03ab35a9f7c9cd4a0d105c10"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/genie.md": {
+      "size": 10615,
+      "sha256": "477710e50679568c0a956fff5c358a6b5591c955724f797c9b4f0a4df44ba900"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/jobs.md": {
+      "size": 6572,
+      "sha256": "c952147bdf21b777082447651a6476962af2e3d00e25794bcfbf2f7de09f43e0"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/lakebase.md": {
+      "size": 19508,
+      "sha256": "73321f7cfd895cbcf4f778959878584022c0bd0bf15d24e31a91187ca2620bc8"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/metric-views.md": {
+      "size": 5151,
+      "sha256": "f8771a972c2a3b43c70df2d07b066ddaa40438946d545f6a115920e5874c8b7c"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/model-serving.md": {
+      "size": 7267,
+      "sha256": "6b111ce6ee23073e752cbd62ac50e87b55784234cefc18c6affb9086578d71f3"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/overview.md": {
+      "size": 8208,
+      "sha256": "d0cf423577338e24e2ba3a8b2106d7d41a619298752dcc862570d6e940b5020c"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/proto-contracts.md": {
+      "size": 7852,
+      "sha256": "5a1f296829f4d63c77672932a05a00195f5916e65d7debc37007a1fbbf048e8c"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/proto-first.md": {
+      "size": 9411,
+      "sha256": "29a5c983dff1cdd908d4914c8581cf2e3045557d23cd31d5c68084644f0d5eb7"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/appkit/sql-queries.md": {
+      "size": 9747,
+      "sha256": "ad377c74339c89b7e7a466b9fcff39a96a15c4e9167d71a7ace233ec21b000e1"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/other-frameworks.md": {
+      "size": 9285,
+      "sha256": "bdf4c0782da2df4d3d67744b41715a9627eeea9c5669b803accc9b04f4054da3"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/platform-guide.md": {
+      "size": 8847,
+      "sha256": "d7734d28a20a6235628fba9efb2c1cc8548588719cf312eaf774c99e541aa0dc"
+    },
+    "workbench/official_skills/databricks/databricks-apps/references/testing.md": {
+      "size": 3876,
+      "sha256": "8027f8a6151fe41cdc33c2cd9f0a1129cbf97f2244bd7d66914f7d6629c1a795"
+    },
+    "workbench/official_skills/databricks/databricks-apps/SKILL.md": {
+      "size": 22607,
+      "sha256": "0e115721c4d51c534cee68f73677c0b16cb3e4313ec3c62a48d9338e6a1e251d"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/agents/openai.yaml": {
+      "size": 632,
+      "sha256": "39a94b3263d742887070c9eca9d7cabc8d5b25f249f162f75d21e65532cabafa"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/examples/fm-minimal-chat.py": {
+      "size": 5985,
+      "sha256": "e160b274912cc89ba0911eb8ef48eaf4c635115b23fecf273e6711438c971d29"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/examples/fm-parallel-calls.py": {
+      "size": 8708,
+      "sha256": "d464612f9499ef0ef1bf272410b0be8e906c66549d3c18486cdd6f4a85018d19"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/examples/fm-structured-outputs.py": {
+      "size": 11695,
+      "sha256": "aaeaa39871fa923671ff6663f9749c4cb3c13f062f4c7b8505af219f93cb881d"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/examples/llm_config.py": {
+      "size": 12402,
+      "sha256": "0b2061f3e7dd72b14241428cdb4be13dd8dbe2d0845d50db9a358cf1a7aaf29a"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/references/1-authorization.md": {
+      "size": 4202,
+      "sha256": "f761c29e390525d1bda3ec347fbdec8004626b67a477819fcaa7c94e161612e3"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/references/2-app-resources.md": {
+      "size": 4131,
+      "sha256": "0838ed663742b392deef231633aaa46a441e8a4d8e55e1b97bd3a520d32c7ec3"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/references/3-frameworks.md": {
+      "size": 9350,
+      "sha256": "10d196f8c1fa2791fb3d2b184339fd2b59d23848719ebd9e6fba34c65b3e2a3e"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/references/4-deployment.md": {
+      "size": 4823,
+      "sha256": "c1bb4da0b66878f2872a9463d7cf0d59fb0d384fd7fb5d6c9e49347b8d542ced"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/references/5-lakebase.md": {
+      "size": 3306,
+      "sha256": "fcc12d649a412098591f15192fce324912e608edee59b62644bdfa877c4e017c"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/references/6-cli-approach.md": {
+      "size": 2874,
+      "sha256": "ac923c7cb66cbfa4244b4e8c83c33926769940ee02e49fa97c068ee85dcf9554"
+    },
+    "workbench/official_skills/databricks/databricks-apps-python/SKILL.md": {
+      "size": 12173,
+      "sha256": "89c4fb79173e615412ed3db3665d72a39c66e71af984031dfbfb2218d155fadd"
+    },
+    "workbench/official_skills/databricks/databricks-core/agents/openai.yaml": {
+      "size": 289,
+      "sha256": "8c6cc7d4ea613427f5c460357f6dda4c6de340fdf1fa0077ebfefb7afe8b82be"
+    },
+    "workbench/official_skills/databricks/databricks-core/databricks-cli-auth.md": {
+      "size": 17243,
+      "sha256": "d30d52889e183b35f957b0ae62e0c2d22b33ad4c2f6dfa87f5aefc66edeacfac"
+    },
+    "workbench/official_skills/databricks/databricks-core/databricks-cli-install.md": {
+      "size": 6828,
+      "sha256": "ad90458547aba95a77434a5712e00a95462f021befd576a19b129ab18850e518"
+    },
+    "workbench/official_skills/databricks/databricks-core/manual-data-exploration.md": {
+      "size": 13240,
+      "sha256": "511fbd3bd703eef9898835d7136d1bbadf6764ef19b5d430c4261a49adfae57f"
+    },
+    "workbench/official_skills/databricks/databricks-core/SKILL.md": {
+      "size": 7210,
+      "sha256": "dd526c86abe8c1139dedb40d0fc1c243630b3ceee305d9f0c35b5d8dac42432f"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/agents/openai.yaml": {
+      "size": 392,
+      "sha256": "52f6b4aa18c3b2b0e51ee0f2bc5c5013926d88b72774059969cc4d2db749aef9"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/references/alerts.md": {
+      "size": 2885,
+      "sha256": "3f56a627099be135e15606fe9bb5d84b8fa935195b9a4f99b53dd8a132ab616e"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/references/bundle-structure.md": {
+      "size": 7508,
+      "sha256": "2de9cb031d25db7cd63d18dc4d5fbb4c08fbc55afd844e74a01a38212b6b39b8"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/references/deploy-and-run.md": {
+      "size": 4115,
+      "sha256": "b82229e9ab4eff73ab2c8a8073170aa6305c9ca6d986e4838761e0c66c6bf491"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/references/resource-permissions.md": {
+      "size": 1767,
+      "sha256": "8bd92af4b51a21822b417782817bd5e196b9916473d1c206c99fa7f18008c601"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/references/sdp-pipelines.md": {
+      "size": 1160,
+      "sha256": "3f10ba4c10a318f80c2365e0538355e1800e509bc9cecc00eab8073a13f0dfa6"
+    },
+    "workbench/official_skills/databricks/databricks-dabs/SKILL.md": {
+      "size": 2799,
+      "sha256": "3ae2cf35e8c8840f888c9e95553e20bd270ab234129fc531fc164e58c1608722"
+    },
+    "workbench/official_skills/databricks/databricks-data-discovery/agents/openai.yaml": {
+      "size": 640,
+      "sha256": "683f7c832d0616eae91d6edb90e6c65ae1a10dd089c276905d9d892d3bef7846"
+    },
+    "workbench/official_skills/databricks/databricks-data-discovery/SKILL.md": {
+      "size": 8057,
+      "sha256": "aacfb494283d201c72e881463dda2e14f047a9bded5591ad9f4e5cdd958263bf"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/agents/openai.yaml": {
+      "size": 638,
+      "sha256": "5a3ea80e8f020d1223ffc3eae2a9d46678650405344ca82e18cd6a708d3a5c37"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/references/ai-functions.md": {
+      "size": 43379,
+      "sha256": "cb6d3f1b4075a99519be7acbe500efbc07390c1433a4fe73632c54daf61a4532"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/references/best-practices.md": {
+      "size": 23174,
+      "sha256": "fabd6fa7457fe06373fd9c26925dcd3f104cf4eead870c80cda50d9f51deebfe"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/references/geospatial-collations.md": {
+      "size": 28721,
+      "sha256": "23579de0add0babf26cc98a326a4825e392d1ee9b2785d3b2fcb8d60c8f3453d"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/references/materialized-views-pipes.md": {
+      "size": 23144,
+      "sha256": "c19da7c7c10f5f9544e07ae55b47360f9d609c586f99a5c406c6ebfb851983c7"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/references/sql-scripting.md": {
+      "size": 28320,
+      "sha256": "7275ea7a6cf953fb8ea846240792e5353d4b0128bc789ea984789135d9caf737"
+    },
+    "workbench/official_skills/databricks/databricks-dbsql/SKILL.md": {
+      "size": 11002,
+      "sha256": "7d58a08aac3ec601478332de9eb2d3146ab64ac0e1007b97cacaf29229ac4c6a"
+    },
+    "workbench/official_skills/databricks/databricks-docs/agents/openai.yaml": {
+      "size": 328,
+      "sha256": "b68655e9829abc722577110fa492f88f5845b8b6cefe03489270e351e1de0623"
+    },
+    "workbench/official_skills/databricks/databricks-docs/SKILL.md": {
+      "size": 2884,
+      "sha256": "0040fae239c29888e71cacf6751cee6a8bc834337d24af3814feeca84a0cac08"
+    },
+    "workbench/official_skills/databricks/databricks-execution-compute/agents/openai.yaml": {
+      "size": 338,
+      "sha256": "e4bd94a6cf4a1a3fd4fe362d199dd27960a96f926a04df77a7deccfdf3f4bf23"
+    },
+    "workbench/official_skills/databricks/databricks-execution-compute/references/1-databricks-connect.md": {
+      "size": 2417,
+      "sha256": "71ebfb1a4c83068bc2db52e1407149ab1b60a9db215ae47db73a0c363d6a1e9d"
+    },
+    "workbench/official_skills/databricks/databricks-execution-compute/references/2-serverless-job.md": {
+      "size": 4176,
+      "sha256": "946d680fc83ebeb3be1ca70280a5651e1491fde31a955683824ba4525008de85"
+    },
+    "workbench/official_skills/databricks/databricks-execution-compute/references/3-interactive-cluster.md": {
+      "size": 7021,
+      "sha256": "0eeb9ef96580c6cae80c5e90abbdcfd17630e96a84cab4f4cd6ec83eccbc1f3f"
+    },
+    "workbench/official_skills/databricks/databricks-execution-compute/SKILL.md": {
+      "size": 9094,
+      "sha256": "5d9a85713a800798c38ba8f5a4735291a3c6c2eaee09bba15f8ba4b95217be5d"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/agents/openai.yaml": {
+      "size": 418,
+      "sha256": "a197f87cca5e008e11ff6aae573c6d19d55a1175d0f255cc38cf646c193dbd10"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/create-genie-agent.md": {
+      "size": 27939,
+      "sha256": "b4d91eaaf5b24030cb0e64025522c2dba141d8a6edf458310a792e8bf48e41ec"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/diagnose-genie-agent.md": {
+      "size": 13999,
+      "sha256": "d9f8058fd013bdeccbbb5e0adff97ead2f248cd09c6234f995831e32c45952f3"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/genie-agent-cicd.md": {
+      "size": 4524,
+      "sha256": "33b356ba416a7a5732605417dc720bd6046416c6dfea57ab1ad927ad4d054da0"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/optimize-genie-agent.md": {
+      "size": 38561,
+      "sha256": "934b9b3765d389229689222e8e69b94661102c1802cb71ce1aa096316f62fe09"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/query-genie-agent.md": {
+      "size": 7128,
+      "sha256": "370ad2297499c6a6a86230c7da66a48fdc18db47143b29c9d21ff96ece1a55da"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/serialized-space.md": {
+      "size": 12089,
+      "sha256": "fb36ac9a59d6dc5d0c0128e9f2b26a2714e99c1baeacac0da4182088dc219a24"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/references/uc-persistence.md": {
+      "size": 5915,
+      "sha256": "8ce0c67f8bddf3df8fad1d489760cd5ae657371b2f213e52cd5b1909364510b5"
+    },
+    "workbench/official_skills/databricks/databricks-genie-agents/SKILL.md": {
+      "size": 3957,
+      "sha256": "fde9b8e889bc167b6a0a6e0740e5afd2dba214002c602bab0fbdda0cbfc02d33"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/agents/openai.yaml": {
+      "size": 628,
+      "sha256": "d4c54bda7627231096a3813d35f9b54f7e66055a6e1bcd2fdfc917442aaac97f"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/references/1-managed-iceberg-tables.md": {
+      "size": 8747,
+      "sha256": "1b4c99d3f80a44ddc1d53989c0684afe0c5d91b1399d221e4bc55d4d18f8627f"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/references/2-uniform-and-compatibility.md": {
+      "size": 8194,
+      "sha256": "1012d5c32647ee292243430a35cd176a6d4056241d3dc2d6850459fab53a5b40"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/references/3-iceberg-rest-catalog.md": {
+      "size": 4394,
+      "sha256": "4eccb0643b13dd280e4072fd190b55ac85a9a9eb50520da86eb86fac398a1a0f"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/references/4-snowflake-interop.md": {
+      "size": 13720,
+      "sha256": "145d995f2bd8dd2fabad18694b9c6749beb7f2fc0bb8fecb221ce9741a88a429"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/references/5-external-engine-interop.md": {
+      "size": 7370,
+      "sha256": "c8e2637aad07bbe579b277f84817889fface29256ba1de672927f29fdcc90b3e"
+    },
+    "workbench/official_skills/databricks/databricks-iceberg/SKILL.md": {
+      "size": 10356,
+      "sha256": "b76fb8d5c8aaef34ba954d32ebfb83e8bb77a72586a7b7853fc6c8618baf9fbc"
+    },
+    "workbench/official_skills/databricks/databricks-jobs/agents/openai.yaml": {
+      "size": 298,
+      "sha256": "61e879cea71a422e32a5a27b06ea43705db0264cb99e92b62bb8db77f0a5d865"
+    },
+    "workbench/official_skills/databricks/databricks-jobs/references/examples.md": {
+      "size": 19343,
+      "sha256": "9312338bc1d2c0c576c7ca95fb4b6b3faf5ff668b48c789d1027846ecf8847a2"
+    },
+    "workbench/official_skills/databricks/databricks-jobs/references/notifications-monitoring.md": {
+      "size": 12985,
+      "sha256": "742b3be99d863d601e3d4a70ccd94abef7fc3aa0f2a6b6c92940c0d8d563065c"
+    },
+    "workbench/official_skills/databricks/databricks-jobs/references/task-types.md": {
+      "size": 14257,
+      "sha256": "681f49dc36436d3d3a7e4fa781b393375e1da3c0eaa4013abf906a534d5df9a0"
+    },
+    "workbench/official_skills/databricks/databricks-jobs/references/triggers-schedules.md": {
+      "size": 11082,
+      "sha256": "95c46b401f9b2bfbb1ab92a129b4250d70fae0568e19d144ce63bb2ed298f7a5"
+    },
+    "workbench/official_skills/databricks/databricks-jobs/SKILL.md": {
+      "size": 12372,
+      "sha256": "5293473c510665bf7393ea1d0a8d1d9297ed06bf94bb56ce6f4488bfd1e2cd32"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/agents/openai.yaml": {
+      "size": 298,
+      "sha256": "bbcd829b808e293729ca3e99216f2c8d24ee558b18435359a9cd8fbbfded1084"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/computes-and-scaling.md": {
+      "size": 4898,
+      "sha256": "ef5182d900a8cc083a7c88cf556a652c915b9e1954e95d980f1f02e8e4cd36b3"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/connectivity.md": {
+      "size": 8084,
+      "sha256": "940e943711679a565c9c690f6d1dba6f408e2a41d9cae0c411258e04d715cd35"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/lakehouse-sync.md": {
+      "size": 5240,
+      "sha256": "c6bae0a7e83712c1f0f53ffa1aea77c6009c0690866cd17ff89fdafda5193f77"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/medallion-from-cdc.md": {
+      "size": 4465,
+      "sha256": "935935a746bfe4f82d6deb03ce14259c16d78b8e0716cc84612761e8fd5bbf0b"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/off-platform.md": {
+      "size": 7066,
+      "sha256": "3834c57dfdc6dc6c378c7d3c6e71ff8b7a9bac530416b4e73f22d491baa75e7a"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/pgvector.md": {
+      "size": 4700,
+      "sha256": "7f3b597e73e9f93a758b258ee32a64f6e586a795bc1c27aee84a8acdef77169a"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/references/synced-tables.md": {
+      "size": 12046,
+      "sha256": "79afa3d1a31dee989137ac8f3ad4cb2a8be5a813a5860d1a8daf74bd3bb8a54c"
+    },
+    "workbench/official_skills/databricks/databricks-lakebase/SKILL.md": {
+      "size": 19214,
+      "sha256": "155eaa65499902aac25a5ffb7cd5b5293329c373b52dec744558f0d252bdee8f"
+    },
+    "workbench/official_skills/databricks/databricks-lakeflow-connect/agents/openai.yaml": {
+      "size": 389,
+      "sha256": "a75c6eb464a98e087ca930dd8ea79012c438c474b9072a739000916e9fb6599d"
+    },
+    "workbench/official_skills/databricks/databricks-lakeflow-connect/references/1-saas-connectors.md": {
+      "size": 7871,
+      "sha256": "ec39b97b26a9414ab8010785c3386618922e377c6eb94197bb61a432dd95fefe"
+    },
+    "workbench/official_skills/databricks/databricks-lakeflow-connect/references/2-database-connectors.md": {
+      "size": 7887,
+      "sha256": "043c7b510640a9ac7f8513d32a3012f5498e357977744b1f5a7e0cc15f1b836b"
+    },
+    "workbench/official_skills/databricks/databricks-lakeflow-connect/references/4-ingestion-decision-tree.md": {
+      "size": 7597,
+      "sha256": "a9b7d23d3f74fafcb19246997db0bc875f118baafdf5af2fd92bcea049042116"
+    },
+    "workbench/official_skills/databricks/databricks-lakeflow-connect/references/5-troubleshooting-and-monitoring.md": {
+      "size": 4267,
+      "sha256": "ae6d2b522e7450c16534b62d6b38c3a5b992677acce12a358cd6ec93b8cafff1"
+    },
+    "workbench/official_skills/databricks/databricks-lakeflow-connect/SKILL.md": {
+      "size": 15268,
+      "sha256": "1a04fd7a62637779eb95de657dff8855a5dc5cce40241c7b31d8bc82f9b2ff34"
+    },
+    "workbench/official_skills/databricks/databricks-metric-views/agents/openai.yaml": {
+      "size": 428,
+      "sha256": "b762309449b059086498cbbd01102c1ef1c5703181e5c2effc84328692a2018a"
+    },
+    "workbench/official_skills/databricks/databricks-metric-views/references/metric-view-advisor.md": {
+      "size": 59852,
+      "sha256": "36326611834004cb060eb7fea851e4bd68ad93208e68a29f37b8dc20a1ad0330"
+    },
+    "workbench/official_skills/databricks/databricks-metric-views/references/patterns.md": {
+      "size": 17094,
+      "sha256": "0d58f6455e024ccf76c5792493ca37b8daadcac966d40fa2f363bdf80d7bd957"
+    },
+    "workbench/official_skills/databricks/databricks-metric-views/references/yaml-reference.md": {
+      "size": 10403,
+      "sha256": "66a3b13335fd63e5f1d4fb3005ede7f8441f10de38b69089c1e0745f3c9debbd"
+    },
+    "workbench/official_skills/databricks/databricks-metric-views/SKILL.md": {
+      "size": 13052,
+      "sha256": "ccd05af40ff0c4c24f59e1285c37620a10d459c2e5aabf2f95fbedeb0139e0cc"
+    },
+    "workbench/official_skills/databricks/databricks-ml-training/agents/openai.yaml": {
+      "size": 337,
+      "sha256": "1e6d10f993f9125d20316c5cc22c433322f58f0d72efe8c80dad1fd4116dff63"
+    },
+    "workbench/official_skills/databricks/databricks-ml-training/references/custom-pyfunc.md": {
+      "size": 4391,
+      "sha256": "030aa1c7fc32052f3408de94e43f611417cdf0df407ddd5f8eef728ffcb25253"
+    },
+    "workbench/official_skills/databricks/databricks-ml-training/references/feature-store.md": {
+      "size": 15765,
+      "sha256": "5710aaa581f01aee2b583f522212636c438b5ae303ff150c821b96b44f4a4ce6"
+    },
+    "workbench/official_skills/databricks/databricks-ml-training/references/feature-views.md": {
+      "size": 30708,
+      "sha256": "ae3f3d37595a32662d198e7a4611dc747637a40efb10bdfb5aa40d36b18f82cf"
+    },
+    "workbench/official_skills/databricks/databricks-ml-training/references/genai-agents.md": {
+      "size": 10666,
+      "sha256": "df3d8accb20405b34a8e3b3fb1576148e382871869282b4e7a21679916e42942"
+    },
+    "workbench/official_skills/databricks/databricks-ml-training/SKILL.md": {
+      "size": 18431,
+      "sha256": "74aa25abbce1fdc5b1c6585ceefa6ca5660ff3e269d36737efa8b5a7ee8a9077"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/agents/openai.yaml": {
+      "size": 310,
+      "sha256": "0661fdd860772285921771d77421e6483808ee49a4ed71c02108bbc899817509"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/CRITICAL-interfaces.md": {
+      "size": 12906,
+      "sha256": "d52e670901d6a99530d7cf316888b81d3184c9b4f40f745087ea7f0b85780aae"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/GOTCHAS.md": {
+      "size": 25124,
+      "sha256": "4741fc972deacc3e1727ac2dcb70bdd825317750cb1b57ddb0c33eee6b24a7ed"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-context-optimization.md": {
+      "size": 10421,
+      "sha256": "0e3e39f76af60ebba3f7749bf7872ab97f51cabe3dfeeaf82b4b57b870b90391"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-datasets.md": {
+      "size": 22240,
+      "sha256": "b826abdb5679329af0fe5e1feae7ed0e1d2a8a27c2d0139425b7b5401b6f9ec6"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-evaluation.md": {
+      "size": 16414,
+      "sha256": "3d12ebacdaedca00c88ad67483354d7e098e92e4a80434f3a594f89413b9f1bc"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-judge-alignment.md": {
+      "size": 13503,
+      "sha256": "5acac05e44235d5a44a174738647b174e404e7bb289d5e571178ee4a4912d6de"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-prompt-optimization.md": {
+      "size": 7073,
+      "sha256": "53cb491a8684bad1494d9d03eb67781307f7e3ac3c82969a7e88d38accb3ca57"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-scorers.md": {
+      "size": 23361,
+      "sha256": "1fa6f9edf556c6be6108b01a0576f86ca99c3b3d326c8a27fab940950292bd71"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-trace-analysis.md": {
+      "size": 26869,
+      "sha256": "5abef7e0be5fdc2c1bac089874a01915935c27442cce62bbcffca7fcc85a08bc"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/patterns-trace-ingestion.md": {
+      "size": 22458,
+      "sha256": "cd92c3de3c12f30e4660aa77eca0a61685beef2fde386379f5d82f5c633e8862"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/references/user-journeys.md": {
+      "size": 24580,
+      "sha256": "b863fc18f6aeb477a6aab8d56d82a1f4e94a6209a3220f13d0a74e68be1ab750"
+    },
+    "workbench/official_skills/databricks/databricks-mlflow-evaluation/SKILL.md": {
+      "size": 10488,
+      "sha256": "f5e7cf8d1a91b3b9bdd3f5f1f1098187175519a84716f62eedf7e8f1ef4dda1e"
+    },
+    "workbench/official_skills/databricks/databricks-model-serving/agents/openai.yaml": {
+      "size": 316,
+      "sha256": "92c474e4459ea3f73de028f63597507479f3356953303bf3a3c605d804c0c627"
+    },
+    "workbench/official_skills/databricks/databricks-model-serving/references/off-platform-streaming.md": {
+      "size": 6280,
+      "sha256": "3d952f4a084140ee6830f6733d513be67d3551a22b9e757dbebde03bc2cc2757"
+    },
+    "workbench/official_skills/databricks/databricks-model-serving/SKILL.md": {
+      "size": 13072,
+      "sha256": "289590686e8eb93a3b2182dec932ed85d6336ea03792b9b6309f42b29976f507"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/agents/openai.yaml": {
+      "size": 300,
+      "sha256": "92845e3f025be5b77b93904fa2b84e1a47636ab92c07e67c29760088b97cdb2a"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/1-project-initialization-with-dab.md": {
+      "size": 9701,
+      "sha256": "d080281f838bfed735cbca3dc65ebdde9aef7deec1b5f078889acc863541201c"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/2-rapid-iteration-with-cli.md": {
+      "size": 7558,
+      "sha256": "35fb333be5ff59074d06721e715c8f8735c831fa9ceae7261a4ca62f18282eca"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/auto-cdc-python.md": {
+      "size": 5418,
+      "sha256": "706ea8429907e20c884b3592fc15b6ea292bf3780ebd6fb0f30d4907570181ad"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/auto-cdc-sql.md": {
+      "size": 3559,
+      "sha256": "009f0a67a934d5c258a146e1b6c052b6807d71d54d18db0c8a02540e984d8598"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/auto-loader-python.md": {
+      "size": 3894,
+      "sha256": "bcbec4e207b1853eb390187e4f1dfb90a4ca7ea2d60ef9e635edf6454dfa47b9"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/auto-loader-sql.md": {
+      "size": 2156,
+      "sha256": "994d58003a265665188add4482511a74f6c1477e4b537bf7cefbbf2976efc98d"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/dlt-migration.md": {
+      "size": 6160,
+      "sha256": "d1d391027604a69845369d0249ffd15ea69b49af5626c2b3202a8b782ece0bd2"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/expectations-python.md": {
+      "size": 2915,
+      "sha256": "e6a08671d4935f294ce1ef37314135b5b582f8d925bedbabf8c130bc3e330775"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/expectations-sql.md": {
+      "size": 3516,
+      "sha256": "dbb60f0105dc4ee5d1241b20d0a63bc23acc18e400bbc84bf2394a8c5ae485b8"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/foreach-batch-sink-python.md": {
+      "size": 3228,
+      "sha256": "4d8997147638d4f9d98ffcab541683f01b74fdf5046a32c2165724a30178c9f0"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/kafka.md": {
+      "size": 5939,
+      "sha256": "8d0ef922204e7696d92a09ffc3e2b7549805804783353ff9bd935cf52dd5dddf"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/materialized-view-python.md": {
+      "size": 3567,
+      "sha256": "e48950d7ef177a9bd73e42460bcf1b9ac8e9bbac54bd77bb405122e1f2fb7a2f"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/materialized-view-sql.md": {
+      "size": 3906,
+      "sha256": "7ed43c0ec8b4b3e52f54573cce1b1e41986f5f39ac3f259e1792719b8ea4c9a7"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-avro.md": {
+      "size": 261,
+      "sha256": "6cf08ede4bf63f3b4ed8c40b78349c50a94555cbcc7c142bc2ab57d79e674af0"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-csv.md": {
+      "size": 1462,
+      "sha256": "a83023ad7a3dcfdf05a834dfd6a5264f2e4f1b1621e14376d51c8c7415173a17"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-json.md": {
+      "size": 1297,
+      "sha256": "5ed3f7f87f2575cc8de545121349359edc805e42d2b6c1adf5f13fb3c96d75b2"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-orc.md": {
+      "size": 100,
+      "sha256": "24494531ba6bed21ac14e14ec858b416238d9c9dfba7b8f82db6c0683d03c098"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-parquet.md": {
+      "size": 264,
+      "sha256": "9d99fd3d517e7d1f211711c3655330f9385c0aa722e7cd9580e436d450ec75ea"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-text.md": {
+      "size": 143,
+      "sha256": "1a2f1a9b501eb18bf5e53d8c38561e0388a9605fce8044fb1e6b496efa288424"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/options-xml.md": {
+      "size": 1102,
+      "sha256": "dea7b75eb14924f0f9470883a3e1c6afb57364a07662d8721323b0221edd5f71"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/performance.md": {
+      "size": 8663,
+      "sha256": "f325bb5016cc0ff53022518ac0d4f540e9f368968e7c90506974f6eb9ef9de40"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/pipeline-configuration.md": {
+      "size": 11808,
+      "sha256": "a62a06dfe5473af9a577dfab75f5c7e522395c25e20d8502d3edbe58dc1fc2b8"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/python-basics.md": {
+      "size": 2869,
+      "sha256": "b63977d8a211b6a52943f95ba2cb3fa21da4f0f9902443d14d08b5b9df995eef"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/scd-2-querying.md": {
+      "size": 6048,
+      "sha256": "4b03412d3cd433007888d78be4cea6c6716b373ee850368c0e75fa3237db643a"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/sink-python.md": {
+      "size": 2814,
+      "sha256": "5af8cef37be905e0018c37cd9cdb362a2323576ef7dea8ad657d2299f1d5043c"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/sql-basics.md": {
+      "size": 3209,
+      "sha256": "78d2ce481a8b7b639f559b03a7e09447ded8636aeda6872baf8a0d56b8be9c80"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/streaming-patterns.md": {
+      "size": 10267,
+      "sha256": "747d2988fb2f3ad1540d8b26625070aabfdc5e263f889c0e63f2806e960ffeea"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/streaming-table-python.md": {
+      "size": 5533,
+      "sha256": "1a4c80e1a30119f4035b229e0855fffcfcfecd4383c6bccec828cbb3be39417a"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/streaming-table-sql.md": {
+      "size": 5653,
+      "sha256": "fdf48aa49a45d5d622d9f88fb7e279b9d1f27b3808e4585594384c69286de66a"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/temporary-view-python.md": {
+      "size": 1525,
+      "sha256": "ff718fa8c331f488076e3b3becd9d33fec5122e6c750bc610f3d4b2bfc709b4c"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/temporary-view-sql.md": {
+      "size": 1809,
+      "sha256": "a4f1f32e3af5e50533df47b0d7bb3f1fccc36e4c8fd80fc6f760b23127641762"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/references/view-sql.md": {
+      "size": 1358,
+      "sha256": "ee9e52dbc25a8180f34fc60aa959c9a98a38e1a88d6b5f810b6df9af93364fca"
+    },
+    "workbench/official_skills/databricks/databricks-pipelines/SKILL.md": {
+      "size": 33960,
+      "sha256": "110307325b34b496decbb7b3dffde572a484c47e6b883f4c21b708f7ad1fac76"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/agents/openai.yaml": {
+      "size": 416,
+      "sha256": "666ddb456954f7d3fd5ab50b848c75e76604baf1cecc89fa3218d42b71e58e29"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/examples/1-authentication.py": {
+      "size": 2923,
+      "sha256": "ad778285c49886cf505abbf091ee434d18cbbe45632091e401f8b35f14a0f066"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/examples/2-clusters-and-jobs.py": {
+      "size": 5789,
+      "sha256": "931662715e02fdaba72e651893126e98ed6cf87f318c76134aba9a517261fccd"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/examples/3-sql-and-warehouses.py": {
+      "size": 5777,
+      "sha256": "24133cded7984b791332c36f4aaa305c33a599f92ed7b7cc6ddddb28fb043768"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/examples/4-unity-catalog.py": {
+      "size": 6229,
+      "sha256": "1855dffce8f7d4f903a4d645ad061a13cbc40e3c7641aa6f8f96cc887077c851"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/examples/5-serving-and-vector-search.py": {
+      "size": 7171,
+      "sha256": "22c579acb5ddd314068c7f3ba3e4a4f1deeaf260a33bf51acaceea6d99147631"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/references/doc-index.md": {
+      "size": 14701,
+      "sha256": "02d4141e18b407e62b64d254241abb78389221654ab9bd51c43a532da77b290e"
+    },
+    "workbench/official_skills/databricks/databricks-python-sdk/SKILL.md": {
+      "size": 18204,
+      "sha256": "1cf3702fd174d316e6fc8f836a3dfe2bad74595ce64352b6ae04128694aa240a"
+    },
+    "workbench/official_skills/databricks/databricks-serverless/agents/openai.yaml": {
+      "size": 335,
+      "sha256": "3fe102d273f56f0c04ae09d51a701fee8348690488bec9232b912bdfcdd1002b"
+    },
+    "workbench/official_skills/databricks/databricks-serverless/SKILL.md": {
+      "size": 10897,
+      "sha256": "b21a23d554f2e5ae5c6d3ccdcc08e92e811f2a1b98082fe092c4f970c5a17ff7"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/agents/openai.yaml": {
+      "size": 372,
+      "sha256": "593a39dec841d82cf95136c093b7239c53c98e40ec8d4429e79f7b477361cebd"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/code-patterns.md": {
+      "size": 21790,
+      "sha256": "0f4e3142093d8bf45f7fd90d346891a651b37d9d45e1407067293e95b9e7a930"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/compatibility-checks.md": {
+      "size": 20260,
+      "sha256": "92b22613d822099e2467669538c022498017c9cc4b7031899cccea7d4edb52d6"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/configuration-guide.md": {
+      "size": 23199,
+      "sha256": "bf02627ad06443279506210e9e3ca3abd4b57ed05064c1d73816a15c00ebc4fa"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/failure-reporting.md": {
+      "size": 6899,
+      "sha256": "05c458b20f3290d99307df8c8524c460b7b0d39af163fa6532028e5efbde0af9"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/install-in-databricks-genie-code.md": {
+      "size": 5831,
+      "sha256": "8ff240962bee8b09ba75626026e4f08fa4beb36304ad243e43761f7032ac43fb"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/jar-migration.md": {
+      "size": 26131,
+      "sha256": "d4d77049afb72d965e976a02a69a6b7a9b110226f6c3f07b666e4ecea82a3345"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/mlflow-uc-patterns.md": {
+      "size": 14943,
+      "sha256": "769c8a8254de9d60b6498cd4437726af39596184644db8f36e00275fc376bae3"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/multi-source-enumeration.md": {
+      "size": 5322,
+      "sha256": "8c584a638adedc0c9e91cf583e06cbcdd6912264c4c5fa6f628dd8af4c3a6728"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/networking-and-security.md": {
+      "size": 9508,
+      "sha256": "79371cf57777dfc789ebeb5418f77f57812e4b3f44e03548224e1f7a5c69c3fb"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/references/streaming-migration.md": {
+      "size": 10424,
+      "sha256": "b563bfb150d20e5c10edf4b3ec4af283bcccb742bdf6b0a4fd7065902121bda3"
+    },
+    "workbench/official_skills/databricks/databricks-serverless-migration/SKILL.md": {
+      "size": 63784,
+      "sha256": "9aab226188bfe673b49cbe42b351be8343628fad8018deb804180b55f104de98"
+    },
+    "workbench/official_skills/databricks/databricks-setup-local/agents/openai.yaml": {
+      "size": 501,
+      "sha256": "af7dfe6c5183a6ec0e9ca5f35c12dd3f59c1ec65079f92044c05578106a14f8b"
+    },
+    "workbench/official_skills/databricks/databricks-setup-local/references/examples.md": {
+      "size": 3023,
+      "sha256": "d570ce17f5130bafc9a00460dc17babb1d937bb109964bb49ae1f8747fb3a407"
+    },
+    "workbench/official_skills/databricks/databricks-setup-local/references/json-output.md": {
+      "size": 3592,
+      "sha256": "78cb62f0c6ee11fbb8e8524d6171e05ae94b402e425d035cc772740b398738e3"
+    },
+    "workbench/official_skills/databricks/databricks-setup-local/references/troubleshooting.md": {
+      "size": 4075,
+      "sha256": "0158e3992e52efe83ab35743748c1bda5fb9887a109fc33fb9d1e905c13a5fff"
+    },
+    "workbench/official_skills/databricks/databricks-setup-local/SKILL.md": {
+      "size": 6277,
+      "sha256": "dc7e7775677ae4693e9de572fc8ac9c6e17ff30992f5f59a935b12fb8ac04166"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/agents/openai.yaml": {
+      "size": 414,
+      "sha256": "17065383f3c5034ac8c13a8d675b528932580de9ddaeae24ba9edfe5f5ec899e"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/checkpoint-best-practices.md": {
+      "size": 8560,
+      "sha256": "8b5df6abe49178503cc2566eb8b264e487972bc19d643cfbd9438f3b91435409"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/kafka-streaming.md": {
+      "size": 16343,
+      "sha256": "2628e1db4d82f8dff3dd92888270b4b47f48226ac8ab458dae0ad34d219c8e47"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/lakebase-sink-python.md": {
+      "size": 21124,
+      "sha256": "de8da28dbb0489b05d92c16c2473ec9eb6a636c923ed56e891ff1334f7003ec7"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/merge-operations.md": {
+      "size": 10947,
+      "sha256": "a76cddcad4b0635fd8109091bcf42986e49b739457285d074491998557a899a0"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/multi-sink-writes.md": {
+      "size": 12935,
+      "sha256": "94f252e6d50a1befcbfd32b46f6b7f501ead02ebaf6e06fd5d42948221607ee3"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/real-time-mode.md": {
+      "size": 17085,
+      "sha256": "2950860d6beac4bd5a3077c6fce4605b8e3e05a2e2401f5ae369f11c19ccd7b3"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/stateful-operations.md": {
+      "size": 12013,
+      "sha256": "4655771e9d9289b0577d51abb8ddbffac9f0224df822ecc28ec2047a6368150c"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/stream-static-joins.md": {
+      "size": 14237,
+      "sha256": "36c52c108221a10b697d9526b5a86751d84aef4bfdbac3065cb166589c1b876d"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/stream-stream-joins.md": {
+      "size": 16880,
+      "sha256": "6bd0bb8a8f3544872002122dd338137af44a0c8870fea6a6f3a38f23d81aaf5a"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/streaming-best-practices.md": {
+      "size": 9590,
+      "sha256": "82b3fc53304bc5dbd03b1103d7e9ec47a19f067d7a31971e48ed48da51ac41c6"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/references/trigger-and-cost-optimization.md": {
+      "size": 13967,
+      "sha256": "b4915af8ef8092781d47dbbc1af453df2f72842d865d7ec140f146b58ee34e76"
+    },
+    "workbench/official_skills/databricks/databricks-spark-structured-streaming/SKILL.md": {
+      "size": 3826,
+      "sha256": "0bef93492116658f96274029020dc199685fe8c9fa62e9d00264b85f09cce0ef"
+    },
+    "workbench/official_skills/databricks/databricks-synthetic-data-gen/agents/openai.yaml": {
+      "size": 644,
+      "sha256": "d3826f2fb3cc6b6bc1cc4a445b1614cce0dfd21343980f4768c1437cad58d53c"
+    },
+    "workbench/official_skills/databricks/databricks-synthetic-data-gen/references/1-data-patterns.md": {
+      "size": 5891,
+      "sha256": "35ee7c4b76a6ec9cc3bf5704b51084b135fbd6c53d9d21f3b5f8bff4e20415b3"
+    },
+    "workbench/official_skills/databricks/databricks-synthetic-data-gen/references/2-troubleshooting.md": {
+      "size": 9615,
+      "sha256": "a684675504f65722f59c96454a6f4181ed92eb9dacf7c7ba2b26db5352fa318e"
+    },
+    "workbench/official_skills/databricks/databricks-synthetic-data-gen/scripts/generate_synthetic_data.py": {
+      "size": 11339,
+      "sha256": "ab6a29e050ca626d28f08d4872901031cc0ae0ad2774fe78878c34dc20d9033c"
+    },
+    "workbench/official_skills/databricks/databricks-synthetic-data-gen/SKILL.md": {
+      "size": 12918,
+      "sha256": "d15491624bdc0be2069c31352bcf571d9b9f15355ba3fc4e315cfde2b54abd3e"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/agents/openai.yaml": {
+      "size": 512,
+      "sha256": "9a745ac030120b59a47a5092cbdb105b07034396fa47966e7a5b71656aacd873"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/1-access-control.md": {
+      "size": 10463,
+      "sha256": "b89b9e97b6c41a7fad10bff16fbdb7f328c9eca22568c2622a3bde276c485516"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/2-external-locations.md": {
+      "size": 8009,
+      "sha256": "dca8f7443d3ef563f495e4ed859e9eed69aac0cc81ea87650dda5ffda6c76cf7"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/3-securables-ddl.md": {
+      "size": 7135,
+      "sha256": "8199b93d15198135b83f43a62d37986a9daa7c791ec854f724b0805b59ae5575"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/4-fine-grained-access.md": {
+      "size": 7914,
+      "sha256": "2cbbf51bbe305ee5bde9fc0a0ffb23fbadd568e0a8989d4adcff925629d8a1c4"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/5-system-tables.md": {
+      "size": 28972,
+      "sha256": "19e652a94a8b3250ff845e324f309975bc6df7b39adf16926322960409e2efab"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/6-volumes.md": {
+      "size": 12040,
+      "sha256": "f2b488f21f7cbe19da494ff14d4a9764732423379cb412c40361a32562b96880"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/references/7-data-profiling.md": {
+      "size": 10556,
+      "sha256": "35baa78c6caf94342ee5bb4991daba16536d21f3ccc644a0d2fb5095c50603a6"
+    },
+    "workbench/official_skills/databricks/databricks-unity-catalog/SKILL.md": {
+      "size": 12203,
+      "sha256": "f7c19ee1ed74fcd0ed800b4f5d5dedd39b6c48de67559a38994d77b205f2341b"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/agents/openai.yaml": {
+      "size": 325,
+      "sha256": "1742a6b9024ab3274e4fec364b0b51ec35cbb18857c5df2b6b9ab64271e5dc59"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/account-access.md": {
+      "size": 1957,
+      "sha256": "6311324e71db1b0eb1352951fe855c556770266199172399d70a8a42d21fe220"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/budgets.md": {
+      "size": 1780,
+      "sha256": "b2b1534ba315b89a1defbd2e34dadf8fd54501dedde164d92fe4128d9aef2c71"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/mcp-services.md": {
+      "size": 5958,
+      "sha256": "a0761826cfe5f61883249ccebcb73f21f08aef4a0f6b7a371187c9c0fbb3ff09"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/model-provider-services.md": {
+      "size": 10074,
+      "sha256": "95512004abeb213f15b5747adedf0af474cdfe2f81bffa890ed42db0ee37381d"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/model-services.md": {
+      "size": 9121,
+      "sha256": "4f964694bd71df110fe973d7c546890c698816d4ba2675151ce9ed71772167dc"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/model-serving-migration.md": {
+      "size": 4188,
+      "sha256": "bd75ff3133ae3430fe52ddb7bd085e04d115c4c323b7a0c859466b676d8d72cf"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/permissions.md": {
+      "size": 5288,
+      "sha256": "87adbe5e4dcf1a28638c01ae778dd3dc9e1521812816f74f31909576aa138216"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/references/querying.md": {
+      "size": 10920,
+      "sha256": "a1c5d7b9759dcfdedf2c68f56523f5d5ecd50e151a7cc1e03bded55d75e872c1"
+    },
+    "workbench/official_skills/databricks/databricks-unity-gateway/SKILL.md": {
+      "size": 7067,
+      "sha256": "a096761eae68e5f393077ad0a9c4cc99977b021d678b3402ec6ee70efb4e7e94"
+    },
+    "workbench/official_skills/databricks/databricks-unstructured-pdf-generation/agents/openai.yaml": {
+      "size": 558,
+      "sha256": "31ca03fb5d488370d12ee0d240bc6ffa0a7004861d6e44635385d1f9292b902e"
+    },
+    "workbench/official_skills/databricks/databricks-unstructured-pdf-generation/scripts/pdf_generator.py": {
+      "size": 8446,
+      "sha256": "3c06c6b3cdaca64556f7c47a9ebb79b45fa27938b7263943971e91cb61791c1a"
+    },
+    "workbench/official_skills/databricks/databricks-unstructured-pdf-generation/SKILL.md": {
+      "size": 6718,
+      "sha256": "57391a0fa20359b56b7050e9e62a022b671e5fdfc67348d275d30fd9531215ce"
+    },
+    "workbench/official_skills/databricks/databricks-vector-search/agents/openai.yaml": {
+      "size": 452,
+      "sha256": "abaf0640c887fef51627a4a6e7df007f8401196fd12f10c1754a65fb0e5fc6d4"
+    },
+    "workbench/official_skills/databricks/databricks-vector-search/references/end-to-end-rag.md": {
+      "size": 7247,
+      "sha256": "d6c5e4b7ba14b8c05192f00ebeae9b1aa52b2a533fb0a62d658889c70d9a348e"
+    },
+    "workbench/official_skills/databricks/databricks-vector-search/references/index-types.md": {
+      "size": 6359,
+      "sha256": "1ed91a8b37be3b6c39dacd18f4f4c5c34712f4b8f0146a13b1ae50ee40ecc5fc"
+    },
+    "workbench/official_skills/databricks/databricks-vector-search/references/search-modes.md": {
+      "size": 6091,
+      "sha256": "f6b0c3c981b10cbd2ab450b47117f12b66fb379d4878b4de87cad4f94e3ef237"
+    },
+    "workbench/official_skills/databricks/databricks-vector-search/references/troubleshooting-and-operations.md": {
+      "size": 8371,
+      "sha256": "80dd3859ce99ae4428fe29a5c01b1dd85436afaeeeef9a340f1ec70ca9dc2117"
+    },
+    "workbench/official_skills/databricks/databricks-vector-search/SKILL.md": {
+      "size": 11718,
+      "sha256": "50b84ee87a43aa000fefeacb29b005d713f395e2726a2c78b7d5ac84354bc4c2"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/agents/openai.yaml": {
+      "size": 611,
+      "sha256": "133f5e2eff82fb8f5ad6de955db7744a352b6bef863bea846c2f199af73e0a47"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/examples/grpc_client.py": {
+      "size": 12661,
+      "sha256": "e166c3bda2affb48bc9e90766423fcfbbed3d8fa6e81f47de1e0f00ba0871a6e"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/examples/mqtt_producer.py": {
+      "size": 12412,
+      "sha256": "f8993d1f3fdbf64d3ea6940d44614856b261d61568b7cb09cf284b46e66caffb"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/arrow-flight.md": {
+      "size": 9692,
+      "sha256": "b19360711111392d7a8b23d4bf5f4ef3cde812f6f83e921f376847bdf96fee69"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/authentication.md": {
+      "size": 14042,
+      "sha256": "f008e8962a3e1de15c853a9e413ed76dd75eedaf2b6a3e81c1b68cce0fdb3861"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/build-from-source.md": {
+      "size": 10149,
+      "sha256": "464a766f91fa95113e7b1f9a1320ceb210cab8a8c00a27adf0d38ff97b797498"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/choose-an-interface.md": {
+      "size": 7843,
+      "sha256": "bee51dc75f41a12bdc921ef4d886eb5f09af35826f8b627ebbe389b7a28caf8e"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/databricks-apps.md": {
+      "size": 5293,
+      "sha256": "939723116425f2710275dec684ddac7571f2cff5f9399584973d5017ef2d7651"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/go-sdk.md": {
+      "size": 3603,
+      "sha256": "0b4738e891573e33435a2b1954548d58249ce7ff397ddc432a5dd72db06772a8"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/grpc-api.md": {
+      "size": 8170,
+      "sha256": "75fad457b64901670ab5b1f7825e3cb20d391f1bf6921e0de63e5e32c1cad6d5"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/how-it-works.md": {
+      "size": 15264,
+      "sha256": "94c330593cdf0aaa11e8c80b5918a4d24450af490cb076825eadd65ff89e9fba"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/java-sdk.md": {
+      "size": 4462,
+      "sha256": "a6e17f67d42afde367ca54adeae63169469002f7b673b0cd2dc8cbe00f768ab9"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/kafka.md": {
+      "size": 7551,
+      "sha256": "01275a3b086bcd667655388542038c5e82bb4e5d1c996865f9a25829a2f5f6b1"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/migration-from-kafka-compatible-systems.md": {
+      "size": 6981,
+      "sha256": "01263bc9d6ae37c68ab63ce0adb12298fb6d6c7556ffd8c957c76523bb4df167"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/mqtt.md": {
+      "size": 7146,
+      "sha256": "43873a64cf6cbb6ee8343c2584db0f184feebd11b2ad249c156918bc707cf53c"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/networking.md": {
+      "size": 6253,
+      "sha256": "c0a27a877fe78eb77836701e54f6a6fc218dda85765d56184ae435216353cf03"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/new-to-databricks.md": {
+      "size": 6423,
+      "sha256": "e7161825b21535a39edd59eb257f48e0a99eb7ecc8da1948a704566033ab5f49"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/observability.md": {
+      "size": 8467,
+      "sha256": "d1086afbc37c76d3b2238b5d877d0548fb6489ea10727b6254d806cf753706dd"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/other-sdks.md": {
+      "size": 3676,
+      "sha256": "790a0f52c02ea479e7b2601f8b50e6a811513f2f6d3bf42847a37f68dc03bfb4"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/performance.md": {
+      "size": 5054,
+      "sha256": "f236256d386f8787a84e81c6b8df334dfde9473901035e2731e4edba3eeb6f4c"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/protobuf-schema.md": {
+      "size": 4790,
+      "sha256": "5826c0119c2fd8fac56553ba7a62941dc8447edb1c101c40aa1c22120c3a21af"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/python-sdk.md": {
+      "size": 3531,
+      "sha256": "067b5a4f3ccee997985a30e5c6054f6c2d00ce8164a4c6ee2beb4d1121e20a56"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/recovery.md": {
+      "size": 6027,
+      "sha256": "935dfd9e73e0fdabb7a2db698f5d5560ed90e1153c3f1a0b1b60774a931a28ad"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/rest.md": {
+      "size": 6273,
+      "sha256": "e0f6845f03305510c4f78e947315dea767f77a7abc3cb6beedfe479609e63b77"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/schema-management.md": {
+      "size": 6317,
+      "sha256": "7516544ace51ac7d4e677daaa7237d0b60a213c3848d3f5c68d4cad21f6fb6f8"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/troubleshooting.md": {
+      "size": 5831,
+      "sha256": "f9922f0ad8101cc3e2fd27dae777239f9a16ab384359113db512824a1d9f95a4"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/references/typescript-sdk.md": {
+      "size": 2915,
+      "sha256": "bd745db184bac5c7dcf852dcd51aa5131c77b4664483a96858af1c71051ac3ef"
+    },
+    "workbench/official_skills/databricks/databricks-zerobus-ingest/SKILL.md": {
+      "size": 25010,
+      "sha256": "e64bf903cb33dd76ce2ebc3fced2c652342b42208bf7839072ccbda502d84463"
+    },
+    "workbench/official_skills/databricks/LICENSE": {
+      "size": 3859,
+      "sha256": "86408496680ace2c89ad54bfa7e8570327da702f46bc407fb8dcb0a5f14e3094"
+    },
+    "workbench/official_skills/databricks/NOTICE": {
+      "size": 1023,
+      "sha256": "2aa43469d253f8360fcd1d35f15bd2141da57d7101a56d7b70c1f914bf38fd31"
+    },
+    "workbench/official_skills/databricks/SOURCE.json": {
+      "size": 982,
+      "sha256": "09fc5bf7822922b853c68aca8db550bbea3ec279b90663b58588d0df29936308"
+    },
+    "workbench/operation_reconciliation.py": {
+      "size": 15389,
+      "sha256": "0409eeaaae0343d09c51ce775584407f4698deee3a4ac1f904d873cdede2da28"
+    },
+    "workbench/oracle_federation.py": {
+      "size": 8241,
+      "sha256": "0ac8717f4730d44aa23f7291cd2bede97a7c2c223753482ae185bb188b3469ac"
+    },
+    "workbench/package_context.py": {
+      "size": 14318,
+      "sha256": "89c7fa3294f2281cf29eed9f4798136cf81f9dc872650c90f1e610d3f5f61d2a"
+    },
+    "workbench/package_fixture_bootstrap.py": {
+      "size": 27621,
+      "sha256": "27ed9b8a3a19616aef5fdde5bf8fd82f7282dbaba3dfdcd3860aa5904635075b"
+    },
+    "workbench/package_graph.py": {
+      "size": 9832,
+      "sha256": "285d9f409d0c9fb726ce33d2a6ca2a48a128b1f68ec14af646d3742434cebd0d"
+    },
+    "workbench/package_parity.py": {
+      "size": 14896,
+      "sha256": "4f08073fa0850dae7c4c77fa65dbf9b3ff7cb6807997934e9b9e141d87938644"
+    },
+    "workbench/projects.py": {
+      "size": 43985,
+      "sha256": "09113faedfd3349decebc351387c14467f7cd2701989f8055ca69c0ff7916db5"
+    },
+    "workbench/readiness.py": {
+      "size": 32624,
+      "sha256": "b3b739b832d59e3a5a4d20d54b5f1baa6b3bf0728d24c536e6e6f8694c31bdba"
+    },
+    "workbench/redaction.py": {
+      "size": 3221,
+      "sha256": "26ca01ec9849b2c42d4441b16910df5e53bf3e7af4725e8dc5c4aec459817035"
+    },
+    "workbench/redesign.py": {
+      "size": 66771,
+      "sha256": "ec934626b56a8d2d2847c5666a60fcb53055687e8ef5e835c1a0711c2cff8125"
+    },
+    "workbench/reference_diagnostics.py": {
+      "size": 8706,
+      "sha256": "072cf262bfb11914cd640ced715e75f90b605bbf8f6e659562aca3f8e9dfeeba"
+    },
+    "workbench/release_preview.py": {
+      "size": 6763,
+      "sha256": "f61d3707d01491aad93a921704de60fc5f33189b6aa26982a325fd11d33a87db"
+    },
+    "workbench/retrieval_receipts.py": {
+      "size": 3168,
+      "sha256": "dce19b90501bf458885e63c12ca8b224c2d8242c840811c9e9d3089d67f7ee1a"
+    },
+    "workbench/run_control.py": {
+      "size": 3939,
+      "sha256": "98f22fbea83242fcf318750c73956c203c93191fc20391000cbe5d5aa675c03e"
+    },
+    "workbench/selected_job_deploy.py": {
+      "size": 36574,
+      "sha256": "24e88ebe852695902cae7df25a3965f6890f3b9400f5c55dd5b9ef040afa633b"
+    },
+    "workbench/skills/architecture/CONTEXT.md": {
+      "size": 370,
+      "sha256": "2cee5e9c1c719c1b36e8e958827500aebbaba60cdf48cea58b48a9e47f87fd7b"
+    },
+    "workbench/skills/architecture/library/databricks-lakeflow-counter-control/SKILL.md": {
+      "size": 2480,
+      "sha256": "ddcdb295b9c77b92652e6a41eb7a17901b8b0425c9d2fa9ffb2777632fdcfc09"
+    },
+    "workbench/skills/architecture/library/lakeflow-design/SKILL.md": {
+      "size": 9950,
+      "sha256": "5561c940ed81df3492b8f5086f19b2977e1b3c127573ee3d78c74581e47eab88"
+    },
+    "workbench/skills/architecture/library/review/SKILL.md": {
+      "size": 9550,
+      "sha256": "580c282a2ff930dd3861b5cee28beaa8f46eb210f300319c393fbb70759c4ef6"
+    },
+    "workbench/skills/artifact/CONTEXT.md": {
+      "size": 554,
+      "sha256": "c387d53580531dd5586aa617313276c8ac18843722cb10423d2e6c06904b6a18"
+    },
+    "workbench/skills/artifact/library/artifact-requirements/SKILL.md": {
+      "size": 4217,
+      "sha256": "daf0be6267c78c1877c8f56ac230c1ac3a053d6893510b64d28b4f31e7190614"
+    },
+    "workbench/skills/artifact/library/databricks-lakeflow-demo/SKILL.md": {
+      "size": 2421,
+      "sha256": "d502ba08b1c2095b67a18f50dc4e35b41473d0586bb429ffa080c3428f7f6e16"
+    },
+    "workbench/skills/artifact/library/review/SKILL.md": {
+      "size": 3864,
+      "sha256": "3cddac382ad20d9d9779899bfd32f7b6e77bd43550f4f9dfdd1a3b50a2ef6fa3"
+    },
+    "workbench/skills/discovery/CONTEXT.md": {
+      "size": 389,
+      "sha256": "41ea500b42745f0ce548ebd50a5d387a9117a8a92c420916a86c0932880ac751"
+    },
+    "workbench/skills/discovery/library/informatica-understanding/SKILL.md": {
+      "size": 3738,
+      "sha256": "916da63db119726715978b4431bae11113a95d5255c8ad2cdcfa18ad32dc8e12"
+    },
+    "workbench/skills/discovery/library/review/SKILL.md": {
+      "size": 3259,
+      "sha256": "dec8a84072609b6243b8c13b96d90555fedf27e1f79378ba292d45ece95eeaf3"
+    },
+    "workbench/skills/production-conversion-contract.md": {
+      "size": 11932,
+      "sha256": "f3681e18560287521a62c2d2015b61e2368091ac9d6251c693ceeda78ff9f21a"
+    },
+    "workbench/skills/semantics/CONTEXT.md": {
+      "size": 357,
+      "sha256": "f768d126dd573a37cf989562ce6212235e36b86178cf727f095b40215550fd32"
+    },
+    "workbench/skills/semantics/library/review/SKILL.md": {
+      "size": 5321,
+      "sha256": "06580880ddcade006b1342482fe55d0176dd85d260160c538b1d76c56c934808"
+    },
+    "workbench/skills/semantics/library/transformation-semantics/SKILL.md": {
+      "size": 5896,
+      "sha256": "48988f731e37571919f0f48ca46b7824dbac5d4221e353cb293d0f2d9956bde0"
+    },
+    "workbench/skills/spark_codegen/CONTEXT.md": {
+      "size": 8218,
+      "sha256": "461cbc8bbf72b312b1a47c974cfd8f278e89ccf043fffa608c2f4ff74e514d97"
+    },
+    "workbench/skills/spark_codegen/library/implementation/SKILL.md": {
+      "size": 20792,
+      "sha256": "30c765a49657c99bacf36e8d97d9213874f104a27a6e48c9336184a5a52f79ea"
+    },
+    "workbench/skills/spark_codegen/library/spark-code-writer/SKILL.md": {
+      "size": 21078,
+      "sha256": "337362de56b14c0835142e95d966e421d99bd91b1724889c76b29bf2873a6ac5"
+    },
+    "workbench/skills/supervisor/CONTEXT.md": {
+      "size": 551,
+      "sha256": "049180d8a1dbde1bfc3d5bc142f4e79866ca4ea31d4e45ae7cde930300317283"
+    },
+    "workbench/skills/supervisor/library/migration-coordination/SKILL.md": {
+      "size": 4843,
+      "sha256": "35f97df1b8ad547c5ce330a1aeacc32736a7224119482cec7fa2af8b11ef4d20"
+    },
+    "workbench/skills/supervisor/library/review/SKILL.md": {
+      "size": 4354,
+      "sha256": "f3c07f353e5222f6ce5c75ff83e673569f805a0b03c74fb74efc3e837b752a47"
+    },
+    "workbench/skills/validation/CONTEXT.md": {
+      "size": 387,
+      "sha256": "c13e701126ccdbdbae469e6f72e108343c3db2c2e0a06322e38f0e0135a762a6"
+    },
+    "workbench/skills/validation/library/independent-validation/SKILL.md": {
+      "size": 5028,
+      "sha256": "fd253bb0916554ea99f44039bc6b1ed314129cbc4fc8eb8dd80f015de70a306d"
+    },
+    "workbench/skills/validation/library/review/SKILL.md": {
+      "size": 4605,
+      "sha256": "20fd13dc2e7d018f99f4403be93db83dc022e451955fc04b51e37a6871b99405"
+    },
+    "workbench/source_analysis.py": {
+      "size": 11849,
+      "sha256": "559d3ab14a04b89d7255cdbd8bbde91be9867d102678b156549a2564c47bfb4b"
+    },
+    "workbench/source_evidence.py": {
+      "size": 7500,
+      "sha256": "43f993dffd8ec655c0c4069856eedd45be4948e1b8a527f596cd731c2f87f002"
+    },
+    "workbench/source_fixtures.py": {
+      "size": 10902,
+      "sha256": "bf3f79cff519fe3e7e4a5a07518b2d24ea96ffaa5261801556b8d1806b9c67b8"
+    },
+    "workbench/spark_codegen.py": {
+      "size": 235414,
+      "sha256": "ffccc00698d013a77f25799ef24fb1c359b4e4c43fb9e612b3996204cba29b44"
+    },
+    "workbench/sql_artifacts.py": {
+      "size": 29116,
+      "sha256": "322e015ca54990ce6dd9c5e5c3c6cc527a0e4f6564cbfecc4e6fb295fa7d278f"
+    },
+    "workbench/static/agent-arena.css": {
+      "size": 38717,
+      "sha256": "2c53cdf6b71e275355f6bfeb213590a7e99256a20a6c3da4c4c7b970cf61b03f"
+    },
+    "workbench/static/agent-arena.js": {
+      "size": 67009,
+      "sha256": "5bc46e0336c5ef8c9bc91e5ef1f459b00c83c01b61cb58efe867621335222057"
+    },
+    "workbench/static/agent-library.css": {
+      "size": 4401,
+      "sha256": "8a5d85893131bda1484076e55f51c6bc4bda3306bcb7ddb49cbe9af2cdc09a84"
+    },
+    "workbench/static/agent-library.js": {
+      "size": 17559,
+      "sha256": "6562fb19578b24050354270ad359e02d9b7f6a1377bd97510cc964e721fd004b"
+    },
+    "workbench/static/agent-license-notice.js": {
+      "size": 4864,
+      "sha256": "516f86cef6c030ea14c07466378a7803982e1681ec2fa100e9940d6165f2edcf"
+    },
+    "workbench/static/agent-loops.js": {
+      "size": 2083,
+      "sha256": "022e8cf40d1e471fd77ada43435c5ec60010a9578c22c63bad951dcdf3384a65"
+    },
+    "workbench/static/agent-team-flow.js": {
+      "size": 9296,
+      "sha256": "f6e277c6042c27507a43fd2264cedecfcea4a90b7761ab05242a9d5d99eabcbe"
+    },
+    "workbench/static/app.css": {
+      "size": 171110,
+      "sha256": "0336b54f065dec16b59a177266b903f0ad302f54493e596907ef4f9d10327e90"
+    },
+    "workbench/static/app.js": {
+      "size": 388565,
+      "sha256": "decc0194738e94e9ce8a624d7e05c21b8997e7ac0c28c1a5b50bcda915870571"
+    },
+    "workbench/static/application-log-analytics.css": {
+      "size": 2533,
+      "sha256": "ba65a61382fe5f58d69477182770b49f0f8ae9c27f95d6f85117ba879bb8958e"
+    },
+    "workbench/static/application-log-analytics.js": {
+      "size": 18583,
+      "sha256": "e982b6ab2a22c68d4e12d8fed1fa7b936a2bca71bef2ee44fd96092860207bdb"
+    },
+    "workbench/static/blueprint-logo-dark.png": {
+      "size": 6418,
+      "sha256": "9ef5475d3089ba0a4a9a3d199bb30d05192b6643607e5acb9bbb6883141d5b92"
+    },
+    "workbench/static/blueprint-logo.svg": {
+      "size": 4419,
+      "sha256": "725fc80563b3248df129526c65e8af03dc5b5d9d8bb0e036bcf0677ba638d836"
+    },
+    "workbench/static/capability-status.js": {
+      "size": 6115,
+      "sha256": "693dccd78f836f3609fe7e578c2b805022fb0e8e37597d96423bb602a23bfae8"
+    },
+    "workbench/static/connections.js": {
+      "size": 6456,
+      "sha256": "7cd2c94d1ef2badb5260c443b41cd32e23f933c0286e8464479dc53367113a50"
+    },
+    "workbench/static/context-picker.js": {
+      "size": 9890,
+      "sha256": "098de635f6b32d129d04d537d2848a2eb9e35e09e2d3eb161535f8166a17ed58"
+    },
+    "workbench/static/conversion-demo.js": {
+      "size": 5226,
+      "sha256": "8039ca6794c7ba34056ec45d58a910e1c648a9bbba9f56f8068017373b38de8e"
+    },
+    "workbench/static/databricks-official-dark.svg": {
+      "size": 3668,
+      "sha256": "216bdd6d49257083e697b39834766f69e29de0285c73c199d1f7d2a9a044899f"
+    },
+    "workbench/static/databricks-official.svg": {
+      "size": 3668,
+      "sha256": "8c6b1fbc7609d5246f85629ca4bf729585694e030245676fa49c309f9673f42f"
+    },
+    "workbench/static/external-models.css": {
+      "size": 3011,
+      "sha256": "3b1dd8dc34f420ac8e9b3c4516965738be37db910ebf34edb15e084865a85e2f"
+    },
+    "workbench/static/external-models.js": {
+      "size": 14823,
+      "sha256": "546b8703936c9453485fa9bb5f973a4f5f7ae18ba2b025ef48e0e9f28b5461f6"
+    },
+    "workbench/static/folder-migration.js": {
+      "size": 27415,
+      "sha256": "0c7d4b252e1c063a8d757f7868ddbb5f68da579e7a46bb40252ba01737228645"
+    },
+    "workbench/static/future-architecture.css": {
+      "size": 4866,
+      "sha256": "ef72738c09ad58810bbe43eea29108a48912a35b67e949e5bb1a7de5a9aa0891"
+    },
+    "workbench/static/future-architecture.js": {
+      "size": 626,
+      "sha256": "727184ed4c53d2052d52193611c78069f44051c50bb9a58c66287f7d7aa3a1bb"
+    },
+    "workbench/static/graph-view-picker.js": {
+      "size": 3670,
+      "sha256": "f05ce2f4a65d88d414947e29da2f188d1481cdc34559abbe9e7caeaabee4db31"
+    },
+    "workbench/static/heartbeat.js": {
+      "size": 3512,
+      "sha256": "f47135912aa70154055dac43bb9f7b36fd69decc6ab8fcd4260d1971cb2e0d34"
+    },
+    "workbench/static/hosted-intake.js": {
+      "size": 50302,
+      "sha256": "07b7cdb37e3398bfef1dd889bce6f6246e935956b40f62883d07e6bbdd94f41c"
+    },
+    "workbench/static/hosted-project-breadcrumb.js": {
+      "size": 1925,
+      "sha256": "2f445196facca7ff68c3c8407523ad26ac7e38a99afc9b3e0989bd32d69467fb"
+    },
+    "workbench/static/index.html": {
+      "size": 79647,
+      "sha256": "50eabff4f9c3a8dfc0f1dcb2e274c1c858a58f7d5b5eae3202344009194965bc"
+    },
+    "workbench/static/inventory-dialog.css": {
+      "size": 3002,
+      "sha256": "780c0732b24400476504ab64eeacd9cfe911a8a3b98dc19b0219aafc50dec739"
+    },
+    "workbench/static/inventory-dialog.js": {
+      "size": 18736,
+      "sha256": "49f9f55672b5f7324da33d6bfdd44687a1530e35fbdecb25c422160d24bb6c11"
+    },
+    "workbench/static/lineage-example.json": {
+      "size": 6583,
+      "sha256": "ffb6ffb399e00e7c97f838de4a8c774224834ce0031e2414419daec521ff389c"
+    },
+    "workbench/static/migration-analytics.css": {
+      "size": 15980,
+      "sha256": "01268208f508afcd6ae44f05dfd7f373e2383989771a61e5bc5a7561682acfc3"
+    },
+    "workbench/static/migration-analytics.js": {
+      "size": 47982,
+      "sha256": "cbb411f7a43d23db329a9f7f2e0349752281fd1c4e206738463f2ee775e68ad9"
+    },
+    "workbench/static/migration-lineage.css": {
+      "size": 4881,
+      "sha256": "b6da7094e3ec4c9ae7ec19121ee6b16399f5f9f2bed02d451951bc10c94ca0b9"
+    },
+    "workbench/static/migration-lineage.js": {
+      "size": 30347,
+      "sha256": "93ca97de243c5ba2b9217df892ecc323cf32540222ec57c267ee28cf70cf0939"
+    },
+    "workbench/static/model-route-save.js": {
+      "size": 5351,
+      "sha256": "ac7578ec42bd0a4a31115e3c78621f39c0ba6ff9a44ffa5558f1c49c923bf8b7"
+    },
+    "workbench/static/next-action.css": {
+      "size": 1191,
+      "sha256": "080b503a97e6080f6cd018536483bdf3cf51887d17c120032d67ef0bed0dc897"
+    },
+    "workbench/static/next-action.js": {
+      "size": 19099,
+      "sha256": "68879d401d9cd934186f9d72f2bec20bedbde0e1f08d761d2aa310b5998b57de"
+    },
+    "workbench/static/orion-mark.svg": {
+      "size": 2200,
+      "sha256": "83a9e1c078fb00e8f56a36df964e8fe5fc28ead26848e543203305d43f7c3247"
+    },
+    "workbench/static/prose-format.css": {
+      "size": 1396,
+      "sha256": "9deeee4eeea504c7ee47fb46f0d5b2e64df29d36eaf2f88db3b18871cd4de551"
+    },
+    "workbench/static/prose-format.js": {
+      "size": 3729,
+      "sha256": "c2fb28f4750945986611062a1d76ea70f72bcdb339b09f527cfd91e2a0c0c872"
+    },
+    "workbench/static/readiness.css": {
+      "size": 5958,
+      "sha256": "8f04487393f82e487c20fbb343a5ab45f165ec2c51cd350acd24bac2f4f0a41e"
+    },
+    "workbench/static/readiness.js": {
+      "size": 27756,
+      "sha256": "028dab7d6a3f357d21a72194ed9d767608385698f85c2286a920ad0311156016"
+    },
+    "workbench/static/redaction.js": {
+      "size": 2596,
+      "sha256": "1962f171f116d66bbc3b6188c9cb89a1075150eae3f155f19b83e5c8c95757bf"
+    },
+    "workbench/static/redesign-animation.css": {
+      "size": 8752,
+      "sha256": "bda95ad16c360034402c2b36856ef0677c64bb586b6ae04d05c094c14377c316"
+    },
+    "workbench/static/redesign-animation.js": {
+      "size": 23922,
+      "sha256": "225e66c21cfbc23273aa3e81570652ce0abc9dc04b914d790b87d7a26bad80b8"
+    },
+    "workbench/static/redesign-review.js": {
+      "size": 291319,
+      "sha256": "d916dc677f0c7acc9ae2aabdd60e5b9835ff1a6f5733d2134785134d4225d9e9"
+    },
+    "workbench/static/release-review.js": {
+      "size": 6066,
+      "sha256": "825a34578c633b9db1154cf0c6038825fe0efb16469c9bd0e542e49cb406570d"
+    },
+    "workbench/static/scoped-reads.js": {
+      "size": 6014,
+      "sha256": "46f4d72df4bbb6f96dd62a2baff3e891d8ec94b92de2bfe85399a5d85557ca2b"
+    },
+    "workbench/static/selected-job-deploy.js": {
+      "size": 6274,
+      "sha256": "97e077507ce3e2f21bc8b704d8d6aa67f217769212f2dcbc20911314496607f5"
+    },
+    "workbench/static/support.css": {
+      "size": 6562,
+      "sha256": "b53d79803ac79af18b0fbf75f9e51438267b3756522a62137dd0d19cec7849be"
+    },
+    "workbench/static/support.js": {
+      "size": 43521,
+      "sha256": "16fbdd903d899999d4bf71516017d588ffaa64d78d2b4580ea216f979fd64162"
+    },
+    "workbench/static/time-format.js": {
+      "size": 1733,
+      "sha256": "bb163cba3a6d59b24a3fbdb7e8724745296c48e3f96222ecf0b53b6ddfa73128"
+    },
+    "workbench/static/tracing-status.js": {
+      "size": 10008,
+      "sha256": "7fabd8465ff9077be0f2fd1f01daa2080b7169a766eb1b8201bcaa8fe9af984b"
+    },
+    "workbench/static/validation-campaigns.js": {
+      "size": 14674,
+      "sha256": "6dc3b8d72e69ca3b643a83706528b8bea972d4b3f69dbe5a0f6283d90793c7e1"
+    },
+    "workbench/static/workflow-guide.js": {
+      "size": 10973,
+      "sha256": "731d8900d693cfba447324d389a3b9ef2496ed02f15782c79d6359b134af6b9b"
+    },
+    "workbench/static/workspace-access.js": {
+      "size": 37270,
+      "sha256": "73a910aaa530490e16d85a09c4011589abc7d964d66b6673f6f86ddddacbe3e9"
+    },
+    "workbench/support_review.py": {
+      "size": 16136,
+      "sha256": "478dee6b05b6e350facf56a0fea0c9ff93e66eb9fdbc8a6e1c258cd7104d0381"
+    },
+    "workbench/support_search.py": {
+      "size": 17747,
+      "sha256": "33ca35b1b145bc3e75af6eb37c0b401bf880763b5532b9dccb214bf8e53541e0"
+    },
+    "workbench/support_storage.py": {
+      "size": 6539,
+      "sha256": "d940f8a277e77e19feb648da02cf15a8bc7fa2964e8e8bb094bbfd0be751b553"
+    },
+    "workbench/support_workflow.py": {
+      "size": 16040,
+      "sha256": "e51060122510e6e97727dbbb752e542e9df386de1ba67599e11af8a965f9ae57"
+    },
+    "workbench/synthetic_source_data.py": {
+      "size": 21294,
+      "sha256": "c5ff4b4af36fc018fc609ade643e246b4a42fd74a99e00981b1b489ad210bab0"
+    },
+    "workbench/synthetic_source_metadata.py": {
+      "size": 13341,
+      "sha256": "7da189df2a2220a5e878e7ff4d62698b88ef7de5c5664d16f80943e668b21864"
+    },
+    "workbench/synthetic_source_runtime.py": {
+      "size": 14424,
+      "sha256": "27cf234dfbc03c9bc5019525f95fd72c78da17d3ec3e143225cc024d8e3634a7"
+    },
+    "workbench/target_fixtures.py": {
+      "size": 5367,
+      "sha256": "134b1ce92701007547c7b9207e31ab87eea41795c7a9bd2f4757e091d745d0b4"
+    },
+    "workbench/target_review.py": {
+      "size": 3762,
+      "sha256": "4ce1c9a1c6aa8c822c72e061095bb0beb26e525e42afce8f8ddf11443c8c768c"
+    },
+    "workbench/temporary_jobs.py": {
+      "size": 22982,
+      "sha256": "a694b41f8ef43552ceaae0494d8f6f6c2912875bfc05e2dfd3a544d99b2bba28"
+    },
+    "workbench/ten_workflow_fixtures.py": {
+      "size": 11689,
+      "sha256": "5490fad9b7f3b3c2e03d59c34eb18d2d951e2493d36a0922865e812f826014fe"
+    },
+    "workbench/tracing.py": {
+      "size": 20914,
+      "sha256": "a040dc768375f22fe3538dc3aafe1c6df4579de3137602e7bdd8f268aa6a0fdf"
+    },
+    "workbench/understanding.py": {
+      "size": 28878,
+      "sha256": "333d4fdd36ae904d30abe554ebe1a87a2a6fd0234bac327568234ff2d85391b9"
+    },
+    "workbench/validation_campaigns.py": {
+      "size": 46732,
+      "sha256": "b7854bc0b8488ca52827a3675c96bea5d088ed4a2e345f8f8d4a0f02c08b5c23"
+    },
+    "workbench/validation_contracts.py": {
+      "size": 16345,
+      "sha256": "8de7d82ec13a6a0f5d8f910ec57891828407cdf417c18a04f90bff3d1361e0a8"
+    },
+    "workbench/validation_data.py": {
+      "size": 10193,
+      "sha256": "8af7bc5ef9c2b0325ed681252bcf8aff4d87105264e91870efe158618963f4aa"
+    },
+    "workbench/validation_metrics.py": {
+      "size": 5563,
+      "sha256": "573c8b466a8a70ffd4e36e47b966a3590ff9fae12a2cd6050619f14f5feb92af"
+    },
+    "workbench/validation_provisioning.py": {
+      "size": 5674,
+      "sha256": "f77e6030e55b53799fc0679d994910ae35dfff2d26827386b8c36b341af9f008"
+    },
+    "workbench/validation_readiness.py": {
+      "size": 3800,
+      "sha256": "2f53d65ba34387e7ad2bc9fde42ab60e482e3c83271fb9f8a740ba66964186aa"
+    },
+    "workbench/volume_intake.py": {
+      "size": 16131,
+      "sha256": "97a100e32f1f6733c5481deee368d0973f6373854e6895901fa17786d16219e0"
+    },
+    "workbench/wil_control.py": {
+      "size": 2892,
+      "sha256": "3ace29d35f9ba986d4b917daf062bdd629f3ffd343885b13576b55a49f0b88f5"
+    },
+    "workbench/wil_mapping_compiler.py": {
+      "size": 26777,
+      "sha256": "616706d3af23297790bfdfa9ee9db98a5a5bcac0d9ec521ef8fc97941c74fbce"
+    },
+    "workbench/wil_parent_child.py": {
+      "size": 21234,
+      "sha256": "3c419a156876f2878d7f0d81e21d2b494d0dc15dc5bd81bc686cc56d9491f89c"
+    },
+    "workbench/wil_runtime_contract.py": {
+      "size": 4864,
+      "sha256": "f3429c5f916f63a3faa590e78f4f076ec797a3e4dd3b55e1e117459eea3470d6"
+    },
+    "workbench/workflow_artifact_responses.py": {
+      "size": 3190,
+      "sha256": "1dba17653059f8ce4527b60e09db60cbafa13cda6df7965fda539fbec41cf537"
+    },
+    "workbench/workflow_artifacts.py": {
+      "size": 43964,
+      "sha256": "9d18a2021d865a7cc64548fa31c7fd2beb6c00c9f9b8c5647ff7a4d29f323e78"
+    },
+    "workbench/writer_preflight.py": {
+      "size": 2827,
+      "sha256": "10ba43eb3d13c97f09c715c0e36226d5ea600ae16706f9456a6e4a36804affc5"
+    }
+  }
+}

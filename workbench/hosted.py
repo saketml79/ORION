@@ -46,7 +46,8 @@ from workbench.projects import install_projects
 from workbench.volume_intake import VolumeIntake, install_volume_intake
 
 _CURRENT = ContextVar("workbench_hosted_identity")
-_CURRENT_DELTA_RUNTIME = ContextVar("workbench_hosted_delta_runtime", default=None)
+_CURRENT_DELTA_RUNTIME: ContextVar[DeltaRuntime | None] = ContextVar(
+    "workbench_hosted_delta_runtime", default=None)
 _CURRENT_MUTATION = ContextVar("workbench_hosted_mutation", default=False)
 _CURRENT_AGENT_RUNTIMES: ContextVar[dict[str, Any] | None] = ContextVar(
     "workbench_hosted_agent_runtimes", default=None)
@@ -71,6 +72,31 @@ def current_delta_runtime():
     if runtime is None:
         raise AuthenticationUnavailable("No active Delta request; no retained authorization is available")
     return runtime
+
+
+def _verify_notebook_attachment(app, project, package, job_id, result):
+    from workbench.notebook_edits import _SESSION_FIELDS
+
+    if not isinstance(result, dict) or result.get("status") != "attached":
+        raise ValueError("Invalid notebook attachment response")
+    if not project and not package:
+        editor = app.state.notebook_editor
+    else:
+        manager = app.state.projects
+        with manager.lock:
+            selected = manager.contexts.get((project, package))
+        if selected is None:
+            raise ValueError("Notebook attachment package is unavailable")
+        editor = selected["app"].state.notebook_editor
+    identity, user = editor.identity(result.get("workspace"))
+    attachments = editor.attachments(job_id, identity, user)
+    if attachments is None:
+        raise ValueError("Incremental notebook attachment storage is unavailable")
+    session = {key: result[key] for key in _SESSION_FIELDS}
+    if "folder_object_id" in result:
+        session["folder_object_id"] = result["folder_object_id"]
+    if attachments.read(session["session_id"]).get(session["session_id"]) != session:
+        raise ValueError("Notebook attachment was not durably verified")
 
 
 async def _finish_action_before_cancellation(coroutine):
@@ -131,6 +157,21 @@ def _close_request_runtime(runtime):
                     break
 
 
+def _meaningful_hosted_read(method, path, query):
+    if method != "GET":
+        return False
+    return bool(
+        re.fullmatch(r"/api/redesigns(?:/[a-f0-9]{64})?", path)
+        or re.fullmatch(r"/api/proposals(?:/[a-f0-9]{64})?", path)
+        or re.fullmatch(r"/api/jobs/[a-f0-9]{32}/spark-drafts(?:/download)?", path)
+        or re.fullmatch(r"/api/jobs/[a-f0-9]{32}/native-bundles(?:/[a-f0-9]{32})?", path)
+        or re.fullmatch(r"/api/workflows/[a-f0-9]{64}/migration-context", path)
+        or (re.fullmatch(r"/api/agents/runs/[a-f0-9]{32}", path)
+            and query.get("status_only") != ["true"])
+        or path in {"/api/reviews", "/api/documents", "/api/export/understanding", "/api/export/english"}
+    )
+
+
 class HostedRuntimeProxy:
     """Resolve an AgentRuntime from the current request, never from app/session state."""
     def __init__(self, root):
@@ -165,6 +206,11 @@ class HostedSession:
     marker: tuple | None = None
     generation: str | None = None
     sequence: int = 0
+    parent_inventory: dict | None = None
+    copy_parent_generation: str | None = None
+    copy_parent_records: dict | None = None
+    copy_file_fingerprints: tuple | None = None
+    copy_verified_blobs: dict = field(default_factory=dict)
     sources: dict = field(default_factory=dict)
     committed_sources: set = field(default_factory=set)
     leases: int = 0
@@ -172,8 +218,51 @@ class HostedSession:
     touched: float = field(default_factory=monotonic)
     changed: asyncio.Event = field(default_factory=asyncio.Event)
     live_scope: tuple[str, str] | None = None
+    save_read_scope: tuple[str, str] | None = None
     live_readers: int = 0
     live_readers_done: asyncio.Event = field(default_factory=asyncio.Event)
+    audit_sequences: dict[str, int] = field(default_factory=dict)
+    audit_loaded: bool = False
+
+
+def _retain_copy_state(session, runtime):
+    from workbench import delta_state as ds
+    from workbench.delta_runtime import _GENERATION_RECORD_CACHE_MAX_BYTES
+
+    session.copy_parent_generation = None
+    session.copy_parent_records = None
+    session.copy_file_fingerprints = None
+    session.copy_verified_blobs = {}
+    if runtime.generation is None:
+        return
+    records = runtime._parent_records
+    if records is None:
+        raise ValueError("Verified copy-on-write parent records are unavailable")
+    size = 0
+    for rows in records.values():
+        for row in rows:
+            size += len(ds._json(row).encode("utf-8"))
+            if size > _GENERATION_RECORD_CACHE_MAX_BYTES:
+                logging.getLogger(__name__).warning(
+                    "Copy-on-write parent exceeds the retained session limit; next action will restore it")
+                return
+    fingerprints = runtime._parent_file_fingerprints
+    if fingerprints is not None and fingerprints[0] != runtime.generation:
+        raise ValueError("Copy-on-write fingerprints do not match the committed parent")
+    session.copy_parent_generation = runtime.generation
+    session.copy_parent_records = records
+    session.copy_file_fingerprints = fingerprints
+    session.copy_verified_blobs = dict(runtime._verified_blob_sizes)
+
+
+def _restore_copy_state(session, runtime):
+    if session.generation is None:
+        return
+    if session.copy_parent_generation != session.generation or session.copy_parent_records is None:
+        raise ValueError("Verified copy-on-write session state is unavailable")
+    runtime._parent_records = session.copy_parent_records
+    runtime._parent_file_fingerprints = session.copy_file_fingerprints
+    runtime._verified_blob_sizes = dict(session.copy_verified_blobs)
 
 
 class HostedSessionManager:
@@ -216,7 +305,8 @@ class HostedSessionManager:
         session.changed = asyncio.Event()
         previous.set()
 
-    async def enter(self, owner, read_scope=None):
+    async def enter(self, owner, read_scope=None, save_observation=False, needs_context=False, on_wait=None):
+        waiting_reported = False
         while True:
             evicted = None
             with self.lock:
@@ -248,12 +338,20 @@ class HostedSessionManager:
                         borrowed = False
                         break
                     except WouldBlock:
-                        if (read_scope is not None and session.live_scope == read_scope
+                        save_read = (save_observation and session.save_read_scope == read_scope)
+                        if save_read and needs_context and session.app is not None:
+                            manager = session.app.state.projects
+                            with manager.lock:
+                                save_read = read_scope in manager.contexts
+                        if (read_scope is not None and (session.live_scope == read_scope or save_read)
                                 and not session.discarded and session.app is not None):
                             session.live_readers += 1
                             session.live_readers_done.clear()
                             borrowed = True
                             break
+                        if on_wait is not None and not waiting_reported:
+                            await on_wait()
+                            waiting_reported = True
                         await changed.wait()
             except BaseException:
                 with CancelScope(shield=True):
@@ -282,7 +380,14 @@ class HostedSessionManager:
         session.temporary, session.root = replacement.temporary, replacement.root
         session.app, session.remote, session.marker = None, None, None
         session.generation, session.sequence = None, 0
+        session.parent_inventory = None
+        session.copy_parent_generation = None
+        session.copy_parent_records = None
+        session.copy_file_fingerprints = None
+        session.copy_verified_blobs = {}
         session.sources, session.committed_sources = {}, set()
+        session.audit_sequences = {}
+        session.audit_loaded = False
         session.discarded = False
         session.touched = monotonic()
 
@@ -345,6 +450,7 @@ class HostedConfig:
     catalog_prefix: str = "orion_dev_"
     max_active_users: int = 2
     warehouse: str = ""
+    copy_on_write: bool = True
 
     def __post_init__(self):
         object.__setattr__(self, "workspace_host", _host(self.workspace_host))
@@ -354,6 +460,8 @@ class HostedConfig:
             raise ValueError("Invalid hosted naming prefix or concurrency limit")
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", self.warehouse):
             raise ValueError("An explicit hosted SQL warehouse is required")
+        if type(self.copy_on_write) is not bool:
+            raise ValueError("Invalid copy-on-write configuration")
 
     @classmethod
     def environment(cls):
@@ -382,6 +490,14 @@ class HostedRequestFlow:
         self.diagnostic_id = self.diagnostic_owner = None
         self.traced_index_buckets, self.trace_lock = set(), Lock()
         self.operation_progress_buckets, self.operation_progress_lock = {}, Lock()
+        self.activity_owner = self.activity_request_id = None
+        self.activity_last = None
+        self.activity_lock = Lock()
+
+    def bind_activity(self, owner, request_id):
+        if self.scope["method"] == "GET" and self.scope["path"] in {
+                "/api/input-packages", "/api/overview", "/api/objects", "/api/package/warm"}:
+            self.activity_owner, self.activity_request_id = owner, request_id
 
     def bind_diagnostic(self, owner, diagnostic_id):
         self.diagnostic_owner, self.diagnostic_id = owner, diagnostic_id
@@ -390,6 +506,20 @@ class HostedRequestFlow:
         self.phase = phase
         if self.diagnostic_id is not None:
             self.dispatcher.loading.update(self.diagnostic_owner, self.diagnostic_id, phase, **counters)
+        if self.activity_owner is not None:
+            values = self.operation_progress_values(counters)
+            completed, total = values.get("completed"), values.get("total")
+            bucket = (min(20, completed * 20 // total)
+                      if type(completed) is int and type(total) is int and 0 <= completed <= total and total > 0 else None)
+            observation = (phase, bucket)
+            with self.activity_lock:
+                if observation != self.activity_last:
+                    self.activity_last = observation
+                    event = self.dispatcher.diagnostics.loading_activity(
+                        self.activity_owner, request_id=self.activity_request_id,
+                        operation_id=self.scope.get("workbench.active_operation_id"),
+                        path=self.scope["path"], phase=phase, **values)
+                    logging.getLogger("uvicorn.error").info("Hosted loading activity %s", json.dumps(event, sort_keys=True))
 
     @staticmethod
     def operation_progress_values(counters):
@@ -451,8 +581,8 @@ class HostedRequestFlow:
             self.dispatcher.loading.finish(self.diagnostic_owner, self.diagnostic_id,
                                            exception_class=type(error).__name__)
 
-    def error_body(self, detail):
-        return {"detail": detail, "failure_phase": self.phase,
+    def error_body(self, detail, error=None):
+        return {"detail": detail, "failure_phase": getattr(error, "diagnostic_hosted_phase", None) or self.phase,
             **({"diagnostic_id": self.diagnostic_id} if self.diagnostic_id else {})}
 
     async def secure_send(self, message):
@@ -464,6 +594,13 @@ class HostedRequestFlow:
                 (b"content-security-policy", b"default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"),
             ]
         await self.send(message)
+        if (self.activity_owner is not None and message["type"] == "http.response.body"
+                and not message.get("more_body", False)
+                and self.response_status is not None and 200 <= self.response_status < 300):
+            try:
+                self.loading_progress("response_sent")
+            except Exception:
+                logging.getLogger(__name__).exception("Could not record completed loading response")
 
 
 class HostedVolumes(VolumeIntake):
@@ -624,6 +761,9 @@ def user_app(root, snapshots, *, read_only=False, execution_models=True):
     def install_models(app):
         with _preparation_trace("install_hosted_models"):
             install_hosted_models(app)
+        from workbench.hosted_writer_checkpoints import writer_checkpoint_factory
+        app.state.service.writer_checkpoint_factory = lambda **kwargs: writer_checkpoint_factory(
+            current_delta_runtime())(**kwargs)
 
     def factory(data_dir, sample=None):
         factory_scope = "root" if Path(data_dir) == Path(root) else "project_context"
@@ -676,14 +816,14 @@ class HostedDispatcher:
         from workbench.hosted_operations import HostedOperations
         from workbench.hosted_uploads import HostedUploads
         from workbench.intake_limits import max_xml_bytes, max_batch_bytes
-        self.operations = HostedOperations(config.warehouse)
+        self.diagnostics = HostedDiagnostics()
+        self.operations = HostedOperations(config.warehouse, diagnostics=self.diagnostics)
         self.uploads = HostedUploads(config.warehouse, max_file_bytes=max_xml_bytes(),
                          max_batch_bytes=max_batch_bytes())
         from workbench.heartbeat import Heartbeats
         self.heartbeats = Heartbeats.from_env(config.warehouse)
         from workbench.hosted_loading import HostedLoading
         self.loading = HostedLoading()
-        self.diagnostics = HostedDiagnostics()
 
     def authorize_external_scope(self, identity, forwarded, external_key):
         """Fresh committed membership only, no route settings or audit writes."""
@@ -735,48 +875,141 @@ class HostedDispatcher:
                                    bounded_receive, secure_send, progress, worker_progress,
                                    diagnostic_id, diagnostic_owner, operation_progress):
         project, package = headers.get("x-workbench-project", ""), headers.get("x-workbench-package", "")
+        query = parse_qs(scope.get("query_string", b"").decode("latin1"))
+        audit_read = _meaningful_hosted_read(scope["method"], path, query)
         read_scope = ((project, package) if not mutation and scope["method"] == "GET"
+                      and not audit_read
                       and re.fullmatch(r"[a-f0-9]{32}", project)
                       and re.fullmatch(r"[a-f0-9]{64}", package) else None)
-        session, borrowed = await self.sessions.enter(owner, read_scope)
+        status_read = (query.get("status_only") == ["true"] and
+                       (path == "/api/agents/runs" or
+                        re.fullmatch(r"/api/agents/runs/[a-f0-9]{32}", path) is not None))
+        project_logs = re.fullmatch(r"/api/projects/([a-f0-9]{32})/jobs/[a-f0-9]{32}/logs", path)
+        save_observation = bool(read_scope and (status_read or path in {"/api/logs", "/api/logs/export"}
+                                or (project_logs and project_logs[1] == project)))
+        loading_read = scope["method"] == "GET" and path in {
+            "/api/input-packages", "/api/overview", "/api/objects", "/api/package/warm"}
+        session, borrowed = await self.sessions.enter(owner, read_scope, save_observation,
+            path in {"/api/logs", "/api/logs/export"},
+            on_wait=(lambda: progress("waiting_for_session")) if loading_read else None)
+        save_observation_borrowed = borrowed and session.save_read_scope == read_scope
         delta_tokens, mutation_tokens = [], []
         action_runtimes = []
+        accepted_run_id = None
+        action_started = monotonic()
+        read_dispatch_started = False
+        read_audit_attempted = False
         action_token = _CURRENT_ACTION_RUNTIMES.set(action_runtimes)
         remote = None
         snapshots = None
         app = None
+        primary_failure = None
         reused_service = session.app is not None
+        response_complete = False
+        original_send = secure_send
+
+        def report_snapshot_failure(error):
+            try:
+                import traceback
+                from workbench.hosted_diagnostics import token_expiry_observation
+                expiry, remaining = token_expiry_observation(forwarded)
+                frames = [(Path(frame.filename).name, frame.name, frame.lineno)
+                          for frame in traceback.extract_tb(error.__traceback__)]
+                event = self.diagnostics.record(
+                    owner, method=scope["method"], path=path, status=503,
+                    error=error, frames=frames, phase="committing_delta",
+                    operation_id=scope.get("workbench.active_operation_id"),
+                    run_id=accepted_run_id, event_type="hosted_snapshot_failure_observed",
+                    token_expiry=expiry, token_remaining=remaining,
+                    elapsed_ms=int((monotonic() - action_started) * 1000))
+                logging.getLogger(__name__).error(
+                    "Hosted snapshot failure observed before recovery %s",
+                    json.dumps(event, sort_keys=True))
+            except Exception as diagnostic_error:
+                logging.getLogger(__name__).error(
+                    "Could not record initial snapshot failure: %s", type(diagnostic_error).__name__)
+            else:
+                try:
+                    error.diagnostic_failure_recorded = True
+                except (AttributeError, TypeError):
+                    pass
+
+        async def secure_send(message):
+            nonlocal response_complete
+            if save_observation_borrowed and message["type"] == "http.response.start":
+                message = {**message, "headers": list(message.get("headers", [])) +
+                           [(b"x-workbench-observation", b"live-uncommitted")]}
+            await original_send(message)
+            if message["type"] == "http.response.body" and not message.get("more_body", False):
+                response_complete = True
 
         def bind(runtime, is_mutation):
             delta_tokens.append(_CURRENT_DELTA_RUNTIME.set(runtime))
             mutation_tokens.append(_CURRENT_MUTATION.set(is_mutation))
 
+        async def publish_read_audit(status, correlation):
+            if app is None or snapshots is None:
+                raise RuntimeError("Hosted audit runtime is unavailable")
+            audit = app.state.audit
+            manager = app.state.projects
+            with manager.lock:
+                selected = manager.contexts.get((project, package))
+                if selected is not None:
+                    audit = selected["app"].state.audit
+            await run_in_threadpool(audit.append, {
+                "event": "http_request_completed",
+                "level": "ERROR" if status >= 500 else "WARNING" if status >= 400 else "INFO",
+                "role": None, "run_id": None, "package_hash": package or None,
+                "actor": identity.user_id, "actor_authenticated": True,
+                "correlation_id": correlation,
+                "message": f"GET {path[:240]} returned HTTP {status}",
+                "status_code": status, "duration_ms": round((monotonic() - action_started) * 1000, 2),
+            })
+            await run_in_threadpool(snapshots.flush_audit)
+            session.audit_sequences = await run_in_threadpool(snapshots.audit_sequences)
+
+        copy_on_write = getattr(self.config, "copy_on_write", False)
+        runtime_options = {"copy_on_write": True} if copy_on_write else {}
+
         async def cold_restore(initialize):
             runtime = DeltaRuntime(current_identity, remote, session.root, warehouse=self.config.warehouse,
-                                   forbidden_token=forwarded)
+                                   forbidden_token=forwarded, **runtime_options)
             bind(runtime, initialize)
             restore_options = {"initialize": initialize}
-            if diagnostic_id is not None or callable(operation_progress):
+            if loading_read or diagnostic_id is not None or callable(operation_progress):
                 restore_options["progress"] = worker_progress
             await run_in_threadpool(runtime.restore, **restore_options)
-            if mutation or path in {"/api/logs", "/api/logs/export"}:
+            if mutation or audit_read or path in {"/api/logs", "/api/logs/export"}:
                 await progress("audit_restore")
                 await run_in_threadpool(runtime.restore_audit)
+                session.audit_loaded = True
             await progress("preparing_package")
             retained_app = await run_in_threadpool(user_app, session.root, runtime,
                                                    read_only=True, execution_models=False)
             session.app = retained_app
             await run_in_threadpool(retained_app.state.service.start,
-                worker_progress if callable(operation_progress) else None)
+                worker_progress if loading_read or diagnostic_id is not None or callable(operation_progress) else None)
             await run_in_threadpool(retained_app.state.projects.start)
             session.remote, session.marker = remote, runtime.receipt_marker
             session.generation, session.sequence = runtime.generation, runtime.sequence
+            session.parent_inventory = runtime._parent_inventory
+            if copy_on_write:
+                await run_in_threadpool(_retain_copy_state, session, runtime)
             session.sources = dict(runtime.sources)
             session.committed_sources = set(runtime._committed_sources)
+            session.audit_sequences = dict(runtime._audit_sequences)
             return runtime, retained_app
 
         try:
             warm_session = session.app is not None and isinstance(session.remote, str) and bool(session.remote)
+            if (warm_session and copy_on_write and session.generation is not None
+                    and (session.copy_parent_generation != session.generation
+                         or session.copy_parent_records is None)):
+                if borrowed:
+                    raise HTTPException(503, "Retained state is unavailable during the active operation")
+                self.sessions.reset(session)
+                warm_session = False
+                reused_service = False
             if warm_session:
                 # The owner key is derived from this freshly resolved OBO host/user.
                 # Reuse only that owner's already verified storage root and app;
@@ -791,7 +1024,7 @@ class HostedDispatcher:
                 snapshots, app = await cold_restore(mutation)
             else:
                 snapshots = DeltaRuntime(current_identity, remote, session.root, warehouse=self.config.warehouse,
-                                         forbidden_token=forwarded)
+                                         forbidden_token=forwarded, **runtime_options)
                 # A warm retained session is the current process's working copy.
                 # OBO has been resolved for this request, and the per-user gate
                 # serializes writes. Do not query Delta/Volume or reload artifacts
@@ -799,11 +1032,23 @@ class HostedDispatcher:
                 snapshots.ready = True
                 snapshots._materialized = True
                 snapshots.generation, snapshots.sequence = session.generation, session.sequence
+                snapshots._parent_inventory = session.parent_inventory
+                if copy_on_write:
+                    _restore_copy_state(session, snapshots)
                 snapshots.receipt_marker = session.marker
                 snapshots.sources = dict(session.sources)
                 snapshots._committed_sources = set(session.committed_sources)
+                snapshots._audit_sequences = dict(session.audit_sequences)
                 bind(snapshots, mutation)
                 app = session.app
+                if (mutation or audit_read) and not session.audit_loaded:
+                    await progress("audit_restore")
+                    await run_in_threadpool(snapshots.restore_audit)
+                    session.audit_sequences = dict(snapshots._audit_sequences)
+                    session.audit_loaded = True
+
+            if app is None or snapshots is None:
+                raise RuntimeError("Hosted workspace runtime is unavailable")
 
             if path == "/api/readiness" and scope["method"] == "GET" and read_scope is not None:
                 query = parse_qs(scope.get("query_string", b"").decode("latin1"))
@@ -893,27 +1138,55 @@ class HostedDispatcher:
                         await JSONResponse(staged, status_code=202)(scope, bounded_receive, capture)
                     else:
                         with _preparation_trace("app_dispatch"):
+                            read_dispatch_started = audit_read
                             await app(scope, bounded_receive, capture)
                 except BaseException:
                     if mutation:
                         self.sessions.invalidate(session)
                     raise
 
-                if mutation:
+                missing_notebook = False
+                attachment_path = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/spark-drafts/attach", path)
+                incremental_notebook = bool(mutation and response_start is not None and attachment_path)
+                if (mutation and response_start is not None and attachment_path
+                        and response_start.get("status") == 200):
+                    response.seek(0)
+                    result = json.load(response)
+                    await run_in_threadpool(_verify_notebook_attachment, app, project, package,
+                                            attachment_path[1], result)
+                if (mutation and response_start is not None and response_start.get("status") == 409
+                        and attachment_path):
+                    from workbench.notebook_edits import MISSING_NOTEBOOK_CONFLICT
+                    response.seek(0)
+                    try:
+                        missing_notebook = json.load(response) == {"detail": MISSING_NOTEBOOK_CONFLICT}
+                    except (ValueError, UnicodeDecodeError):
+                        missing_notebook = False
+                if missing_notebook or incremental_notebook:
+                    await run_in_threadpool(app.state.projects.drain)
+                    await run_in_threadpool(app.state.service.drain)
+                    await progress("audit_restore")
+                    await run_in_threadpool(snapshots.flush_audit)
+                    session.audit_sequences = await run_in_threadpool(snapshots.audit_sequences)
+
+                if mutation and not (missing_notebook or incremental_notebook):
                     if (path == "/api/agents/run" and response_start is not None
                             and response_start.get("status") == 202 and project and package):
                         session.live_readers_done.set()
                         session.live_scope = (project, package)
                         self.sessions.notify(session)
                         observer = getattr(operation_progress, "accepted_agent", None)
-                        if callable(observer):
-                            # The 202 is an in-process acceptance, not a Delta commit.
-                            # Never let an optional live observer affect the run.
-                            try:
-                                response.seek(0)
-                                observer(json.load(response))
-                            except Exception:
-                                logging.getLogger(__name__).warning("Could not expose accepted agent status")
+                        # The 202 is an in-process acceptance, not a Delta commit.
+                        try:
+                            response.seek(0)
+                            accepted = json.load(response)
+                            candidate = accepted.get("id") if isinstance(accepted, dict) else None
+                            if isinstance(candidate, str) and re.fullmatch(r"[a-f0-9]{32}", candidate):
+                                accepted_run_id = candidate
+                            if callable(observer):
+                                observer(accepted)
+                        except Exception:
+                            logging.getLogger(__name__).warning("Could not expose accepted agent status")
                     try:
                         await run_in_threadpool(app.state.projects.drain)
                         await run_in_threadpool(app.state.service.drain)
@@ -922,12 +1195,62 @@ class HostedDispatcher:
                         self.sessions.notify(session)
                         if session.live_readers:
                             await session.live_readers_done.wait()
+                    observer = getattr(operation_progress, "completed_agent", None)
+                    if accepted_run_id and callable(observer):
+                        try:
+                            from workbench.app import _stored_agent_status
+                            root = app.state.projects.context_root(project, package)
+                            observation = await run_in_threadpool(
+                                _stored_agent_status, root, accepted_run_id, package)
+                            final_status = {key: observation.get(key) for key in
+                                            ("id", "status", "phase", "finished_at")}
+                            writer = observation.get("candidate_writer")
+                            if isinstance(writer, dict):
+                                final_status["candidate_writer"] = {
+                                    key: writer.get(key) for key in
+                                    ("id", "status", "phase", "created_at", "started_at",
+                                     "finished_at", "manifest_status", "failure_stage",
+                                     "exception_class")}
+                            observer(final_status)
+                        except Exception as error:
+                            logging.getLogger(__name__).warning(
+                                "Final agent observation unavailable: %s", type(error).__name__)
                     await progress("committing_delta")
-                    await run_in_threadpool(snapshots.flush, prime_cache=False)
+                    try:
+                        if accepted_run_id:
+                            session.save_read_scope = (project, package)
+                            self.sessions.notify(session)
+                        try:
+                            snapshot_progress = getattr(operation_progress, "snapshot", None)
+                            if callable(snapshot_progress):
+                                def snapshot_observer(stage, *, completed=None, total=None):
+                                    snapshot_progress(stage, completed=completed, total=total)
+                                snapshot_observer.failure = report_snapshot_failure
+                                await run_in_threadpool(snapshots.flush, prime_cache=False,
+                                                        progress=snapshot_observer)
+                            else:
+                                await run_in_threadpool(snapshots.flush, prime_cache=False)
+                        finally:
+                            session.save_read_scope = None
+                            self.sessions.notify(session)
+                            if session.live_readers:
+                                await session.live_readers_done.wait()
+                    except Exception as error:
+                        # Keep the actual failing stage even if recovery later
+                        # changes the request progress indicator.
+                        try:
+                            error.diagnostic_hosted_phase = "committing_delta"
+                        except Exception:
+                            pass
+                        raise
                     session.marker = snapshots.receipt_marker
                     session.generation, session.sequence = snapshots.generation, snapshots.sequence
+                    session.parent_inventory = snapshots._parent_inventory
+                    if copy_on_write:
+                        await run_in_threadpool(_retain_copy_state, session, snapshots)
                     session.sources = dict(snapshots.sources)
                     session.committed_sources = set(snapshots._committed_sources)
+                    session.audit_sequences = await run_in_threadpool(snapshots.audit_sequences)
                     if finalize and scope.get("workbench.operation_execution"):
                         await run_in_threadpool(self.uploads.mark_committed, identity, remote, finalize[1], staged)
                     if response_start is None or response_start.get("status", 500) >= 400:
@@ -940,6 +1263,31 @@ class HostedDispatcher:
                 if response_start is None:
                     self.sessions.invalidate(session)
                     raise ValueError("Missing application response")
+                if audit_read:
+                    status = response_start["status"]
+                    correlation = uuid4().hex
+                    try:
+                        read_audit_attempted = True
+                        await publish_read_audit(status, correlation)
+                    except BaseException:
+                        self.sessions.invalidate(session)
+                        raise
+                    response_start = {**response_start, "headers": list(response_start.get("headers", [])) +
+                                      [(b"x-correlation-id", correlation.encode())]}
+                if save_observation_borrowed and response_start["status"] == 200 and path != "/api/logs/export":
+                    response.seek(0)
+                    observation = json.load(response)
+                    if not isinstance(observation, dict) or "hosted_save_state" in observation:
+                        raise ValueError("Invalid live observation response")
+                    observation["hosted_save_state"] = "live_uncommitted"
+                    encoded = json.dumps(observation).encode("utf-8")
+                    response.seek(0)
+                    response.truncate()
+                    response.write(encoded)
+                    response_start = {**response_start, "headers": [
+                        (name, value) for name, value in response_start.get("headers", [])
+                        if name.lower() != b"content-length"
+                    ] + [(b"content-length", str(len(encoded)).encode("ascii"))]}
                 if path == "/api/overview" and response_start["status"] == 200:
                     response.seek(0)
                     overview = json.load(response)
@@ -964,46 +1312,173 @@ class HostedDispatcher:
             if diagnostic_id is not None:
                 self.loading.finish(diagnostic_owner, diagnostic_id,
                                     exception_class="HTTPException" if response_start["status"] >= 400 else None)
-        except BaseException:
+        except BaseException as primary_error:
+            primary_failure = primary_error
+            if (audit_read and read_dispatch_started and not read_audit_attempted
+                    and isinstance(primary_error, Exception)):
+                try:
+                    status = (primary_error.status_code if isinstance(primary_error, HTTPException)
+                              else 401 if isinstance(primary_error, AuthenticationUnavailable) else 503)
+                    await publish_read_audit(status, uuid4().hex)
+                except Exception as audit_error:
+                    try:
+                        setattr(primary_error, "diagnostic_recovery_error_type", type(audit_error).__name__)
+                        setattr(primary_error, "diagnostic_recovery_stage", "audit_journal")
+                    except (AttributeError, TypeError):
+                        pass
+            if accepted_run_id:
+                try:
+                    primary_error.diagnostic_run_id = accepted_run_id
+                except Exception:
+                    pass
+            if (isinstance(primary_error, Exception)
+                    and getattr(primary_error, "diagnostic_hosted_phase", None) == "committing_delta"
+                    and not getattr(primary_error, "diagnostic_failure_recorded", False)):
+                report_snapshot_failure(primary_error)
             if mutation and snapshots is not None:
+                recovery_stage = "drain"
                 try:
                     if session.app is not None:
                         await run_in_threadpool(session.app.state.projects.drain)
                         await run_in_threadpool(session.app.state.service.drain)
+                    recovery_stage = "audit_journal"
+                    if session.app is not None:
+                        audit = session.app.state.audit
+                        manager = session.app.state.projects
+                        with manager.lock:
+                            selected = manager.contexts.get((project, package))
+                            if selected is not None:
+                                audit = selected["app"].state.audit
+                        status = (primary_error.status_code if isinstance(primary_error, HTTPException)
+                                  else 401 if isinstance(primary_error, AuthenticationUnavailable) else 503)
+                        await run_in_threadpool(audit.append, {
+                            "event": "hosted_request_failed", "level": "ERROR" if status >= 500 else "WARNING",
+                            "role": None, "run_id": accepted_run_id,
+                            "package_hash": package or None, "actor": identity.user_id,
+                            "message": f"{scope['method']} {path[:240]} failed; hosted completion is unconfirmed",
+                            "status_code": status, "failure_phase": getattr(
+                                primary_error, "diagnostic_hosted_phase", None),
+                            "error_type": type(primary_error).__name__,
+                        })
+                    await run_in_threadpool(snapshots.flush_audit)
                     for request_runtime in action_runtimes:
                         await run_in_threadpool(_close_request_runtime, request_runtime)
                     action_runtimes.clear()
+                    recovery_stage = "reset_session"
                     self.sessions.reset(session)
+                    recovery_stage = "provision"
                     remote = await run_in_threadpool(provision, identity, self.config.catalog_prefix,
                                                      initialize=False)
+                    recovery_stage = "restore"
                     await cold_restore(False)
-                except BaseException:
-                    self.sessions.invalidate(session)
+                except BaseException as recovery_error:
+                    # Preserve the original failure; record only safe recovery
+                    # metadata, never exception messages or file contents.
+                    try:
+                        import traceback
+                        primary_error.diagnostic_recovery_error_type = type(recovery_error).__name__
+                        primary_error.diagnostic_recovery_stage = recovery_stage
+                        primary_error.diagnostic_recovery_error_code = getattr(recovery_error, "error_code", None)
+                        primary_error.diagnostic_recovery_sql_state = getattr(recovery_error, "sql_state", None)
+                        primary_error.diagnostic_recovery_statement_id = getattr(recovery_error, "statement_id", None)
+                        primary_error.diagnostic_recovery_frames = [
+                            (Path(frame.filename).name, frame.name, frame.lineno)
+                            for frame in traceback.extract_tb(recovery_error.__traceback__)[-12:]
+                        ]
+                    except Exception:
+                        pass
+                    try:
+                        self.sessions.invalidate(session)
+                    except BaseException as invalidate_error:
+                        try:
+                            primary_error.diagnostic_cleanup_error_type = type(invalidate_error).__name__
+                        except Exception:
+                            pass
             elif not borrowed:
-                self.sessions.invalidate(session)
+                try:
+                    self.sessions.invalidate(session)
+                except BaseException as invalidate_error:
+                    try:
+                        primary_error.diagnostic_cleanup_error_type = type(invalidate_error).__name__
+                    except Exception:
+                        pass
             raise
         finally:
-            if not borrowed and session.discarded and session.app is not None:
+            cleanup_failure = None
+            cleanup_cancellation = None
+
+            def note_cleanup_failure(error):
+                nonlocal cleanup_failure, cleanup_cancellation
+                if isinstance(error, asyncio.CancelledError):
+                    if cleanup_cancellation is None:
+                        cleanup_cancellation = error
+                elif cleanup_failure is None:
+                    cleanup_failure = error
+
+            def cleanup_call(function, *args):
                 try:
-                    await run_in_threadpool(session.app.state.projects.drain)
-                    await run_in_threadpool(session.app.state.service.drain)
-                except Exception:
-                    logging.getLogger(__name__).warning("Hosted invalidated session drain was incomplete")
-            for runtime in action_runtimes:
-                await run_in_threadpool(_close_request_runtime, runtime)
-            _CURRENT_ACTION_RUNTIMES.reset(action_token)
-            for token in reversed(mutation_tokens):
-                _CURRENT_MUTATION.reset(token)
-            for token in reversed(delta_tokens):
-                _CURRENT_DELTA_RUNTIME.reset(token)
-            if borrowed:
-                session.live_readers -= 1
-                if not session.live_readers:
-                    session.live_readers_done.set()
-            else:
-                session.gate.release()
-                self.sessions.notify(session)
-            await run_in_threadpool(self.sessions.release, session)
+                    function(*args)
+                except BaseException as error:
+                    note_cleanup_failure(error)
+
+            async def cleanup_thread(function, *args):
+                task = asyncio.create_task(run_in_threadpool(function, *args))
+                while True:
+                    try:
+                        await asyncio.shield(task)
+                        break
+                    except asyncio.CancelledError as error:
+                        note_cleanup_failure(error)
+                        if task.done():
+                            if not task.cancelled():
+                                try:
+                                    task.result()
+                                except BaseException as task_error:
+                                    note_cleanup_failure(task_error)
+                            break
+                    except BaseException as error:
+                        note_cleanup_failure(error)
+                        break
+
+            # Tokens and the gate belong to this task. Shield level cancellation
+            # here and finish each worker even under direct asyncio cancellation.
+            with CancelScope(shield=True):
+                if not borrowed and session.discarded and session.app is not None:
+                    await cleanup_thread(lambda: session.app.state.projects.drain())
+                    await cleanup_thread(lambda: session.app.state.service.drain())
+                for runtime in action_runtimes:
+                    await cleanup_thread(_close_request_runtime, runtime)
+                cleanup_call(_CURRENT_ACTION_RUNTIMES.reset, action_token)
+                for token in reversed(mutation_tokens):
+                    cleanup_call(_CURRENT_MUTATION.reset, token)
+                for token in reversed(delta_tokens):
+                    cleanup_call(_CURRENT_DELTA_RUNTIME.reset, token)
+                if borrowed:
+                    def release_reader():
+                        session.live_readers -= 1
+                    cleanup_call(release_reader)
+                    if not session.live_readers:
+                        cleanup_call(session.live_readers_done.set)
+                else:
+                    cleanup_call(session.gate.release)
+                    cleanup_call(self.sessions.notify, session)
+                await cleanup_thread(self.sessions.release, session)
+            if primary_failure is not None:
+                # Preserve an earlier cleanup failure recorded during recovery.
+                if cleanup_failure is not None:
+                    try:
+                        if not getattr(primary_failure, "diagnostic_cleanup_error_type", None):
+                            primary_failure.diagnostic_cleanup_error_type = type(cleanup_failure).__name__
+                    except Exception:
+                        pass
+            elif cleanup_cancellation is not None:
+                if cleanup_failure is not None:
+                    logging.getLogger(__name__).warning("Hosted request cleanup failed during cancellation")
+                raise cleanup_cancellation
+            elif cleanup_failure is not None:
+                if not response_complete or not isinstance(cleanup_failure, Exception):
+                    raise cleanup_failure
+                logging.getLogger(__name__).warning("Hosted request cleanup failed after response completion")
 
     async def _run_special_read(self, *, identity, owner, forwarded, path, scope, headers,
                                 bounded_receive, secure_send, progress, worker_progress,
@@ -1100,6 +1575,28 @@ class HostedDispatcher:
         async def send_response(response):
             await response(clean_scope, receive, secure_send)
             return True
+
+        if (scope["method"] == "POST"
+                and re.fullmatch(r"/api/agents/runs/[a-f0-9]{32}/cancel", path)):
+            project, package = headers.get("x-workbench-project"), headers.get("x-workbench-package")
+            with self.sessions.lock:
+                session = self.sessions.sessions.get(owner)
+                live_cancel = (session is not None and not session.discarded and session.app is not None
+                    and project is not None and package is not None
+                    and session.live_scope == (project, package))
+                if live_cancel:
+                    session.leases += 1
+                    session.touched = monotonic()
+            if live_cancel:
+                # Stop must reach the existing worker, not wait behind the
+                # mutation draining that worker. Its normal route rechecks
+                # membership and the run's cancellation capability.
+                try:
+                    await session.app(clean_scope, receive, secure_send)
+                    return True
+                finally:
+                    with CancelScope(shield=True):
+                        await run_in_threadpool(self.sessions.release, session)
 
         if path.startswith(external_prefix):
             from workbench.external_models import handle as external_handle
@@ -1254,6 +1751,24 @@ class HostedDispatcher:
 
     async def _early_data_read(self, *, path, scope, headers, identity, forwarded,
                                clean_scope, receive, secure_send, authentication_seconds):
+        if path == "/api/migration-activity" and scope["method"] == "GET":
+            from workbench.migration_activity import hosted_activity
+            query = parse_qs(scope.get("query_string", b"").decode("latin1"))
+            project = query.get("project_id", [""])[-1]
+            package = query.get("package_hash", [""])[-1]
+            if (not re.fullmatch(r"[a-f0-9]{32}", project) or not re.fullmatch(r"[a-f0-9]{64}", package)
+                    or any(len(values) != 1 for values in query.values())):
+                raise HTTPException(422, "Invalid activity editing scope")
+            if (headers.get("x-workbench-project") != project
+                    or headers.get("x-workbench-package") != package):
+                raise HTTPException(409, "Selected editing scope changed")
+            remote = await run_in_threadpool(provision, identity, self.config.catalog_prefix, initialize=False)
+            with tempfile.TemporaryDirectory(prefix="workbench-activity-") as temporary:
+                snapshots = DeltaRuntime(current_identity, remote, temporary,
+                    warehouse=self.config.warehouse, forbidden_token=forwarded)
+                result = await run_in_threadpool(hosted_activity, snapshots, project, package)
+            await JSONResponse(result)(clean_scope, receive, secure_send)
+            return True
         if scope["method"] == "GET" and (path == "/api/projects" or re.fullmatch(
                 r"/api/projects/[a-f0-9]{32}(?:/jobs/[a-f0-9]{32})?", path)):
             from workbench.hosted_registry import registry_response
@@ -1357,6 +1872,9 @@ class HostedDispatcher:
         if result is None:
             raise HTTPException(404, "Unknown hosted intake operation")
         status, payload = result
+        if (status == 200 and scope["method"] == "GET"
+                and re.fullmatch(r"/api/hosted/operations/[a-f0-9]{32}", path)):
+            payload = self.loading.observe_waiting_operation(owner_key(identity.host, identity.user_id), payload)
         if status == 202:
             reservation = None
         if self.heartbeats.enabled and path.startswith("/api/hosted/uploads") and scope["method"] not in {
@@ -1389,7 +1907,9 @@ class HostedDispatcher:
                       for frame in traceback.extract_tb(error.__traceback__)]
             event = self.diagnostics.record(owner_key(identity.host, identity.user_id),
                 method=scope["method"], path=path, status=status, error=error, frames=frames,
-                phase=flow.phase)
+                phase=getattr(error, "diagnostic_hosted_phase", None) or flow.phase,
+                request_id=request_id, operation_id=scope.get("workbench.active_operation_id"),
+                elapsed_ms=int((monotonic() - request_started) * 1000), forbidden_token=forwarded)
             import logging
             logging.getLogger(__name__).error("Hosted request diagnostic %s", json.dumps(event, sort_keys=True))
             return event
@@ -1410,8 +1930,13 @@ class HostedDispatcher:
                             or re.fullmatch(r"/api/target-selections/[a-f0-9]{64}/verify", path)))
             artifact_read = scope["method"] == "POST" and path in {
                 "/api/proposals/workflow-artifacts", "/api/proposals/workflow-artifacts/archive"}
-            mutation = scope["method"] not in {"GET", "HEAD", "OPTIONS"} and not (fixture_read or artifact_read)
-            if mutation or fixture_read or artifact_read:
+            notebook_preview_read = (scope["method"] == "POST" and re.fullmatch(
+                r"/api/jobs/[a-f0-9]{32}/spark-drafts/(?:edit-preview|edit-discard-preview)", path))
+            temporary_job_read = (scope["method"] == "POST" and re.fullmatch(
+                r"/api/jobs/[a-f0-9]{32}/temporary-job/(?:capabilities|status|preview|sessions|saved-settings)", path))
+            mutation = scope["method"] not in {"GET", "HEAD", "OPTIONS"} and not (
+                fixture_read or artifact_read or notebook_preview_read or temporary_job_read)
+            if mutation or fixture_read or artifact_read or notebook_preview_read or temporary_job_read:
                 if (headers.get("x-workbench-request") != "1" or headers.get("sec-fetch-site") == "cross-site"
                         or headers.get("origin", self.config.app_origin) != self.config.app_origin):
                     raise HTTPException(403, "Same-origin mutations require X-Workbench-Request: 1")
@@ -1447,6 +1972,7 @@ class HostedDispatcher:
                            "headers": [(k, v) for k, v in scope["headers"]
                                        if k.lower() not in {b"x-forwarded-access-token", b"authorization"}]}
             key = sha256((identity.host + "\n" + identity.user_id).encode()).hexdigest()
+            flow.bind_activity(key, request_id)
             if await self._early_response(identity=identity, owner=key, path=path, scope=scope,
                 headers=headers, forwarded=forwarded, external_key=external_key,
                 clean_scope=clean_scope, receive=receive, secure_send=secure_send):
@@ -1485,16 +2011,17 @@ class HostedDispatcher:
                 diagnostic_owner = key
                 candidate_id = headers["xworkbenchreadid"]
                 try:
-                    self.loading.begin(key, candidate_id)
+                    self.loading.begin(key, candidate_id, path=path)
                     diagnostic_id = candidate_id
                     flow.bind_diagnostic(key, candidate_id)
                 except HTTPException as error:
-                    # Diagnostics are observational only. A repeated/invalid ID
-                    # must never reject the actual package-understanding request.
-                    if error.status_code != 409:
+                    # Diagnostics are observational only; collisions or a full
+                    # diagnostic buffer must not reject the underlying read.
+                    if error.status_code not in {409, 429}:
                         raise
                     logging.getLogger(__name__).warning(
-                        "Hosted loading diagnostic id collision; proceeding without this diagnostic")
+                        "Hosted loading diagnostic unavailable (HTTP %s); proceeding without it",
+                        error.status_code)
             # Read-only actions restore an immutable committed generation and
             # publish only their independently serialized audit event. They may
             # safely overlap same-user reads and must not queue behind a long
@@ -1581,8 +2108,11 @@ class HostedDispatcher:
                 with self.sessions.lock:
                     active_session = self.sessions.sessions.get(key)
                     if (active_session is not None and not active_session.discarded
-                            and active_session.live_scope == (headers.get("x-workbench-project"),
-                                                              headers.get("x-workbench-package"))):
+                            and (active_session.live_scope == (headers.get("x-workbench-project"),
+                                                               headers.get("x-workbench-package"))
+                                 or (active_session.save_read_scope == (headers.get("x-workbench-project"),
+                                                                        headers.get("x-workbench-package"))
+                                     and parse_qs(scope.get("query_string", b"").decode("latin1")).get("status_only") == ["true"]))):
                         history_read = False
             selected_object_read = (scope["method"] == "GET" and OBJECT_READ_ROUTE.fullmatch(path)
                                     and headers.get("x-workbench-project") and headers.get("x-workbench-package"))
@@ -1624,34 +2154,45 @@ class HostedDispatcher:
                     with CancelScope(shield=True):
                         await action
         except HTTPException as error:
+            if flow.response_status is not None:
+                raise
             flow.fail_loading(error)
             event = record_failure(error, error.status_code) if error.status_code >= 400 else None
             detail = error.detail
             if event:
                 detail = f"{detail} (diagnostic {event['id']}; see Logs)"
-            await JSONResponse({**flow.error_body(detail), **({"failure_id": event["id"]} if event else {})},
+            await JSONResponse({**flow.error_body(detail, error), **({"failure_id": event["id"]} if event else {})},
                                status_code=error.status_code)(scope, receive, secure_send)
         except AuthenticationUnavailable as error:
+            if flow.response_status is not None:
+                raise
             flow.fail_loading(error)
             event = record_failure(error, 401)
-            await JSONResponse({**flow.error_body("User authorization expired or unavailable; reopen the app. No alternate identity was used."),
+            await JSONResponse({**flow.error_body("User authorization expired or unavailable; reopen the app. No alternate identity was used.", error),
                                 **({"failure_id": event["id"]} if event else {})},
                                status_code=401)(scope, receive, secure_send)
         except (DiscoveryUnavailable, RoutingError) as error:
+            if flow.response_status is not None:
+                raise
             flow.fail_loading(error)
             event = record_failure(error, 403)
-            await JSONResponse({**flow.error_body("User model discovery or routing unavailable; check consent, scopes and endpoint permissions."),
+            await JSONResponse({**flow.error_body("User model discovery or routing unavailable; check consent, scopes and endpoint permissions.", error),
                                 **({"failure_id": event["id"]} if event else {})},
                                status_code=403)(scope, receive, secure_send)
         except Exception as error:
+            if flow.response_status is not None:
+                raise
             flow.fail_loading(error)
-            event = record_failure(error, 503)
-            detail = ("The agent worker finished, but Databricks denied access while verifying a Unity Catalog metadata table during the final Delta save. The run result may remain only in this app instance. Inspect Logs and committed run state before retrying."
-                if type(error).__name__ == "PermissionDenied" and flow.phase == "committing_delta"
-                else "Hosted action or Delta generation completion is unconfirmed. Inspect committed state and Logs before retrying. No local fallback was used.")
-            await JSONResponse({**flow.error_body(detail),
+            workspace_denied = (getattr(error, "diagnostic_workspace_operation", None) == "mkdirs"
+                                and type(error).__name__ == "PermissionDenied")
+            status = 403 if workspace_denied else 503
+            event = record_failure(error, status)
+            detail = ("Databricks denied creation of the temporary notebook folder. No notebook was uploaded; inspect Logs for the provider's reason."
+                      if workspace_denied else
+                      "Hosted action or Delta generation completion is unconfirmed. Inspect committed state and Logs before retrying. No local fallback was used.")
+            await JSONResponse({**flow.error_body(detail, error),
                                 **({"failure_id": event["id"]} if event else {})},
-                               status_code=503)(scope, receive, secure_send)
+                               status_code=status)(scope, receive, secure_send)
         finally:
             if model_reservation is not None:
                 self.external_models.end(*model_reservation)
@@ -1721,4 +2262,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from workbench.hosted import main as hosted_main
+    hosted_main()
