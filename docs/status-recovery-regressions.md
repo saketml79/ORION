@@ -162,3 +162,19 @@ application path is regression-free. Documentation and an isolated check are
 not substitutes for the matching hosted observation. Never claim a crash cause,
 successful cancellation, hosted repair, Job execution or universal absence of
 regressions without the corresponding evidence.
+
+## Release validation record
+
+- Local production-function, event-consumer, scoped-cancellation, threshold,
+  history geometry, notice preservation and six-layout checks passed.
+- Python 3.11 syntax and production JavaScript syntax checks passed.
+- The exact candidate contains four runtime repairs and 885 unchanged source
+  files. The reusable Job settings, Run-as identity and permissions were
+  captured without modification.
+- The first read-only GitHub preflight authenticated the dedicated deployment
+  identity and exposed an SDK method-name mismatch before source upload.
+  The export and deployment signatures were then checked against the installed
+  SDK and corrected. This is why offline fixture checks are not sufficient for
+  release authorization.
+- GitHub rerun and hosted outcome remain pending; no successful deployment or
+  normal cancellation is claimed by this record yet.

@@ -8,7 +8,6 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path, PurePosixPath
-import uuid
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.apps import AppDeployment
@@ -41,7 +40,7 @@ def entry(root, name):
 
 
 def content(client, source, name):
-    result = client.workspace.export_(source.rstrip("/") + "/" + name, format=ExportFormat.SOURCE)
+    result = client.workspace.export(source.rstrip("/") + "/" + name, format=ExportFormat.SOURCE)
     if result.content is None:
         raise ValueError(f"Source export unavailable: {name}")
     return base64.b64decode(result.content, validate=True)
@@ -145,8 +144,8 @@ def activate(client, baseline, output, approved):
     for name in (*CHANGES, "package-manifest.json"):
         client.workspace.upload(source.rstrip("/") + "/" + name, entry(output, name).read_bytes(),
                                 format=ImportFormat.RAW, overwrite=True)
-    deployment = client.apps.deploy(APP, deployment=AppDeployment(
-        deployment_id=uuid.uuid4().hex, source_code_path=source)).result(timeout=timedelta(minutes=45))
+    deployment = client.apps.deploy(APP, AppDeployment(
+        source_code_path=source)).result(timeout=timedelta(minutes=45))
     final = client.apps.get(APP)
     if (final.active_deployment is None or final.active_deployment.deployment_id != deployment.deployment_id
             or final.active_deployment.status.state.value != "SUCCEEDED"
